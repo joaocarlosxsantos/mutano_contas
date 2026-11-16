@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { ChevronDown, MessageCircle, X } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from "react";
+import { ChevronDown, LoaderCircle, MessageCircle, Send, X } from "lucide-react";
 import { SITE_CHAT_COMMANDS, floatingChatBottom, type ChatMessage } from "@/lib/site-chat";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -9,11 +9,16 @@ import styles from "./site-chat.module.css";
 
 export const SITE_CHAT_GREETING: ChatMessage = { id: 0, role: "assistant", text: "Olá! Escolha um comando para consultar suas contas." };
 
-export function ChatTranscript({ messages, busy }: { messages: ChatMessage[]; busy: boolean }) {
+type TranscriptMessage = ChatMessage & { href?: string; linkLabel?: string };
+
+export function ChatTranscript({ messages, busy }: { messages: TranscriptMessage[]; busy: boolean }) {
   return <div role="log" aria-label="Conversa com o Mutano" aria-live="polite" aria-relevant="additions" aria-busy={busy} className="space-y-4">
     {messages.map(message => <div key={message.id} className={message.role === "user" ? "ml-8 text-right" : "mr-3"}>
       <span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">{message.role === "user" ? "Você" : "Mutano"}</span>
-      <p className={`inline-block max-w-full whitespace-pre-wrap break-words rounded-xl px-3 py-2.5 text-left text-sm leading-relaxed ${message.role === "user" ? "bg-[var(--acento)] text-[var(--on-acento)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}>{message.text}</p>
+      <div className={`inline-block max-w-full whitespace-pre-wrap break-words rounded-xl px-3 py-2.5 text-left text-sm leading-relaxed ${message.role === "user" ? "bg-[var(--acento)] text-[var(--on-acento)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}>
+        <p>{message.text}</p>
+        {message.href && message.linkLabel ? <a href={message.href} className="mt-2 inline-flex min-h-11 items-center font-medium underline underline-offset-4">{message.linkLabel}</a> : null}
+      </div>
     </div>)}
   </div>;
 }
@@ -31,7 +36,8 @@ export function SiteChat() {
   const confirm = useConfirm();
   const [open, setOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(true);
-  const [messages, setMessages] = useState<ChatMessage[]>([SITE_CHAT_GREETING]);
+  const [messages, setMessages] = useState<TranscriptMessage[]>([SITE_CHAT_GREETING]);
+  const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [signedOut, setSignedOut] = useState(false);
@@ -67,7 +73,12 @@ export function SiteChat() {
       const rect = anchor.current?.getBoundingClientRect();
       if (!rect) return;
       const obstacles = [...document.querySelectorAll(selector)].map(node => node.getBoundingClientRect());
-      setBottom(floatingChatBottom(window.innerHeight, { left: rect.left, right: rect.left + 48 }, obstacles));
+      const visualViewport = window.visualViewport;
+      const viewportHeight = visualViewport?.height ?? window.innerHeight;
+      const keyboardInset = Math.max(0, window.innerHeight - (viewportHeight + (visualViewport?.offsetTop ?? 0)));
+      const navBottom = floatingChatBottom(window.innerHeight, { left: rect.left, right: rect.left + 48 }, obstacles);
+      setBottom(Math.max(navBottom, keyboardInset + 16));
+      anchor.current?.style.setProperty("--site-chat-viewport-height", `${viewportHeight}px`);
     }
     function observe() {
       resize.disconnect();
@@ -78,38 +89,64 @@ export function SiteChat() {
     mutations.observe(document.body, { childList: true, subtree: true });
     observe();
     window.addEventListener("resize", update);
-    return () => { resize.disconnect(); mutations.disconnect(); window.removeEventListener("resize", update); };
+    window.visualViewport?.addEventListener("resize", update);
+    window.visualViewport?.addEventListener("scroll", update);
+    return () => { resize.disconnect(); mutations.disconnect(); window.removeEventListener("resize", update); window.visualViewport?.removeEventListener("resize", update); window.visualViewport?.removeEventListener("scroll", update); };
   }, []);
 
-  async function select(command: string) {
+  async function submit(payload: { command: string } | { message: string }, displayText: string) {
     if (inFlight.current || signedOut) return;
     inFlight.current = true;
-    if (command === "/pausar") {
-      const accepted = await confirm({ title: "Pausar avisos do Telegram?", description: "As consultas continuam disponíveis. Para retomar os avisos, use Configurações.", confirmLabel: "Pausar avisos" });
-      if (!accepted) { inFlight.current = false; return; }
-    }
     setMenuOpen(false); setBusy(true); setError("");
-    setMessages(old => [...old.slice(-19), { id: nextId.current++, role: "user", text: command }]);
+    setQuestion("");
+    setMessages(old => [...old.slice(-19), { id: nextId.current++, role: "user", text: displayText }]);
     const controller = new AbortController();
     request.current = controller;
     const timeout = setTimeout(() => controller.abort(), 30_000);
     try {
       const response = await fetch("/api/chat", { method: "POST", credentials: "same-origin", cache: "no-store",
-        headers: { "Content-Type": "application/json" }, body: JSON.stringify({ command }), signal: controller.signal });
-      const result: unknown = await response.json();
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: controller.signal });
+      const result: unknown = await response.json().catch(() => ({}));
       if (response.status === 401) { setMessages([]); setSignedOut(true); throw new Error("Sessão encerrada. Entre novamente para consultar."); }
       if (!response.ok) {
-        throw new Error(response.status === 429 ? "Muitas consultas. Aguarde um minuto e escolha o comando novamente." : "Não foi possível consultar agora. Abra o menu e tente novamente.");
+        throw new Error(response.status === 429 ? "Você enviou muitas consultas. Aguarde um minuto e tente novamente." : "Não foi possível consultar agora. Tente novamente em instantes.");
       }
       const reply = (result as { reply?: unknown })?.reply;
-      if (typeof reply !== "string" || reply.length > 12_000) throw new Error("Resposta inválida. Tente novamente pelo menu.");
-      setMessages(old => [...old.slice(-19), { id: nextId.current++, role: "assistant", text: reply }]);
+      if (typeof reply !== "string" || reply.length > 12_000) throw new Error("Não foi possível consultar agora. Tente novamente em instantes.");
+      if ("message" in payload && /a ia está indisponível no momento/i.test(reply)) {
+        setMessages(old => [...old.slice(-19), { id: nextId.current++, role: "assistant", text: "Para fazer perguntas livres, configure uma chave de IA em Minha conta.", href: "/usuario", linkLabel: "Abrir Minha conta" }]);
+      } else {
+        setMessages(old => [...old.slice(-19), { id: nextId.current++, role: "assistant", text: reply }]);
+      }
     } catch (cause) {
-      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : "Não foi possível consultar. Tente novamente.");
-      else setError("A consulta demorou demais. Abra o menu e tente novamente.");
+      if (controller.signal.aborted) setError("A consulta demorou demais. Tente novamente.");
+      else if (cause instanceof TypeError) setError("Não foi possível conectar. Verifique sua conexão e tente novamente.");
+      else setError(cause instanceof Error ? cause.message : "Não foi possível consultar agora. Tente novamente em instantes.");
     } finally {
       clearTimeout(timeout); setBusy(false); inFlight.current = false; request.current = null;
     }
+  }
+
+  async function select(command: string) {
+    if (command === "/pausar") {
+      const accepted = await confirm({ title: "Pausar avisos do Telegram?", description: "As consultas continuam disponíveis. Para retomar os avisos, use Configurações.", confirmLabel: "Pausar avisos" });
+      if (!accepted) return;
+    }
+    await submit({ command }, command);
+  }
+
+  function sendQuestion(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const message = question.trim();
+    if (!message || busy || signedOut) return;
+    void submit({ message }, message);
+  }
+
+  function handleQuestionKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter" || event.shiftKey) return;
+    event.preventDefault();
+    if (event.nativeEvent.isComposing || event.nativeEvent.keyCode === 229) return;
+    event.currentTarget.form?.requestSubmit();
   }
 
   return <div ref={anchor} className={styles.anchor} style={bottom === undefined ? undefined : { "--site-chat-bottom": `${bottom}px` } as CSSProperties}>
@@ -139,6 +176,16 @@ export function SiteChat() {
         </Button>
         {menuOpen && <div className="min-h-0 overflow-y-auto overscroll-contain"><ChatCommandMenu busy={busy || signedOut} onSelect={command => void select(command)} /></div>}
       </div>
+      <form onSubmit={sendQuestion} className="flex shrink-0 items-end gap-2 border-t border-[var(--line)] p-3" aria-label="Enviar pergunta ao assistente">
+        <label htmlFor="site-chat-question" className="sr-only">Sua pergunta</label>
+        <textarea id="site-chat-question" name="message" rows={2} maxLength={512} value={question}
+          onChange={event => setQuestion(event.target.value)} onKeyDown={handleQuestionKeyDown}
+          placeholder="Escreva sua pergunta…" enterKeyHint="send" disabled={busy || signedOut}
+          className="input-base min-h-12 min-w-0 flex-1 resize-none py-3 text-base! leading-5" />
+        <Button type="submit" size="icon" aria-label={busy ? "Enviando pergunta" : "Enviar pergunta"} disabled={busy || signedOut || !question.trim()}>
+          {busy ? <LoaderCircle className="size-5 animate-spin" aria-hidden="true" /> : <Send className="size-5" aria-hidden="true" />}
+        </Button>
+      </form>
     </section>}
   </div>;
 }
