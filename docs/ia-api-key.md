@@ -26,7 +26,7 @@ Sem chave (também a resposta de `DELETE`):
 
 `provider` aceita somente `claude`, `openai`, `gemini`. O exemplo é ilustrativo, não uma chave válida. Espaços externos são removidos. Chaves têm até 256 caracteres. O charset base aceita letras ASCII, números e `_`, `-`, `.`, `~`, `+`, `/`, `=`; Claude e OpenAI continuam restritos a letras ASCII, números, `_` e `-`. Claude exige prefixo `sk-ant-` e ao menos 20 caracteres após o prefixo, OpenAI `sk-` e ao menos 20 caracteres após o prefixo (não aceita `sk-ant-`); Gemini aceita de 20 a 256 caracteres desse charset, sem prefixo ou comprimento fixos; tokens como `AIza...` e `AQ.` são aceitos; a chamada ao provedor confirma a validade. O card inicia com Gemini, conforme a recomendação do guia. Payload máximo: 8 KiB. Campos extras são rejeitados. Os erros Zod nunca são devolvidos, pois podem conter a entrada.
 
-Antes de substituir a chave existente, o servidor realiza uma única geração curta (8 tokens de saída) no modelo do provedor, sem enviar dados financeiros. Essa chamada pode consumir crédito. Falha na validação mantém a configuração anterior. Sucesso retorna o mesmo status seguro de `GET`, com HTTP 200. Nenhuma resposta inclui chave completa ou envelope criptográfico.
+Antes de substituir a chave existente, o servidor realiza uma única geração curta (32 tokens no Gemini com thinking LOW; 8 nos demais) no modelo do provedor, sem enviar dados financeiros. O timeout total da chamada é de 15 segundos. Essa chamada pode consumir crédito. No Gemini, metadados com contagem positiva de tokens também comprovam geração processada quando o orçamento de thinking não gera texto final. Falha na validação mantém a configuração anterior. Sucesso retorna o mesmo status seguro de `GET`, com HTTP 200. Nenhuma resposta inclui chave completa ou envelope criptográfico.
 
 `DELETE` não recebe corpo, exige a mesma origem de `PUT`, apaga a linha do usuário e é idempotente. A chave não é revogada no provedor. Perguntas em andamento podem concluir com uma chave já carregada; novas perguntas não a reutilizam. Não há cache de credenciais.
 
@@ -43,10 +43,15 @@ Erros têm formato `{ "code": "...", "error": "mensagem em português" }`. A UI 
 | 422 | `invalid_api_key` | Provedor rejeitou a solicitação (400/401/403); conferir chave e acesso ao modelo |
 | 422 | `provider_quota` | Provedor retornou 402/429: crédito/cota/limite temporário |
 | 429 | `rate_limited` | Limite da própria aplicação |
-| 503 | `provider_unavailable` | Timeout, rede, resposta inválida ou outro erro do provedor |
+| 502 | `provider_model_unavailable` | HTTP 404 externo: modelo configurado indisponível, revisar configuração do app |
+| 502 | `provider_request_rejected` | Parâmetros/configuração rejeitados; inclui HTTP 400 Gemini sem código estruturado de chave inválida |
+| 502 | `provider_invalid_response` | JSON, corpo ou estrutura de resposta inválidos |
+| 503 | `provider_unavailable` | Somente rede, timeout (inclui HTTP 408) ou HTTP 5xx externo |
 | 503 | `service_unavailable` | Banco, criptografia ou configuração indisponível |
 
-Detalhes, headers e corpos de erros externos nunca são propagados nem registrados. Não há fallback para outro provedor quando a chave pessoal falha.
+Erros de validação remota acrescentam apenas `providerStatus` (status HTTP externo ou null sem resposta) e `reason` (enum estático: `invalid_api_key`, `quota`, `model_unavailable`, `request_rejected`, `invalid_response`, `timeout`, `network`, `upstream_error`). A mensagem `error` explica o motivo em português. O log do servidor contém somente status/code, sem payload, headers, mensagens do provedor ou chave. Não há fallback para outro provedor quando a chave pessoal falha.
+
+Verificação em 16/11/2026: o modelo `gemini-3.8-flash` consta na [documentação oficial](https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash), que também documenta [autenticação via `x-goog-api-key`](https://ai.google.dev/gemini-api/docs/api-key). Validação e chat usam o mesmo `GEMINI_ENDPOINT`, definido em `src/server/telegram/gemini.ts`; `AI_MODEL` é a constante Claude, não uma variável Gemini. Chamadas reais a ListModels e generateContent com chave exclusivamente falsa retornaram HTTP 400, status `INVALID_ARGUMENT`, detalhe `API_KEY_INVALID`. A função corrigida classificou a chamada real como `invalid_api_key`, sem 503. Chave falsa não permite listar modelos acessíveis à conta nem comprovar acesso com a chave real do usuário.
 
 ## Chat do app
 

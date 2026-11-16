@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({ auth: vi.fn(), owner: vi.fn(), limit: vi.fn(), status: vi.fn(), save: vi.fn(), remove: vi.fn(), validate: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ auth: mocks.auth }));
 vi.mock("@/server/telegram/site-chat", () => ({ siteChatOwnerExists: mocks.owner }));
@@ -14,9 +14,11 @@ const request = (method: string, body?: unknown, headers = {}) => new Request("h
 });
 beforeEach(() => {
   vi.resetAllMocks(); mocks.auth.mockResolvedValue({ user: { id: "owner" } }); mocks.owner.mockResolvedValue(true);
+  vi.spyOn(console, "warn").mockImplementation(() => {});
   mocks.limit.mockResolvedValue({ allowed: true }); mocks.status.mockResolvedValue(empty); mocks.remove.mockResolvedValue(empty);
   mocks.save.mockResolvedValue({ configured: true, provider: "openai", last4: "1234" });
 });
+afterEach(() => vi.restoreAllMocks());
 
 describe("API BYOK autenticada", () => {
   it.each([`AQ.${"a".repeat(50)}`, `AQ.${"aB3_-.~+/=".repeat(5)}`, `AIza${"aB3_-".repeat(7)}`, `AIza${"a".repeat(36)}`, `new-google-prefix_${"a".repeat(30)}`])("normaliza chave Gemini colada e valida remotamente antes de salvar", async apiKey => {
@@ -92,6 +94,24 @@ describe("API BYOK autenticada", () => {
     mocks.validate.mockRejectedValue(new AiKeyValidationError(code));
     const response = await PUT(request("PUT", { provider: "openai", apiKey }));
     expect(response.status).toBe(status); expect((await response.json()).code).toBe(code); expect(mocks.save).not.toHaveBeenCalled();
+  });
+  it.each([
+    [new AiKeyValidationError("invalid_api_key", 400), 422, "Chave rejeitada"],
+    [new AiKeyValidationError("provider_quota", 429), 422, "limite de uso"],
+    [new AiKeyValidationError("provider_model_unavailable", 404), 502, "modelo de IA"],
+    [new AiKeyValidationError("provider_request_rejected", 400), 502, "parâmetros"],
+    [new AiKeyValidationError("provider_invalid_response", 200), 502, "resposta inválida"],
+    [new AiKeyValidationError("provider_unavailable", null, "timeout"), 503, "15 segundos"],
+    [new AiKeyValidationError("provider_unavailable", null, "network"), 503, "conectar"],
+    [new AiKeyValidationError("provider_unavailable", 503), 503, "temporariamente indisponível"],
+  ] as const)("expõe somente diagnóstico seguro e loga só status/code", async (error, status, message) => {
+    mocks.validate.mockRejectedValue(error);
+    const response = await PUT(request("PUT", { provider: "gemini", apiKey: `AQ.${"a".repeat(50)}` }));
+    expect(response.status).toBe(status);
+    const body = await response.json();
+    expect(body).toEqual({ code: error.code, error: expect.stringContaining(message), providerStatus: error.providerStatus, reason: error.reason });
+    expect(console.warn).toHaveBeenCalledExactlyOnceWith("[ai-key-validation]", { status: error.providerStatus, code: error.code });
+    expect(mocks.save).not.toHaveBeenCalled();
   });
   it("falha de criptografia/banco não loga nem devolve exceções sensíveis", async () => {
     mocks.save.mockRejectedValue(new Error(apiKey)); const log = vi.spyOn(console, "error");

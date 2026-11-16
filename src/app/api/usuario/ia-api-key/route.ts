@@ -8,7 +8,7 @@ import { siteChatOwnerExists } from "@/server/telegram/site-chat";
 export const runtime = "nodejs";
 export const maxDuration = 30;
 const headers = { "Cache-Control": "private, no-store, max-age=0", Vary: "Cookie", "X-Content-Type-Options": "nosniff" };
-const errorResponse = (code: string, error: string, status: number, extra = {}) => Response.json({ code, error }, { status, headers: { ...headers, ...extra } });
+const errorResponse = (code: string, error: string, status: number, extra = {}, details = {}) => Response.json({ code, error, ...details }, { status, headers: { ...headers, ...extra } });
 
 async function handle(request: Request, method: "GET" | "PUT" | "DELETE") {
   try {
@@ -44,9 +44,17 @@ async function handle(request: Request, method: "GET" | "PUT" | "DELETE") {
     return Response.json(await saveAiCredential(userId, input.data.provider, input.data.apiKey), { headers });
   } catch (error) {
     if (error instanceof AiKeyValidationError) {
-      if (error.code === "invalid_api_key") return errorResponse(error.code, "Chave rejeitada pelo provedor. Confira a chave e as permissões do modelo.", 422);
-      if (error.code === "provider_quota") return errorResponse(error.code, "O provedor informou falta de crédito ou limite de uso. Confira sua conta e tente novamente.", 422);
-      return errorResponse(error.code, "Não foi possível validar no provedor agora. Tente novamente.", 503);
+      console.warn("[ai-key-validation]", { status: error.providerStatus, code: error.code });
+      const details = { providerStatus: error.providerStatus, reason: error.reason };
+      const reply = (message: string, status: number) => errorResponse(error.code, message, status, {}, details);
+      if (error.code === "invalid_api_key") return reply("Chave rejeitada pelo provedor. Confira a chave e as permissões do modelo.", 422);
+      if (error.code === "provider_quota") return reply("O provedor informou falta de crédito ou limite de uso. Confira sua conta e tente novamente.", 422);
+      if (error.code === "provider_model_unavailable") return reply("O modelo de IA configurado está indisponível no provedor. A configuração do app precisa ser revisada.", 502);
+      if (error.code === "provider_request_rejected") return reply("O provedor rejeitou os parâmetros da validação. A configuração do app precisa ser revisada.", 502);
+      if (error.code === "provider_invalid_response") return reply("O provedor retornou uma resposta inválida durante a validação.", 502);
+      if (error.reason === "timeout") return reply("O provedor excedeu o tempo de validação (15 segundos). Tente novamente.", 503);
+      if (error.reason === "network") return reply("Não foi possível conectar ao provedor durante a validação. Tente novamente.", 503);
+      return reply("O provedor está temporariamente indisponível. Tente novamente.", 503);
     }
     // Nunca registrar exceções do banco/provedor: podem conter credenciais.
     return errorResponse("service_unavailable", "Não foi possível acessar a configuração de IA. Tente novamente.", 503);
