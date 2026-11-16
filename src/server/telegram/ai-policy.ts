@@ -21,13 +21,14 @@ export const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value)
   const parsed = new Date(`${value}T00:00:00Z`);
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 });
-const period = z.object({ start_date: dateSchema, end_date: dateSchema }).strict();
+export const accountScopeSchema = z.enum(["all", "credit_card", "checking"]);
+const period = z.object({ start_date: dateSchema, end_date: dateSchema, account_scope: accountScopeSchema.optional() }).strict();
 const month = z.string().regex(/^20\d{2}-(0[1-9]|1[0-2])$/);
 export const toolSchemas = {
   get_balance: z.object({}).strict(),
   get_spending_by_category: period,
   get_largest_expenses: period.extend({ limit: z.number().int().min(1).max(5) }).strict(),
-  compare_months: z.object({ first_month: month, second_month: month }).strict(),
+  compare_months: z.object({ first_month: month, second_month: month, account_scope: accountScopeSchema.optional() }).strict(),
   get_due_bills: z.object({ days: z.number().int().min(0).max(7) }).strict(),
 };
 export type ToolName = keyof typeof toolSchemas;
@@ -35,8 +36,8 @@ export type ToolInput<Name extends ToolName> = z.infer<(typeof toolSchemas)[Name
 
 const descriptions: Record<ToolName, string> = {
   get_balance: "Saldos atuais em centavos BRL: disponível, investido e patrimônio líquido, com indicação de total parcial. Mostre Investido separado do Disponível; patrimônio já inclui investimentos, metas e dívidas. Não some os campos novamente.",
-  get_spending_by_category: "Até cinco categorias com maiores despesas no período inclusivo, máximo 93 dias, sem transferências ou pagamentos de cartão.",
-  get_largest_expenses: "Até cinco maiores despesas no período inclusivo de até 93 dias: data, categoria e valor, sem descrição privada ou conta bancária.",
+  get_spending_by_category: "Total de despesas e até cinco categorias no período inclusivo (máximo 93 dias). account_scope: all (padrão, inclui cartões), credit_card (só cartão), checking (só corrente). Data do lançamento/compra, nunca vencimento da fatura. Inclui compras pendentes de cartão, sinalizadas como provisórias; exclui transferências e pagamentos de fatura. Parcelas são valores registrados, sem multiplicar pelo número de parcelas.",
+  get_largest_expenses: "Até cinco maiores despesas no período inclusivo de até 93 dias: data, categoria e valor. account_scope all inclui cartões (padrão); credit_card só cartão; checking só corrente. Usa data do lançamento/compra, nunca vencimento; parcelas registradas, pendências de cartão provisórias. Sem descrição privada ou conta bancária.",
   compare_months: "Compara entradas e despesas de dois meses completos/registrados. No máximo 24 meses de distância; não inclui dias futuros.",
   get_due_bills: "Até cinco contas ainda não pagas que vencem hoje ou nos próximos 0 a 7 dias. Valores totais da conta, inclusive contas em grupo.",
 };

@@ -81,6 +81,18 @@ beforeEach(() => {
 });
 
 describe("persistência Telegram", () => {
+  it("ajuda do app usa o dono do vínculo atual, sem confundir com cadastro de lançamento", async () => {
+    mocks.results.push([{ count: 1 }], [{ userId: "linked-owner" }]);
+    mocks.aiStatus.mockResolvedValue({ configured: true });
+    mocks.ai.mockResolvedValue("Fonte: Ajuda — Minha conta e chave de IA");
+    expect(await processMessage(810, message("Onde configuro a IA do app?"))).toContain("Fonte: Ajuda");
+    expect(mocks.ai).toHaveBeenCalledWith("linked-owner", "123", "Onde configuro a IA do app?", expect.any(Date), true);
+  });
+  it("ajuda sem vínculo não chama o serviço nem carrega BYOK", async () => {
+    mocks.results.push([{ count: 1 }], []);
+    expect(await processMessage(811, message("Onde configuro a IA do app?"))).toContain("Vincule");
+    expect(mocks.ai).not.toHaveBeenCalled(); expect(mocks.aiStatus).not.toHaveBeenCalled();
+  });
   it.each([`AQ.${"a".repeat(50)}`, `AIza${"a".repeat(35)}`, `sk-ant-${"a".repeat(35)}`, `sk-proj-${"a".repeat(35)}`])("bloqueia segredo antes do banco/parser de lançamentos ou IA", async token => {
     const log = vi.spyOn(console, "info");
     try {

@@ -15,6 +15,14 @@ beforeEach(() => {
   mocks.exists.mockResolvedValue(true); mocks.limit.mockResolvedValue({ allowed: true }); mocks.reply.mockResolvedValue("Saldo registrado");
 });
 describe("Chat HTTP autenticado", () => {
+  it("pergunta de ajuda usa o mesmo serviço autenticado e preserva texto/fonte sem cache", async () => {
+    mocks.ai.mockResolvedValue("Abra Minha conta.\nFonte: Ajuda — Minha conta e chave de IA [minha-conta-ia:1]");
+    const response = await POST(request({ message: "Onde configuro a IA do app?" }));
+    expect(mocks.ai).toHaveBeenCalledWith("session-owner", "site:session-owner", "Onde configuro a IA do app?", expect.any(Date), true);
+    expect((await response.json()).reply).toContain("Fonte: Ajuda");
+    expect(response.headers.get("cache-control")).toContain("private, no-store");
+    expect(mocks.reply).not.toHaveBeenCalled();
+  });
   it.each([`AQ.${"a".repeat(50)}`, `AIza${"a".repeat(35)}`, `sk-ant-${"a".repeat(35)}`, `sk-proj-${"a".repeat(35)}`])("segredo recebe aviso sem chamar IA nem ecoar a entrada", async token => {
     const log = vi.spyOn(console, "error");
     try {

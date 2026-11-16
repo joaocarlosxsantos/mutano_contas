@@ -17,6 +17,21 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("serviço IA vinculado", () => {
+  it.each(["123", "site:owner"])("mesma recuperação, redação e escopo no canal %s", async chatId => {
+    mocks.credential.mockResolvedValue({ provider: "gemini", apiKey: "synthetic-key" });
+    mocks.read.mockResolvedValue({ start: "2026-11-14", end: "2026-11-15", totalCents: 6050, accountScope: "credit_card", includesPending: true, rows: [{ category: "Lazer", amountCents: 6050 }] });
+    const result = await answerQuestion("owner", chatId, "quanto gastei no cartão esse fim de semana? alice@example.test", new Date("2026-11-16T02:30Z"), chatId.startsWith("site:"));
+    expect(mocks.read).toHaveBeenCalledWith("owner", "get_spending_by_category", { account_scope: "credit_card", start_date: "2026-11-14", end_date: "2026-11-15" }, "2026-11-15");
+    expect(result).toContain("60,50"); expect(result).toContain("só cartão"); expect(result).toContain("provisório");
+    expect(result).not.toContain("alice"); expect(mocks.gemini).not.toHaveBeenCalled();
+  });
+  it("fora do atalho de fim de semana, pergunta é redigida e scope é fixado na ferramenta", async () => {
+    await answerQuestion("owner", "123", "gastos no cartão em novembro? alice@example.test", new Date("2026-11-16T12:00Z"));
+    const [question, , , deps] = mocks.ask.mock.calls[0];
+    expect(question).not.toContain("alice@example.test"); expect(deps.knowledge.chunks.length).toBeGreaterThan(0);
+    await deps.runTool("get_spending_by_category", { start_date: "2026-11-01", end_date: "2026-11-16" });
+    expect(mocks.read).toHaveBeenCalledWith("owner", "get_spending_by_category", { start_date: "2026-11-01", end_date: "2026-11-16", account_scope: "credit_card" }, "2026-11-16");
+  });
   it("segredo na pergunta não carrega credencial nem consome cota ou chama LLM", async () => {
     const token = `AQ.${"a".repeat(50)}`;
     expect(await answerQuestion("owner", "123", `saldo ${token}`)).toBe(CHAT_SECRET_NOTICE);

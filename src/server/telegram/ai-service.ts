@@ -8,6 +8,10 @@ import { AI_FAILURE, AI_LIMITED, AI_UNAVAILABLE, GEMINI_TELEGRAM_TIMEOUT_MS } fr
 import { CHAT_SECRET_NOTICE, containsChatSecret } from "@/lib/chat-secrets";
 import { consumeAiQuota } from "./ai-quota";
 import { executeReadTool } from "./ai-tools";
+import { retrieveKnowledge } from "@/server/ai/knowledge/retrieve";
+import { redactQuestion } from "@/server/ai/redaction";
+import { scopeSpendingInput, spendingIntent } from "@/server/ai/spending-intent";
+import { groundedReply } from "@/server/ai/evidence";
 
 export const PROFILE_INSTRUCTIONS: Record<UsageProfile, string> = {
   integracao_total: "Perfil do app: integração total. Não sugira cadastro, importação ou lançamento manual. Atualizações de movimentação vêm da integração; planejamento no app continua disponível.",
@@ -32,8 +36,19 @@ export async function answerQuestion(userId: string, chatId: string, question: s
     const profile = await getUsageProfile(userId);
     if (!PROFILE_INSTRUCTIONS[profile]) return AI_FAILURE;
     const today = todayRef(now);
+    const safeQuestion = redactQuestion(question);
+    const knowledge = { profile, chunks: retrieveKnowledge(safeQuestion, profile) };
+    const intent = spendingIntent(safeQuestion, today);
+    // Consulta fechada: não depender de o modelo escolher saldo em vez de gastos.
+    if ("start_date" in intent && /\b(?:gast|despes|compr|quanto)/i.test(safeQuestion.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))) {
+      stage = "spending_lookup";
+      const name = /\bmaior(?:es)?\b/i.test(safeQuestion) ? "get_largest_expenses" : "get_spending_by_category";
+      const value = await executeReadTool(userId, name, { ...intent, ...(name === "get_largest_expenses" ? { limit: 5 } : {}) }, today);
+      return groundedReply(knowledge.chunks, [{ name, value }]);
+    }
     const deps = {
-      runTool: (name, input) => executeReadTool(userId, name, input, today),
+      runTool: (name, input) => executeReadTool(userId, name, scopeSpendingInput(name, input, safeQuestion, today), today),
+      knowledge,
       ...(provider === "gemini" && !chatId.startsWith("site:") ? { timeoutMs: GEMINI_TELEGRAM_TIMEOUT_MS } : {}),
     } satisfies Parameters<typeof askClaude>[3];
     stage = "provider_call";
@@ -43,10 +58,10 @@ export async function answerQuestion(userId: string, chatId: string, question: s
         OPENAI_API_KEY: provider === "openai" ? credential.apiKey : undefined,
         TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET, CRON_SECRET: process.env.CRON_SECRET };
       const ask = provider === "openai" ? askOpenai : provider === "gemini" ? askGemini : askClaude;
-      return await ask(question, today, PROFILE_INSTRUCTIONS[profile], deps, env);
+      return await ask(safeQuestion, today, PROFILE_INSTRUCTIONS[profile], deps, env);
     }
     const ask = provider === "gemini" ? askGemini : askClaude;
-    return await ask(question, today, PROFILE_INSTRUCTIONS[profile], deps);
+    return await ask(safeQuestion, today, PROFILE_INSTRUCTIONS[profile], deps);
   } catch {
     console.warn("[chat-ai]", { status: null, code: `${stage}_failed` });
     return AI_FAILURE;

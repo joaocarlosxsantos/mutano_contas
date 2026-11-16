@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "corpusVersion": "1.0.0",
+  "reviewedAt": "2026-11-16",
+  "owner": "Produto",
+  "language": "pt-BR",
+  "scope": "public-product-help",
+  "containsPersonalData": false,
+  "files": [
+    {
+      "path": "catalogo.md",
+      "ids": ["catalogo-telas-perfis"]
+    },
+    {
+      "path": "guias.md",
+      "ids": [
+        "painel",
+        "insights",
+        "lancamentos",
+        "contas-cartoes",
+        "categorias",
+        "contas-a-pagar",
+        "orcamento",
+        "metas-reserva",
+        "recorrentes",
+        "projecoes",
+        "dividas",
+        "importar",
+        "open-finance",
+        "minha-conta-ia",
+        "configuracoes",
+        "telegram",
+        "notificacoes",
+        "onboarding"
+      ]
+    },
+    {
+      "path": "regras.md",
+      "ids": ["regras-gerais"]
+    },
+    {
+      "path": "faq.md",
+      "ids": [
+        "faq-painel-parcial",
+        "faq-compra-cartao",
+        "faq-transferencia",
+        "faq-parcelas",
+        "faq-divisao-a-receber",
+        "faq-orcamento-sem-limite",
+        "faq-meta-investimento",
+        "faq-recorrencia-pausada",
+        "faq-importar-fatura",
+        "faq-open-finance-manual",
+        "faq-chave-nao-mostrada",
+        "faq-sem-chave",
+        "faq-link-telegram",
+        "faq-push-dispositivo",
+        "faq-projecao-garantia",
+        "faq-pular-onboarding"
+      ]
+    }
+  ],
+  "allowedGuideIds": [
+    "painel",
+    "insights",
+    "lancamentos",
+    "contas-cartoes",
+    "categorias",
+    "contas-a-pagar",
+    "orcamento",
+    "metas-reserva",
+    "recorrentes",
+    "projecoes",
+    "dividas",
+    "importar",
+    "open-finance",
+    "minha-conta-ia",
+    "configuracoes",
+    "telegram",
+    "notificacoes",
+    "onboarding"
+  ],
+  "allowedFaqIds": [
+    "faq-painel-parcial",
+    "faq-compra-cartao",
+    "faq-transferencia",
+    "faq-parcelas",
+    "faq-divisao-a-receber",
+    "faq-orcamento-sem-limite",
+    "faq-meta-investimento",
+    "faq-recorrencia-pausada",
+    "faq-importar-fatura",
+    "faq-open-finance-manual",
+    "faq-chave-nao-mostrada",
+    "faq-sem-chave",
+    "faq-link-telegram",
+    "faq-push-dispositivo",
+    "faq-projecao-garantia",
+    "faq-pular-onboarding"
+  ],
+  "excludedSources": [
+    "user-data",
+    "credentials-and-secrets",
+    "logs-and-exports",
+    "unreviewed-docs",
+    "server-configuration"
+  ]
+}

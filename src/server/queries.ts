@@ -1143,7 +1143,7 @@ export async function getBalances(userId: string, connection: Pick<typeof db, "s
         count: sql<number>`count(*)::int`,
       })
       .from(txTable)
-      .innerJoin(accountsTable, eq(accountsTable.id, txTable.accountId))
+      .innerJoin(accountsTable, and(eq(accountsTable.id, txTable.accountId), eq(accountsTable.userId, userId)))
       .where(
         and(
           eq(txTable.userId, userId),

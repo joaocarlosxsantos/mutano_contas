@@ -13,7 +13,7 @@ function connection(results: unknown[][]) {
   const select = vi.fn(() => {
     const rows = results.shift() ?? [];
     const query = {
-      from: () => query, leftJoin: () => query,
+      from: () => query, leftJoin: () => query, innerJoin: () => query,
       where: (predicate: SQL) => { predicates.push(predicate); return query; },
       groupBy: () => query, orderBy: () => query,
       limit: async (limit: number) => { limits.push(limit); return rows; },
@@ -48,14 +48,14 @@ describe("ferramentas de leitura por dono", () => {
   it("comparativo agrega somente os dois meses e aplica mesmo dono a ambos", async () => {
     const conn = connection([[{ kind: "EXPENSE", total: "1000" }], [{ kind: "INCOME", total: "2000" }]]);
     const result = await executeReadTool("owner", "compare_months", { first_month: "2026-10", second_month: "2026-11" }, "2026-11-10", conn.db);
-    expect(result).toEqual({ currency: "BRL", rows: [{ month: "2026-10", incomeCents: 0, expenseCents: 1000 }, { month: "2026-11", incomeCents: 2000, expenseCents: 0 }] });
+    expect(result).toEqual({ currency: "BRL", accountScope: "all", rows: [{ month: "2026-10", incomeCents: 0, expenseCents: 1000, includesPending: false }, { month: "2026-11", incomeCents: 2000, expenseCents: 0, includesPending: false }] });
     expect(conn.predicates).toHaveLength(2);
     for (const predicate of conn.predicates) expect(sqlQuery(predicate).params).toContain("owner");
     expect(sqlQuery(conn.predicates[1]).params).toContain("2026-11-11T00:00:00.000Z");
   });
   it("contas limita vencimentos, não pagas e dono, sem participantes/notas", async () => {
     const conn = connection([[{ name: "Conta", date: "2026-11-11", totalCents: 5000, note: "private" }]]);
-    expect(await executeReadTool("owner", "get_due_bills", { days: 3 }, "2026-11-10", conn.db)).toEqual({ currency: "BRL", top: 5, valuesAreWholeBill: true, rows: [{ name: "Conta", date: "2026-11-11", totalCents: 5000 }] });
+    expect(await executeReadTool("owner", "get_due_bills", { days: 3 }, "2026-11-10", conn.db)).toEqual({ currency: "BRL", top: 5, valuesAreWholeBill: true, rows: [{ name: "Conta a vencer 1", date: "2026-11-11", totalCents: 5000 }] });
     const predicate = sqlQuery(conn.predicates[0]);
     expect(predicate.params).toContain("owner"); expect(predicate.params).toContain(false);
     expect(predicate.sql).toContain("least("); expect(conn.limits).toEqual([5]);

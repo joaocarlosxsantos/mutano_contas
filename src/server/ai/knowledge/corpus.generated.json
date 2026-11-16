@@ -1,0 +1,740 @@
+{
+  "version": "1.0.0",
+  "hash": "f69260ef7b2c8e820234c7896e054c2024900aa826ac9a25bd778087c1164bd9",
+  "reviewedAt": "2026-11-16",
+  "owner": "Produto",
+  "chunks": [
+    {
+      "baseId": "painel",
+      "title": "Painel — resumo do mês",
+      "aliases": "início, página inicial, dashboard, resumo, saldo do mês, visão geral",
+      "routeKey": "painel",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra **Painel** na navegação. O cabeçalho resume entradas, saídas e saldo do mês selecionado.\n2. Consulte o ritmo de gastos, a previsão de fechamento e os alertas disponíveis.\n3. Role a página para ver o histórico dos últimos seis meses, categorias com mais gastos, faturas, planejamento e progresso da reserva.\n4. Se houver conexão bancária, use a ação de sincronização exibida para atualizar os dados integrados.\n\n### FAQ\n\n- **Por que o saldo está parcial?** Uma conta integrada pode ainda não ter um saldo bancário atualizado; confira o estado da conexão e sincronize.\n- **Aplicações entram em “Entrou” ou “Saiu”?** A posição investida aparece separadamente; aporte e resgate não são receita ou despesa. Impostos de investimento contam como despesa.",
+      "source": "guias.md",
+      "id": "painel:1",
+      "version": "1.0.0",
+      "hash": "ab6026663e735c93b7f35a95b0bf4302cf1bb5e7ec0838443327aa350196e439"
+    },
+    {
+      "baseId": "insights",
+      "title": "Insights — alertas e observações",
+      "aliases": "insight, alertas, avisos financeiros, análise do mês",
+      "routeKey": "insights",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra **Insights** na navegação.\n2. Leia os avisos gerados a partir dos dados disponíveis, como vencimentos, orçamento e previsão de saldo.\n3. Se a tela não mostrar itens, confira se há movimentações no mês atual ou anterior e se as contas estão atualizadas.\n\n### FAQ\n\n- **A ausência de insight significa que não há risco?** Não necessariamente. A tela pode não ter dados suficientes para gerar uma observação.\n- **O insight altera meus lançamentos?** Não. Ele apresenta informação para consulta.",
+      "source": "guias.md",
+      "id": "insights:1",
+      "version": "1.0.0",
+      "hash": "e3325452d48b6dff53e272a3f267559d291c356a11ce5513fcf98b545ffd26b2"
+    },
+    {
+      "baseId": "lancamentos",
+      "title": "Lançamentos — entradas, despesas, parcelas e divisões",
+      "aliases": "transações, movimentações, receitas, despesas, entradas, saídas, parcelas, dividir despesa, a receber",
+      "routeKey": "lancamentos",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra **Lançamentos** para consultar movimentações; use filtros de período, conta ou categoria para localizar itens.\n2. Nos perfis **Híbrido** e **Somente manual**, escolha **Novo lançamento**, marque se o valor entrou ou saiu e informe descrição, valor, data, categoria e conta.\n3. Para uma despesa parcelada, escolha o número de parcelas. O formulário mostra a divisão mensal do total antes de salvar.\n4. Para dividir uma despesa existente, abra a ação de divisão do item e informe as pessoas e a parte de cada uma; é possível distribuir igualmente, por percentual ou por valor.\n5. Use **Nova transferência** para mover dinheiro entre contas suas. Na lista geral, o par aparece como uma transferência entre origem e destino; excluir a transferência remove as duas pernas.\n6. Consulte **A receber** para acompanhar as partes de despesas divididas e valores relacionados a contas.\n\n### FAQ",
+      "source": "guias.md",
+      "id": "lancamentos:1",
+      "version": "1.0.0",
+      "hash": "4b0aa638aa51fd31adb65d1ede7cd4083818689491be62c885431e3852d63730"
+    },
+    {
+      "baseId": "lancamentos",
+      "title": "Lançamentos — entradas, despesas, parcelas e divisões",
+      "aliases": "transações, movimentações, receitas, despesas, entradas, saídas, parcelas, dividir despesa, a receber",
+      "routeKey": "lancamentos",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "- **Por que uma compra de cartão não aparece em “Saiu”?** Compras no cartão são demonstradas separadamente; a saída da conta ocorre quando a fatura é paga.\n- **Posso lançar manualmente no perfil Integração total?** Não pela tela de lançamentos. Esse perfil prioriza movimentações vindas de contas integradas.",
+      "source": "guias.md",
+      "id": "lancamentos:2",
+      "version": "1.0.0",
+      "hash": "1a13018114680e27897809649fe3c3aa4e8f2b95cf2468bc9849e162c3d10da5"
+    },
+    {
+      "baseId": "contas-cartoes",
+      "title": "Contas, cartões e faturas",
+      "aliases": "saldos, conta corrente, carteira, cartão, cartão de crédito, fatura, fechamento, vencimento",
+      "routeKey": "contas",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra **Contas e saldos** para comparar o saldo de cada conta e o patrimônio líquido.\n2. Para criar uma conta manual (nos perfis que permitem), escolha **Criar conta**, dê um nome e selecione o tipo.\n3. Ao criar cartão de crédito, informe também os dias de fechamento e vencimento para organizar as compras e faturas.\n4. Abra o cartão ou a seção de faturas para consultar as compras atribuídas ao período. Compras podem ser à vista ou parceladas.\n5. Se uma conta integrada mostrar saldo indisponível ou parcial, confira a conexão e a última atualização; não trate dado ausente como saldo zero.\n\n### FAQ\n\n- **Qual a diferença entre fechamento e vencimento?** Fechamento define o ciclo que reúne compras; vencimento é a data de pagamento da fatura.\n- **Por que o patrimônio líquido pode estar incompleto?** Pode faltar saldo atualizado de uma conta integrada.",
+      "source": "guias.md",
+      "id": "contas-cartoes:1",
+      "version": "1.0.0",
+      "hash": "24f462b8cd0d4de9080bb0ed9da77fb5d13db860a9424b85a79c144127c3f494"
+    },
+    {
+      "baseId": "categorias",
+      "title": "Categorias — organizar receitas e despesas",
+      "aliases": "tipo de gasto, natureza, classificação, palavras-chave, categoria de transação",
+      "routeKey": "configuracoes",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra **Configurações** e localize **Categorias**.\n2. Para criar uma, escolha **Nova categoria**, informe nome, tipo (entrada ou saída), natureza e cor; palavras-chave são opcionais.\n3. Separe palavras-chave por vírgula. Elas ajudam a sugerir categorias durante a importação.\n4. Use a ação de edição para ajustar uma categoria existente ou arquive-a quando não quiser mais usá-la.\n5. Na tela de lançamentos, um item sem categoria pode ser classificado diretamente pela lista.\n\n### FAQ\n\n- **O que acontece se eu remover uma palavra-chave?** Deixa de ser usada como dica em novas classificações; revise as sugestões na importação.\n- **Categoria sem limite entra no orçamento?** Não; o orçamento acompanha somente categorias com limite definido.",
+      "source": "guias.md",
+      "id": "categorias:1",
+      "version": "1.0.0",
+      "hash": "e89ad879ca38fc170402b53c3bbc0687d2e2457731bc58a62432291e9e964403"
+    },
+    {
+      "baseId": "contas-a-pagar",
+      "title": "Contas a pagar e despesas compartilhadas",
+      "aliases": "despesas a vencer, contas, rateio, grupo, contas compartilhadas, acerto, valor a receber",
+      "routeKey": "contas-a-pagar",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra **Contas a pagar** e escolha a aba adequada para contas individuais ou compartilhadas.\n2. Em **Nova conta**, informe descrição, valor e vencimento; uma conta pode ser avulsa ou recorrente.\n3. Para dividir uma despesa, selecione **Em grupo (dividir)**, escolha as pessoas e distribua os valores. A divisão inicial pode ser igual e pode ser ajustada.\n4. Use **Grupos e acertos** para cadastrar pessoas que compartilham despesas e consultar saldos entre participantes.\n5. Marque os pagamentos na lista; em contas compartilhadas, o pagamento de cada participante pode ser acompanhado individualmente.\n\n### FAQ\n\n- **Onde vejo o que falta receber?** Na visualização de contas compartilhadas, confira o resumo de valores pendentes e recebidos por pessoa.\n- **Editar o rateio pode deixar diferença?** A tela sinaliza quando falta distribuir ou quando a soma ultrapassa o total.",
+      "source": "guias.md",
+      "id": "contas-a-pagar:1",
+      "version": "1.0.0",
+      "hash": "eaed128a876992ff5fb260c2369d4b5661f96d255021e770de2f675d7638a292"
+    },
+    {
+      "baseId": "orcamento",
+      "title": "Orçamento — limites por categoria",
+      "aliases": "limite mensal, gastos por categoria, consumo, estouro, orçamento mensal",
+      "routeKey": "orcamento",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra **Orçamento** e selecione o mês que quer acompanhar.\n2. Se ainda não houver limites, use **Sugerir ou copiar limites**: as sugestões usam o histórico disponível e copiar traz limites do mês anterior.\n3. Edite o valor de uma categoria diretamente na lista; zerar o campo remove o limite.\n4. Acompanhe os estados: até 79% do limite está no ritmo; de 80% a 100% pede atenção; acima de 100% indica estouro.\n5. Confira também o resumo do mês e as categorias que tiveram gasto sem limite.\n\n### FAQ\n\n- **Gasto sem limite entra no total acompanhado?** Não. Defina um limite para incluí-lo no acompanhamento do orçamento.\n- **Posso aplicar uma sugestão sobre um limite existente?** Sim; o app pede confirmação antes de substituir o valor atual.",
+      "source": "guias.md",
+      "id": "orcamento:1",
+      "version": "1.0.0",
+      "hash": "703208d98c0a0267efdf06e3023a0f5d48b8403c8503a44c9ef67fda51712301"
+    },
+    {
+      "baseId": "metas-reserva",
+      "title": "Metas e reserva de emergência",
+      "aliases": "objetivo, juntar dinheiro, reserva, colchão de segurança, aporte, resgate",
+      "routeKey": "metas",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra **Metas e reserva** para ver a estimativa da reserva e o progresso das metas.\n2. Para criar uma meta, informe nome, valor desejado e, se quiser, prazo e observação.\n3. Em uma meta, escolha **Registrar aporte** para adicionar dinheiro guardado ou **Resgatar** para retirar parte do valor.\n4. Consulte quanto falta e a estimativa de tempo no ritmo atual. A capacidade mensal é uma estimativa baseada nos dados disponíveis.\n5. Se precisar, configure um aporte automático recorrente e acompanhe se o aporte do mês já foi registrado.\n\n### FAQ\n\n- **O investimento é somado automaticamente às metas?** Não. Saldo investido e valores guardados em metas são acompanhados separadamente.\n- **Como a reserva é estimada?** A tela considera meses de reserva e renda/custo disponível; com movimentações, pode usar o custo real observado.",
+      "source": "guias.md",
+      "id": "metas-reserva:1",
+      "version": "1.0.0",
+      "hash": "950a643b48852541b9ed7f1a0eeacb53ab194b44d5161a889418055f9a0dda81"
+    },
+    {
+      "baseId": "recorrentes",
+      "title": "Lançamentos recorrentes",
+      "aliases": "recorrência, assinatura, despesa fixa, receita fixa, cobrança mensal, reajuste",
+      "routeKey": "recorrentes",
+      "profiles": [
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra **Lançamentos recorrentes** para consultar compromissos e receitas que se repetem.\n2. Use **Preencher recorrência** para informar descrição, valor, conta e categoria, e configure a regra mensal.\n3. Confira a lista de itens pendentes do mês e gere os lançamentos que deseja registrar.\n4. Pause uma regra para interromper novas gerações sem apagar lançamentos anteriores; retome quando necessário.\n5. Revise o compromisso mensal e os avisos de aumento de preço.\n\n### FAQ\n\n- **Pausar apaga o histórico?** Não. A pausa interrompe a geração futura e preserva os lançamentos já criados.\n- **Por que não encontro a tela?** Recorrentes não é exibida no perfil Integração total.",
+      "source": "guias.md",
+      "id": "recorrentes:1",
+      "version": "1.0.0",
+      "hash": "418fb039c0616c6e7be30affefa9a909e43acaf0c9b7dbaa7881f09a28fdff8e"
+    },
+    {
+      "baseId": "projecoes",
+      "title": "Projeções — simular cenários",
+      "aliases": "juros compostos, simulador, projeção patrimonial, rentabilidade, aportes mensais",
+      "routeKey": "projecoes",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra **Projeções** e confira o saldo inicial usado na simulação.\n2. Ajuste saldo inicial, aporte mensal e horizonte em anos nos controles da tela.\n3. Compare os três cenários de rentabilidade anual e veja quanto veio dos aportes e quanto veio dos juros.\n4. Se o saldo investido estiver parcial, complete a atualização das contas ou ajuste o saldo inicial para explorar cenários.\n\n### FAQ\n\n- **A projeção garante esse resultado?** Não. É uma simulação de cenários, não uma promessa de rendimento.\n- **O valor guardado em metas é sempre somado ao saldo investido?** A tela explica quando usa o valor guardado em metas como referência por falta de saldo de investimento completo; confira o aviso exibido.",
+      "source": "guias.md",
+      "id": "projecoes:1",
+      "version": "1.0.0",
+      "hash": "2823b8004204009e2c1b912110f01bbef31161c7000fcbe4b31cc26c7148b142"
+    },
+    {
+      "baseId": "dividas",
+      "title": "Dívidas — cadastro e plano de quitação",
+      "aliases": "saldo devedor, juros, dívida, quitar, avalanche, bola de neve, pagamento mínimo",
+      "routeKey": "dividas",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra **Dívidas** e cadastre cada dívida com saldo devedor, juros mensais e pagamento mínimo.\n2. Revise o total devido, o custo mensal dos juros e o valor comprometido com mínimos.\n3. Use o planejador para comparar **Avalanche** (prioriza juros maiores) e **Bola de neve** (prioriza saldos menores).\n4. Abra a dívida e use **Registrar pagamento** para atualizar o saldo após pagar.\n5. Corrija os dados quando saldo, juros ou mínimo mudarem; a ordem e a estimativa dependem dessas informações.\n\n### FAQ\n\n- **O que significam os métodos?** Avalanche prioriza a taxa mais alta para reduzir juros; bola de neve prioriza quitar primeiro a dívida menor.\n- **A data projetada é garantida?** Não; é uma estimativa que depende dos saldos, taxas e pagamentos informados.",
+      "source": "guias.md",
+      "id": "dividas:1",
+      "version": "1.0.0",
+      "hash": "db736692999ab7614f99b7de1c2c98d5ec5bdbdce45292c3b580a8b810c7f053"
+    },
+    {
+      "baseId": "importar",
+      "title": "Importar extrato ou fatura",
+      "aliases": "importar transações, CSV, OFX, extrato bancário, importar cartão, importar fatura",
+      "routeKey": "importar",
+      "profiles": [
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Exporte o arquivo CSV ou OFX no banco e abra **Importar extrato ou fatura**.\n2. Escolha a conta correspondente e selecione o arquivo. Para uma fatura, selecione uma conta de cartão e informe o mês de referência.\n3. Revise a prévia: confira data, descrição, valor, categoria sugerida e quais linhas estão selecionadas.\n4. Ajuste o que precisar e escolha **Importar**. A tela avisa sobre registros possivelmente repetidos.\n5. Consulte **Importações recentes**. Se um lote foi importado errado, use a ação de apagar o lote antes de importar novamente.\n\n### FAQ\n\n- **O que é necessário para importar fatura?** Uma conta de cartão cadastrada e o mês de referência da fatura.\n- **Por que a tela está oculta?** Importação manual não está disponível no perfil Integração total.",
+      "source": "guias.md",
+      "id": "importar:1",
+      "version": "1.0.0",
+      "hash": "472349f2d77f40b4d977f0518479083823055b56ecee662055e2d69350ae6e1a"
+    },
+    {
+      "baseId": "open-finance",
+      "title": "Open Finance e Pluggy",
+      "aliases": "conectar banco, conexão bancária, Pluggy, sincronização, atualizar saldo, Open Finance",
+      "routeKey": "configuracoes-integracao",
+      "profiles": [
+        "integracao_total",
+        "hibrido"
+      ],
+      "text": "### Passos\n\n1. Abra **Configurações** e escolha **Open Finance** ou **Conexões**.\n2. Configure as credenciais da aplicação Pluggy se você tiver acesso a elas; o sistema valida antes de habilitar conexões.\n3. Escolha **Conectar conta** e conclua a autorização no painel seguro Pluggy Connect do seu banco.\n4. Associe cada conta encontrada a uma conta local. Para cartão, crie primeiro uma conta local do tipo cartão de crédito se ainda não houver.\n5. Use **Sincronizar agora** e confira o resultado por conta e o horário da última leitura.\n6. Se desconectar, leia a confirmação: é possível manter lançamentos importados ou removê-los, conforme a opção escolhida.\n\n### FAQ\n\n- **Somente manual pode conectar banco?** Não. Open Finance fica desativado nesse perfil.\n- **A sincronização atualiza o banco em tempo real?** Ela lê dados disponíveis na conexão; a tela informa o horário da última atualização e pode mostrar dados parciais.",
+      "source": "guias.md",
+      "id": "open-finance:1",
+      "version": "1.0.0",
+      "hash": "7c73aeea28618d7b8fa216755c178ff34c13c48a0fd802f6392c710168805f83"
+    },
+    {
+      "baseId": "open-finance",
+      "title": "Open Finance e Pluggy",
+      "aliases": "conectar banco, conexão bancária, Pluggy, sincronização, atualizar saldo, Open Finance",
+      "routeKey": "configuracoes-integracao",
+      "profiles": [
+        "integracao_total",
+        "hibrido"
+      ],
+      "text": "- **Remover a conexão apaga lançamentos?** A confirmação apresenta as opções de manter o histórico ou excluir os dados importados.",
+      "source": "guias.md",
+      "id": "open-finance:2",
+      "version": "1.0.0",
+      "hash": "2f188a9f2cf05d775a05f751e040ecef390e25eeac15d9bf9f7f7f07acfbf786"
+    },
+    {
+      "baseId": "minha-conta-ia",
+      "title": "Minha conta e chave de IA",
+      "aliases": "perfil de uso, renda, chave de API, API key, Gemini, Claude, OpenAI, provedor de IA",
+      "routeKey": "usuario",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra o menu do usuário e entre em **Minha conta**.\n2. Ajuste o perfil de uso, renda mensal, meses de reserva e percentual que pretende guardar.\n3. No card **Assistente de IA**, escolha Gemini, Claude ou OpenAI, cole a chave e salve. A chave é validada antes de substituir uma configuração existente.\n4. Depois de salvar, somente o provedor e os últimos quatro caracteres são mostrados; a chave completa não pode ser consultada novamente.\n5. Para trocar, informe uma nova chave. Para desconectar, escolha **Remover** e confirme.\n\n### FAQ\n\n- **A chave é obrigatória para usar o app?** Não. Ela serve para perguntas livres ao assistente de IA; os demais recursos do app continuam separados.\n- **Onde ficam os passos para gerar uma chave?** No próprio card, em **Como obter sua chave**.\n- **Por que o card pode dizer que está indisponível?** A configuração depende de armazenamento seguro estar disponível; tente novamente mais tarde.",
+      "source": "guias.md",
+      "id": "minha-conta-ia:1",
+      "version": "1.0.0",
+      "hash": "4dee82347c2a70220e5aaf44106d3548fb6519fb96abb5210698cd6fdf4a0247"
+    },
+    {
+      "baseId": "minha-conta-ia",
+      "title": "Minha conta e chave de IA",
+      "aliases": "perfil de uso, renda, chave de API, API key, Gemini, Claude, OpenAI, provedor de IA",
+      "routeKey": "usuario",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "- **O provedor recebe meus dados?** A pergunta e os dados financeiros mínimos necessários às consultas podem ser enviados ao provedor escolhido. Confira os avisos apresentados antes de usar.",
+      "source": "guias.md",
+      "id": "minha-conta-ia:2",
+      "version": "1.0.0",
+      "hash": "e3ffaf66008c82b0af3e336b31448f626e2ae195a304f93fbee9a4836ad84cc5"
+    },
+    {
+      "baseId": "configuracoes",
+      "title": "Configurações gerais, categorias e backup",
+      "aliases": "preferências, perfil financeiro, dados da conta, backup, exportar dados, categorias",
+      "routeKey": "configuracoes",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra **Configurações** para editar perfil financeiro, contas, categorias e opções de integração ou Telegram.\n2. Para exportar seus dados, localize **Dados** e escolha **Baixar backup (JSON)**.\n3. Confirme sua senha quando solicitado para autorizar o download do arquivo.\n4. Guarde o arquivo de backup em local seguro; ele contém dados da sua conta.\n\n### FAQ\n\n- **O backup é planilha?** Não. O download é um arquivo JSON.\n- **Onde altero as preferências de perfil e renda?** Na página **Minha conta**.",
+      "source": "guias.md",
+      "id": "configuracoes:1",
+      "version": "1.0.0",
+      "hash": "43f26d6f481e231a6f4beb520ec3231d33bb5136792a211b29692e060346afab"
+    },
+    {
+      "baseId": "telegram",
+      "title": "Telegram, bot e comandos",
+      "aliases": "bot, Telegram, vincular bot, avisos do Telegram, /saldo, /cartao, /resumo",
+      "routeKey": "configuracoes",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Em **Configurações**, localize o card **Telegram** e escolha **Gerar link do Telegram**.\n2. Abra o link e conclua a vinculação em uma conversa privada. O link é temporário e de uso único; não o compartilhe.\n3. Use os comandos publicados pelo bot: `/saldo`, `/previsao`, `/hoje`, `/assinaturas`, `/resumo`, `/relatorio`, `/cartao`, `/start`, `/menu`, `/ajuda` e `/pausar`.\n4. Para perguntas livres em linguagem natural, configure a chave pessoal de IA em **Minha conta**. O bot responde consultas; não cria nem edita lançamentos por pedido de texto.\n5. Configure os avisos e horários na seção de preferências do Telegram; para encerrar o vínculo, escolha **Desconectar Telegram**.\n\n### FAQ\n\n- **Posso enviar comandos em um grupo?** Use uma conversa privada vinculada para consultar sua conta.\n- **O comando `/pausar` desconecta o bot?** Não. Ele pausa avisos automáticos; consultas continuam disponíveis.",
+      "source": "guias.md",
+      "id": "telegram:1",
+      "version": "1.0.0",
+      "hash": "0e50d5338359d7b8347472af47de30ac8fe2ffa7e0eb04d083cfa7b80a67cd4e"
+    },
+    {
+      "baseId": "telegram",
+      "title": "Telegram, bot e comandos",
+      "aliases": "bot, Telegram, vincular bot, avisos do Telegram, /saldo, /cartao, /resumo",
+      "routeKey": "configuracoes",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "- **A chave pessoal muda os comandos?** Não. Ela habilita o caminho de perguntas livres; comandos publicados permanecem separados.",
+      "source": "guias.md",
+      "id": "telegram:2",
+      "version": "1.0.0",
+      "hash": "38b9ac90bf6ca603d7bf5873872b445eb5e3a5f4534cc7ea4d7eb1e5e1575cae"
+    },
+    {
+      "baseId": "notificacoes",
+      "title": "Notificações — avisos e push",
+      "aliases": "avisos, alerta, push, notificações do celular, vencimento, orçamento",
+      "routeKey": "notificacoes",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Abra **Notificações** para ler avisos recebidos no app.\n2. Em **Preferências de notificações**, escolha os assuntos e canais que deseja receber e salve.\n3. Para receber Web Push neste navegador/dispositivo, escolha **Ativar push neste dispositivo** e autorize quando o navegador pedir.\n4. Para remover o push, volte à mesma área e escolha **Remover push deste dispositivo**.\n5. O canal Telegram exige que o bot esteja vinculado; suas preferências são configuradas em **Configurações**.\n\n### FAQ\n\n- **Ativar push em um aparelho ativa nos outros?** Não. A inscrição é específica deste dispositivo/navegador.\n- **Quais avisos posso ajustar?** A tela apresenta assuntos como contas a pagar, faturas, orçamento, saldo/previsão, metas e sincronização.\n- **Por que o push não está disponível?** O suporte depende do navegador e da permissão de notificações do dispositivo.",
+      "source": "guias.md",
+      "id": "notificacoes:1",
+      "version": "1.0.0",
+      "hash": "d701df4163c7a034d2dcbd49e25964ee703c27e22374baa3ad85dc5e74f10efe"
+    },
+    {
+      "baseId": "onboarding",
+      "title": "Primeiros passos — onboarding",
+      "aliases": "começar, primeiros passos, calibrar, configurar perfil, renda inicial, escolher modo",
+      "routeKey": "onboarding",
+      "profiles": [
+        "integracao_total",
+        "hibrido",
+        "manual"
+      ],
+      "text": "### Passos\n\n1. Na tela **Primeiros passos**, escolha o perfil que combina com a forma como pretende alimentar seus dados.\n2. Se quiser calibrar o planejamento, informe renda mensal líquida, meses de reserva e quanto pretende guardar por mês.\n3. Revise a divisão de referência e a estimativa de reserva calculadas a partir das informações digitadas.\n4. Escolha **Ir para o painel** para salvar e concluir. Se preferir, use **Pular calibração por agora**; os valores atuais ficam preservados e podem ser ajustados depois.\n\n### FAQ\n\n- **Preciso informar renda para começar?** Não. É possível pular a calibração.\n- **O que muda ao escolher um perfil?** O perfil ajusta se a interface permite entradas manuais, importação de arquivos ou integração Open Finance.\n- **Posso mudar depois?** Sim. O perfil e as preferências financeiras podem ser revistos em **Minha conta**.",
+      "source": "guias.md",
+      "id": "onboarding:1",
+      "version": "1.0.0",
+      "hash": "a95d5b4d1510afc3de452850c3381f024a2f26bd344f96d959896db7a1a5e450"
+    },
+    {
+      "baseId": "faq-painel-parcial",
+      "title": "Por que meu saldo aparece parcial?",
+      "aliases": "saldo incompleto, snapshot ausente, conta integrada sem saldo",
+      "routeKey": "painel",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: Por que meu saldo aparece parcial?\nResposta: Uma conta integrada pode ainda não ter saldo bancário atualizado. Confira a conexão e sincronize; a tela sinaliza quando o consolidado está incompleto.",
+      "source": "faq.md",
+      "id": "faq-painel-parcial:1",
+      "version": "1.0.0",
+      "hash": "71fcf4d781f730c23372e75ebba582b9ab0f0408246dffdbd567738750a316ba"
+    },
+    {
+      "baseId": "faq-compra-cartao",
+      "title": "Por que a compra no cartão não reduziu o total “Saiu”?",
+      "aliases": "compra no cartão, fatura, saiu do saldo",
+      "routeKey": "contas",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: Por que a compra no cartão não reduziu o total “Saiu”?\nResposta: A compra aparece separada como gasto no cartão. A saída da conta é considerada quando a fatura é paga.",
+      "source": "faq.md",
+      "id": "faq-compra-cartao:1",
+      "version": "1.0.0",
+      "hash": "06daf1080f99767c9c5798914c31a8bf0541b55166a0f37517c10c804af4c0d3"
+    },
+    {
+      "baseId": "faq-transferencia",
+      "title": "Transferência conta como gasto ou receita?",
+      "aliases": "transferir entre minhas contas, par de transferência, excluir transferência",
+      "routeKey": "lancamentos",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: Transferência conta como gasto ou receita?\nResposta: Não. Transferência própria move saldo entre origem e destino e fica fora dos totais de entrada e saída. Excluir a transferência pareada remove as duas pernas.",
+      "source": "faq.md",
+      "id": "faq-transferencia:1",
+      "version": "1.0.0",
+      "hash": "dd3ea3f81373081e22952162ae7b44cd33afd7a67a1b25cd3dfa2a977a44f1eb"
+    },
+    {
+      "baseId": "faq-parcelas",
+      "title": "Por que a última parcela pode ter valor diferente?",
+      "aliases": "compra parcelada, valor de parcela, última parcela",
+      "routeKey": "lancamentos",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: Por que a última parcela pode ter valor diferente?\nResposta: O total é distribuído em centavos entre parcelas mensais; a última pode ajustar a sobra de arredondamento.",
+      "source": "faq.md",
+      "id": "faq-parcelas:1",
+      "version": "1.0.0",
+      "hash": "2d9b3d31c14ea685d37a71a56a479d9f1a47e10b6ce93613b97008db626c1ea1"
+    },
+    {
+      "baseId": "faq-divisao-a-receber",
+      "title": "Onde acompanho o valor que outra pessoa deve?",
+      "aliases": "ratear conta, parte de outra pessoa, receber divisão",
+      "routeKey": "lancamentos",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: Onde acompanho o valor que outra pessoa deve?\nResposta: Veja a seção **A receber** nos lançamentos ou o resumo das contas compartilhadas. O app reúne valores de despesas divididas e contas.",
+      "source": "faq.md",
+      "id": "faq-divisao-a-receber:1",
+      "version": "1.0.0",
+      "hash": "97953b1a17416c21604cfeb912c3a911f4da3c7a03886f7588ce7d87e8ef696d"
+    },
+    {
+      "baseId": "faq-orcamento-sem-limite",
+      "title": "Por que um gasto não aparece no orçamento acompanhado?",
+      "aliases": "categoria sem orçamento, gasto fora do limite",
+      "routeKey": "orcamento",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: Por que um gasto não aparece no orçamento acompanhado?\nResposta: Só categorias com limite definido entram no acompanhamento. Defina um limite para incluir a categoria.",
+      "source": "faq.md",
+      "id": "faq-orcamento-sem-limite:1",
+      "version": "1.0.0",
+      "hash": "2efd52100856ced9bcb13e31a1e0b78e32be8a1ea6ca81e954671dd56c9ca46a"
+    },
+    {
+      "baseId": "faq-meta-investimento",
+      "title": "O saldo investido já conta como aporte da meta?",
+      "aliases": "investimento nas metas, saldo investido, reserva",
+      "routeKey": "metas",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: O saldo investido já conta como aporte da meta?\nResposta: Não. Investimentos e valores guardados em metas são acompanhados separadamente.",
+      "source": "faq.md",
+      "id": "faq-meta-investimento:1",
+      "version": "1.0.0",
+      "hash": "8761a4186b1c73de3618cbe4d806cb450f00cb9c62260b6d3ce59e2f1c325a7e"
+    },
+    {
+      "baseId": "faq-recorrencia-pausada",
+      "title": "Pausar uma recorrência apaga o que já foi lançado?",
+      "aliases": "recorrência, pausar lançamento fixo, apagar histórico",
+      "routeKey": "recorrentes",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: Pausar uma recorrência apaga o que já foi lançado?\nResposta: Não. Pausar interrompe novas gerações e preserva os lançamentos anteriores.",
+      "source": "faq.md",
+      "id": "faq-recorrencia-pausada:1",
+      "version": "1.0.0",
+      "hash": "fe84004aec394e36a5a94e6b03611e370224143e075555318745b65e8a9d6796"
+    },
+    {
+      "baseId": "faq-importar-fatura",
+      "title": "O que preciso para importar uma fatura?",
+      "aliases": "CSV fatura, OFX, mês de referência",
+      "routeKey": "importar",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: O que preciso para importar uma fatura?\nResposta: Cadastre uma conta de cartão, selecione-a na importação e informe o mês de referência da fatura.",
+      "source": "faq.md",
+      "id": "faq-importar-fatura:1",
+      "version": "1.0.0",
+      "hash": "fbc062905080b33e916c41160ccab16f5c6ef2003dd6f047d1a28a4827675439"
+    },
+    {
+      "baseId": "faq-open-finance-manual",
+      "title": "Por que não consigo abrir Open Finance?",
+      "aliases": "perfil manual, Open Finance desativado, conectar banco",
+      "routeKey": "configuracoes-integracao",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: Por que não consigo abrir Open Finance?\nResposta: Open Finance fica desativado no perfil **Somente manual**. Revise o perfil em **Minha conta** se quiser usar uma integração.",
+      "source": "faq.md",
+      "id": "faq-open-finance-manual:1",
+      "version": "1.0.0",
+      "hash": "b7b410453eb908a1d49ee36377476822d5ece861456997ef9f084434807f074b"
+    },
+    {
+      "baseId": "faq-chave-nao-mostrada",
+      "title": "Como vejo a chave de IA que salvei?",
+      "aliases": "revelar chave salva, últimos quatro dígitos, chave criptografada",
+      "routeKey": "usuario",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: Como vejo a chave de IA que salvei?\nResposta: A chave completa não é exibida novamente. O card mostra o provedor e os últimos quatro caracteres; para substituir, salve uma nova chave.",
+      "source": "faq.md",
+      "id": "faq-chave-nao-mostrada:1",
+      "version": "1.0.0",
+      "hash": "d2dd367d89e9f10542629d24ed4eccd29939ad3404b253588b13edfba3c49f6f"
+    },
+    {
+      "baseId": "faq-sem-chave",
+      "title": "Por que o assistente não responde a uma pergunta livre?",
+      "aliases": "IA sem chave, pergunta livre, chat sem configuração",
+      "routeKey": "usuario",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: Por que o assistente não responde a uma pergunta livre?\nResposta: Perguntas livres exigem uma chave pessoal de IA configurada em **Minha conta**. Os comandos de consulta do Telegram continuam separados.",
+      "source": "faq.md",
+      "id": "faq-sem-chave:1",
+      "version": "1.0.0",
+      "hash": "3eb184bc64840fb8f95815e55cc59094c214a8668091d0c6f576f9bb31273efe"
+    },
+    {
+      "baseId": "faq-link-telegram",
+      "title": "O que faço se o link de vinculação do Telegram expirou?",
+      "aliases": "vincular bot, link expirado, Telegram privado",
+      "routeKey": "configuracoes",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: O que faço se o link de vinculação do Telegram expirou?\nResposta: Gere um novo link no card Telegram de **Configurações** e use-o em uma conversa privada. Não compartilhe o link.",
+      "source": "faq.md",
+      "id": "faq-link-telegram:1",
+      "version": "1.0.0",
+      "hash": "5ee2747eaa76cc9602d2b3ae9ff62b083141b7dac24e095b5c59df4cdcfa787e"
+    },
+    {
+      "baseId": "faq-push-dispositivo",
+      "title": "Push ativado neste navegador vale para meus outros aparelhos?",
+      "aliases": "push no celular, navegador, outro aparelho",
+      "routeKey": "notificacoes",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: Push ativado neste navegador vale para meus outros aparelhos?\nResposta: Não. Push é configurado por dispositivo/navegador; repita a ativação em cada um que quiser usar.",
+      "source": "faq.md",
+      "id": "faq-push-dispositivo:1",
+      "version": "1.0.0",
+      "hash": "cbd7751893fd2c4acc12fc8eb8710b76c89a48bbec67db5de22a9fb4f0e59362"
+    },
+    {
+      "baseId": "faq-projecao-garantia",
+      "title": "A projeção é garantia de rendimento?",
+      "aliases": "rendimento garantido, cenário de investimento, projeção futura",
+      "routeKey": "projecoes",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: A projeção é garantia de rendimento?\nResposta: Não. A tela compara cenários para planejamento; não promete rentabilidade.",
+      "source": "faq.md",
+      "id": "faq-projecao-garantia:1",
+      "version": "1.0.0",
+      "hash": "2bded826acca06bec76fb9551bbae54e738c7fed48815c06e7ee80880aead082"
+    },
+    {
+      "baseId": "faq-pular-onboarding",
+      "title": "Preciso informar minha renda no primeiro acesso?",
+      "aliases": "pular renda inicial, onboarding sem renda, calibrar depois",
+      "routeKey": "onboarding",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Pergunta: Preciso informar minha renda no primeiro acesso?\nResposta: Não. Escolha **Pular calibração por agora**. Você pode ajustar o perfil e os valores depois em **Minha conta**.",
+      "source": "faq.md",
+      "id": "faq-pular-onboarding:1",
+      "version": "1.0.0",
+      "hash": "2c5536b702e8296bc6649f643afc43a92df061bb254838570d699bf0035a4bf1"
+    },
+    {
+      "baseId": "catalogo-telas-perfis",
+      "title": "Catálogo da ajuda do Mutano Contas",
+      "aliases": "catálogo, cobertura, telas, perfis, navegação",
+      "routeKey": "configuracoes",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Versão do corpus: `1.0.0`\nRevisado em: `2026-11-16`\nResponsável editorial: Produto\n\nEste catálogo contém somente orientações públicas sobre recursos conferidos na interface e no código atual. `route_key` é um identificador editorial, não um link. O acesso a cada tela pode variar pelo perfil.\n\n## Matriz de telas e perfis\n\n| Tela ou recurso | Guia | Integração total | Híbrido | Somente manual | Observação |\n| --- | --- | --- | --- | --- | --- |\n| Painel e resumo financeiro | `painel` | Sim | Sim | Sim | Conteúdo depende dos dados disponíveis. |\n| Insights | `insights` | Sim | Sim | Sim | Pode ficar vazio quando não há movimentações suficientes. |\n| Lançamentos, parcelas, divisões e transferências | `lancamentos` | Consulta | Sim | Sim | Inclusão manual aparece nos perfis Híbrido e Somente manual. |\n| Contas, saldos, cartões e faturas | `contas-cartoes` | Contas integradas | Sim | Sim | Criar conta manual exige perfil que permita lançamentos manuais. |",
+      "source": "catalogo.md",
+      "id": "catalogo-telas-perfis:1",
+      "version": "1.0.0",
+      "hash": "ddcddd15e1162b32a8a742dcf53ae7a2a88076059eedeacc65955a99c9c5ae1f"
+    },
+    {
+      "baseId": "catalogo-telas-perfis",
+      "title": "Catálogo da ajuda do Mutano Contas",
+      "aliases": "catálogo, cobertura, telas, perfis, navegação",
+      "routeKey": "configuracoes",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "| Categorias | `categorias` | Sim | Sim | Sim | Também usadas na classificação de importações. |\n| Contas a pagar, grupos e acertos | `contas-a-pagar` | Sim | Sim | Sim | Recurso de planejamento disponível nos três perfis. |\n| Orçamento | `orcamento` | Sim | Sim | Sim | Limites são definidos por categoria. |\n| Metas e reserva de emergência | `metas-reserva` | Sim | Sim | Sim | Aportes e resgates são registrados na meta. |\n| Lançamentos recorrentes | `recorrentes` | Não | Sim | Sim | A tela não fica disponível em Integração total. |\n| Projeções | `projecoes` | Sim | Sim | Sim | Simulação; não é promessa de rentabilidade. |\n| Dívidas | `dividas` | Sim | Sim | Sim | Inclui cadastro, pagamentos e cenários de quitação. |\n| Importar extrato ou fatura | `importar` | Não | Sim | Sim | Importação manual não fica disponível em Integração total. |\n| Open Finance e Pluggy | `open-finance` | Sim | Sim | Não | Integração não fica disponível em Somente manual. |",
+      "source": "catalogo.md",
+      "id": "catalogo-telas-perfis:2",
+      "version": "1.0.0",
+      "hash": "8c2efea284e494fe5aa86f54d95ada7bf827e2a0eb1a45e12cfb7f2de72779a9"
+    },
+    {
+      "baseId": "catalogo-telas-perfis",
+      "title": "Catálogo da ajuda do Mutano Contas",
+      "aliases": "catálogo, cobertura, telas, perfis, navegação",
+      "routeKey": "configuracoes",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "| Minha conta e chave de IA | `minha-conta-ia` | Sim | Sim | Sim | A configuração de chave pode estar indisponível temporariamente. |\n| Configurações, categorias e backup | `configuracoes` | Sim | Sim | Sim | Algumas opções aparecem em seções próprias da página. |\n| Telegram, bot e comandos | `telegram` | Sim | Sim | Sim | Vincular bot é opcional; comandos funcionam em conversa privada. |\n| Notificações | `notificacoes` | Sim | Sim | Sim | Push é configurado por dispositivo; canais dependem de vínculo. |\n| Primeiros passos (onboarding) | `onboarding` | Sim | Sim | Sim | Novo usuário escolhe perfil e calibração; é possível adiar renda. |\n\n## Perfis\n\n- **Integração total (`integracao_total`):** movimentações vêm do Open Finance; telas de recorrentes e importação manual são ocultadas. Planejamento e consultas permanecem disponíveis.\n- **Híbrido (`hibrido`):** permite conexão Open Finance, registros manuais e importação de arquivos.",
+      "source": "catalogo.md",
+      "id": "catalogo-telas-perfis:3",
+      "version": "1.0.0",
+      "hash": "48ce00f8450b6e41205891d5b1eb6dc0baa2a132a8efa52f4e8ded9db47895b1"
+    },
+    {
+      "baseId": "catalogo-telas-perfis",
+      "title": "Catálogo da ajuda do Mutano Contas",
+      "aliases": "catálogo, cobertura, telas, perfis, navegação",
+      "routeKey": "configuracoes",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "- **Somente manual (`manual`):** não oferece integração Open Finance; permite registros manuais, recorrências e importação de arquivos.\n\n## Arquivos aprovados\n\nO manifesto `manifest.json` lista explicitamente os quatro documentos do corpus e seus identificadores. Não ingerir outros arquivos de `docs/` automaticamente.",
+      "source": "catalogo.md",
+      "id": "catalogo-telas-perfis:4",
+      "version": "1.0.0",
+      "hash": "c6aff050497110a35aef4f68c08f1a0d8c276fd93f2ad4109a7eecdb226cb320"
+    },
+    {
+      "baseId": "regras-gerais",
+      "title": "Regras do produto",
+      "aliases": "regras financeiras, limites do produto, comportamento do app",
+      "routeKey": "configuracoes",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "Versão `1.0.0` · revisão `2026-11-16` · responsável: Produto. Estas regras foram extraídas da implementação atual; não representam aconselhamento financeiro.\n\n## Perfis e disponibilidade\n\n- **Integração total:** movimentações priorizam contas conectadas; lançamentos manuais, recorrentes e importação manual não ficam disponíveis. Open Finance e telas de planejamento continuam acessíveis.\n- **Híbrido:** permite Open Finance, movimentação manual, recorrentes e importação de arquivos.\n- **Somente manual:** permite movimentação manual, recorrentes e importação; Open Finance fica desativado.\n- O perfil muda o que pode ser feito, não autoriza misturar dados de outra conta.\n\n## Lançamentos, cartão e transferência\n\n- Uma despesa de cartão é demonstrativa enquanto não paga: fica separada dos totais de entradas e saídas em conta. O pagamento da fatura representa a saída de dinheiro da conta.",
+      "source": "regras.md",
+      "id": "regras-gerais:1",
+      "version": "1.0.0",
+      "hash": "4c15837f3763ececb201625384e5120b7e662c3dc9c9451c3e87ab12ad3e05cc"
+    },
+    {
+      "baseId": "regras-gerais",
+      "title": "Regras do produto",
+      "aliases": "regras financeiras, limites do produto, comportamento do app",
+      "routeKey": "configuracoes",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "- Uma transferência entre contas próprias tem origem e destino, mas não é receita nem despesa. Na lista geral, o par é apresentado como uma transferência para evitar contagem dupla; excluir o par remove suas duas pernas.\n- Parcelamento divide o valor informado em parcelas mensais. Diferença de centavos pode fazer a última parcela variar.\n- Uma despesa dividida registra a parte de outras pessoas; a seção **A receber** reúne esses valores e valores relativos a contas compartilhadas.\n\n## Orçamento e planejamento\n\n- O orçamento acompanha categorias com limite definido. Um gasto em categoria sem limite não entra no valor acompanhado até que um limite seja criado.\n- O estado de atenção começa em 80% do limite; acima de 100% o limite foi ultrapassado.\n- Aporte e resgate em meta atualizam o valor guardado. O saldo de investimento é apresentado separadamente e não é automaticamente atribuído às metas.",
+      "source": "regras.md",
+      "id": "regras-gerais:2",
+      "version": "1.0.0",
+      "hash": "7e064ff7ace91d1447d03d587093600e24db968b1c8f5849408da1004a0e978d"
+    },
+    {
+      "baseId": "regras-gerais",
+      "title": "Regras do produto",
+      "aliases": "regras financeiras, limites do produto, comportamento do app",
+      "routeKey": "configuracoes",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "- Projeções comparam cenários de rentabilidade e aportes; são simulações, não garantias de resultado.\n- O simulador de dívidas compara avalanche (maior juros primeiro) e bola de neve (menor saldo primeiro). Os resultados dependem dos saldos, taxas e pagamentos informados.\n\n## Open Finance e dados atualizados\n\n- Uma conexão autorizada não garante que todas as contas ou snapshots já tenham sido lidos. Confira o resultado por conta e a data/hora mostrada.\n- Dado ausente ou saldo parcial deve continuar sinalizado como incompleto; não deve ser interpretado como zero.\n- Ao desconectar uma conexão, leia a confirmação para escolher entre manter os lançamentos importados ou removê-los.\n\n## Chave e assistente de IA\n\n- A chave pessoal habilita perguntas livres ao assistente e é guardada criptografada. A interface exibe somente provedor e últimos quatro caracteres; não revela a chave salva novamente.",
+      "source": "regras.md",
+      "id": "regras-gerais:3",
+      "version": "1.0.0",
+      "hash": "97e60b91ad9e9bf5400b9940e7b520a4dc3ceb810d8805d635f3dc2360c7c455"
+    },
+    {
+      "baseId": "regras-gerais",
+      "title": "Regras do produto",
+      "aliases": "regras financeiras, limites do produto, comportamento do app",
+      "routeKey": "configuracoes",
+      "profiles": [
+        "manual",
+        "hibrido",
+        "integracao_total"
+      ],
+      "text": "- Remover a chave do app não revoga a chave no provedor. Faça a revogação também na conta do provedor se desejar invalidá-la.\n- Pergunta e dados financeiros mínimos usados na consulta podem ser enviados ao provedor escolhido. O assistente consulta dados; não deve criar ou editar registros.\n- Sem chave configurada, perguntas livres não têm acesso à IA pessoal. Os comandos determinísticos do bot permanecem separados.\n\n## Privacidade e exemplos\n\n- Os guias descrevem somente fluxos públicos do produto. Não incluir nomes, saldos, categorias, datas, identificadores, chaves, registros de cliente, credenciais ou detalhes internos de servidor.\n- Exemplos adicionados em futuras revisões devem ser inteiramente sintéticos e identificados como exemplo.",
+      "source": "regras.md",
+      "id": "regras-gerais:4",
+      "version": "1.0.0",
+      "hash": "05910749fc8371f385319920beb2f216a9a26732c67bdb9abc96b0a7a39948d4"
+    }
+  ]
+}
