@@ -34,6 +34,9 @@ describe("fronteira das ferramentas IA", () => {
     const googleKey = "AIza" + "x".repeat(35);
     expect(safeLabel(googleKey)).toBe("[segredo removido]");
     expect(safeAnswer(googleKey, [])).toBe("[segredo removido]");
+    const authKey = `AQ.${"a".repeat(50)}`;
+    expect(safeLabel(authKey)).toBe("[segredo removido]");
+    expect(safeAnswer(authKey, [])).toBe("[segredo removido]");
     expect(safeAnswer("x".repeat(3000), []).length).toBe(1800);
     expect(safeLabel("x".repeat(3000)).length).toBe(60);
   });

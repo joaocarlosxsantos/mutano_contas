@@ -6,6 +6,7 @@ vi.mock("@/lib/auth", () => ({ auth: () => mocks.auth() }));
 vi.mock("@/server/telegram/site-chat", () => ({ siteChatOwnerExists: (...args: unknown[]) => mocks.exists(...args),
   claimSiteChatRequest: (...args: unknown[]) => mocks.limit(...args), siteCommandReply: (...args: unknown[]) => mocks.reply(...args) }));
 import { POST } from "./route";
+import { CHAT_SECRET_NOTICE } from "@/lib/chat-secrets";
 const request = (body: unknown = { command: "/saldo" }, headers: Record<string, string> = {}) => new Request("https://app.test/api/chat", {
   method: "POST", headers: { origin: "https://app.test", "content-type": "application/json", ...headers }, body: JSON.stringify(body),
 });
@@ -14,6 +15,25 @@ beforeEach(() => {
   mocks.exists.mockResolvedValue(true); mocks.limit.mockResolvedValue({ allowed: true }); mocks.reply.mockResolvedValue("Saldo registrado");
 });
 describe("Chat HTTP autenticado", () => {
+  it.each([`AQ.${"a".repeat(50)}`, `AIza${"a".repeat(35)}`, `sk-ant-${"a".repeat(35)}`, `sk-proj-${"a".repeat(35)}`])("segredo recebe aviso sem chamar IA nem ecoar a entrada", async token => {
+    const log = vi.spyOn(console, "error");
+    try {
+      const response = await POST(request({ message: `qual saldo ${token}` }));
+      expect(await response.json()).toEqual({ reply: CHAT_SECRET_NOTICE });
+      expect(mocks.ai).not.toHaveBeenCalled(); expect(mocks.reply).not.toHaveBeenCalled();
+      expect(log).not.toHaveBeenCalled();
+    } finally { log.mockRestore(); }
+  });
+  it("sanitiza segredo vindo de uma resposta de comando", async () => {
+    const token = `AQ.${"a".repeat(50)}`;
+    mocks.reply.mockResolvedValue(`nome: ${token}`);
+    expect(await (await POST(request())).json()).toEqual({ reply: "nome: [segredo removido]" });
+  });
+  it("mensagem longa com segredo ainda recebe aviso, sem LLM", async () => {
+    const response = await POST(request({ message: `texto ${"x".repeat(520)} AQ.${"a".repeat(50)}` }));
+    expect(await response.json()).toEqual({ reply: CHAT_SECRET_NOTICE });
+    expect(mocks.ai).not.toHaveBeenCalled();
+  });
   it("pergunta livre usa somente a sessão e exige chave pessoal", async () => {
     mocks.ai.mockResolvedValue("Resposta financeira");
     const response = await POST(request({ message: "Quanto posso economizar este mês?" }));

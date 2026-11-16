@@ -5,6 +5,7 @@ import { boundedJson } from "@/server/notifications/http";
 import { claimSiteChatRequest, siteChatOwnerExists, siteCommandReply } from "@/server/telegram/site-chat";
 import { answerQuestion } from "@/server/telegram/ai-service";
 import { withOpenFinanceAge } from "@/server/open-finance/data-age";
+import { CHAT_SECRET_NOTICE, containsChatSecret, redactChatSecrets } from "@/lib/chat-secrets";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
@@ -28,13 +29,22 @@ export async function POST(request: Request) {
     const limit = await claimSiteChatRequest(userId);
     if (!limit.allowed) return error("Muitas consultas. Aguarde um minuto e tente novamente.", 429, { "Retry-After": String(limit.retryAfterSeconds) });
     let input;
-    try { input = inputSchema.safeParse(await boundedJson(request)); }
+    let secretDetected = false;
+    try {
+      let body = await boundedJson(request);
+      if (body && typeof body === "object" && "message" in body && typeof body.message === "string" && containsChatSecret(body.message)) {
+        secretDetected = true;
+        body = { ...body, message: CHAT_SECRET_NOTICE };
+      }
+      input = inputSchema.safeParse(body);
+    }
     catch { return error("Comando inválido. Escolha uma opção do menu.", 400); }
     if (!input.success) return error("Comando inválido. Escolha uma opção do menu.", 400);
     const data = input.data;
+    if (secretDetected || ("message" in data && containsChatSecret(data.message))) return Response.json({ reply: CHAT_SECRET_NOTICE }, { headers });
     const reply = "command" in data ? await siteCommandReply(userId, data.command)
       : await withOpenFinanceAge(userId, () => answerQuestion(userId, `site:${userId}`, data.message, new Date(), true));
-    return Response.json({ reply }, { headers });
+    return Response.json({ reply: reply ? redactChatSecrets(reply) : reply }, { headers });
   } catch {
     return error("Não foi possível consultar agora. Tente novamente.", 503);
   }

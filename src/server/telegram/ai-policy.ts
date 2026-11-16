@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { redactChatSecrets } from "@/lib/chat-secrets";
 
 export const AI_MODEL = "claude-haiku-5-5";
 export const AI_MAX_OUTPUT_TOKENS = 500;
@@ -8,6 +9,7 @@ export const AI_MAX_TOOL_BYTES = 2500;
 export const AI_MAX_RESPONSE_BYTES = 32_768;
 export const AI_MAX_HISTORY_BYTES = 16_000;
 export const AI_TIMEOUT_MS = 18_000;
+export const GEMINI_TELEGRAM_TIMEOUT_MS = 40_000;
 export const AI_DAILY_LIMIT = 20;
 export const AI_MINUTE_LIMIT = 2;
 export const AI_FAILURE = "Não consegui consultar a IA agora. Tente novamente mais tarde ou use /saldo e /resumo.";
@@ -64,18 +66,14 @@ function redactLinks(value: string) {
 }
 
 export function safeLabel(value: string) {
-  return redactLinks(value)
-    .replace(/\bAIza[A-Za-z0-9_-]{30,}/g, "[segredo removido]")
-    .replace(/\b(?:sk-ant-|sk-|Bearer\s+)[A-Za-z0-9_-]+/gi, "[segredo removido]")
+  return redactLinks(redactChatSecrets(value))
     .replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 60);
 }
 
 export function safeAnswer(text: string, secrets: readonly string[]) {
   let result = text;
   for (const secret of secrets) if (secret) result = result.replaceAll(secret, "[segredo removido]");
-  result = redactLinks(result)
-    .replace(/\bAIza[A-Za-z0-9_-]{30,}/g, "[segredo removido]")
-    .replace(/\b(?:sk-ant-|sk-|Bearer\s+)[A-Za-z0-9_-]+/gi, "[segredo removido]")
+  result = redactLinks(redactChatSecrets(result))
     .replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "");
   return result.trim().slice(0, 1800);
 }

@@ -1,11 +1,13 @@
 import { z } from "zod";
-import { AI_MAX_OUTPUT_TOKENS, AI_TOOLS } from "./ai-policy";
+import { AI_TOOLS } from "./ai-policy";
 import type { AiMessage } from "./ai";
 
 // ID estável e Free Tier confirmados nas páginas oficiais de modelo/preços em 10/11/2026.
 export const GEMINI_MODEL = "gemini-3.8-flash";
+// O limite inclui thinking; 500 pode truncar antes da ferramenta/texto final.
+export const GEMINI_MAX_OUTPUT_TOKENS = 2048;
 export const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
-const callSchema = z.object({ id: z.string().min(1).max(100), name: z.string().max(64), args: z.unknown().optional() });
+const callSchema = z.object({ id: z.string().min(1).max(100).optional(), name: z.string().max(64), args: z.unknown().optional() });
 const partSchema = z.object({
   text: z.string().max(8000).optional(), functionCall: callSchema.optional(),
   thought: z.boolean().optional(), thoughtSignature: z.string().max(24_000).optional(),
@@ -16,8 +18,13 @@ const replySchema = z.object({ candidates: z.array(z.object({
 
 export function geminiRequest(messages: AiMessage[], system: string) {
   const names = new Map<string, string>();
+  const providerIds = new Set<string>();
   for (const message of messages) if (message.role === "assistant" && Array.isArray(message.content)) {
     for (const block of message.content) if (block.type === "tool_use") names.set(block.id, block.name);
+    if (message.geminiParts) for (const part of message.geminiParts) {
+      const parsed = partSchema.safeParse(part);
+      if (parsed.success && parsed.data.functionCall?.id) providerIds.add(parsed.data.functionCall.id);
+    }
   }
   const contents = messages.map((message) => {
     if (typeof message.content === "string") return { role: "user", parts: [{ text: message.content }] };
@@ -28,7 +35,7 @@ export function geminiRequest(messages: AiMessage[], system: string) {
     }
     return { role: "user", parts: message.content.map((block) => {
       if (block.type !== "tool_result" || !names.has(block.tool_use_id)) throw new Error("invalid_function_response");
-      return { functionResponse: { id: block.tool_use_id, name: names.get(block.tool_use_id), response: JSON.parse(block.content) as unknown } };
+      return { functionResponse: { ...(providerIds.has(block.tool_use_id) ? { id: block.tool_use_id } : {}), name: names.get(block.tool_use_id), response: JSON.parse(block.content) as unknown } };
     }) };
   });
   return {
@@ -39,18 +46,18 @@ export function geminiRequest(messages: AiMessage[], system: string) {
       return { name: tool.name, description: tool.description, parametersJsonSchema };
     }) }],
     toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-    generationConfig: { maxOutputTokens: AI_MAX_OUTPUT_TOKENS, thinkingConfig: { thinkingLevel: "LOW", includeThoughts: false } },
+    generationConfig: { maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS, thinkingConfig: { thinkingLevel: "LOW", includeThoughts: false } },
   };
 }
 
 /** Normaliza apenas texto/functionCall; não executa código ou server tools do provedor. */
-export function geminiReply(raw: unknown) {
+export function geminiReply(raw: unknown, round = 0) {
   const parsed = replySchema.safeParse(raw);
   if (!parsed.success) return null;
   const candidate = parsed.data.candidates[0];
   if (candidate.finishReason !== "STOP") return null;
-  const content = candidate.content.parts.flatMap((part) => {
-    if (part.functionCall) return [{ type: "tool_use" as const, id: part.functionCall.id, name: part.functionCall.name, input: part.functionCall.args ?? {} }];
+  const content = candidate.content.parts.flatMap((part, index) => {
+    if (part.functionCall) return [{ type: "tool_use" as const, id: part.functionCall.id ?? `gemini-${round}-${index}`, name: part.functionCall.name, input: part.functionCall.args ?? {} }];
     return [];
   });
   const text = candidate.content.parts.filter((part) => !part.thought && part.text !== undefined).map((part) => ({ type: "text" as const, text: part.text! }));

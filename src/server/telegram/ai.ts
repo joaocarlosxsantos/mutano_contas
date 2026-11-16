@@ -6,6 +6,7 @@ import {
 import { GEMINI_ENDPOINT, geminiReply, geminiRequest } from "./gemini";
 import type { AiProvider, ProviderEnvironment } from "./ai-provider";
 import { OPENAI_ENDPOINT, openaiReply, openaiRequest } from "./openai";
+import { CHAT_SECRET_NOTICE, containsChatSecret, redactChatSecrets } from "@/lib/chat-secrets";
 
 const textBlock = z.object({ type: z.literal("text"), text: z.string().max(8000) });
 const toolBlock = z.object({ type: z.literal("tool_use"), id: z.string().min(1).max(100), name: z.string().max(64), input: z.unknown() });
@@ -22,6 +23,7 @@ function aiEnvironment(): AiEnvironment {
 export interface AiDependencies {
   runTool(name: string, input: unknown): Promise<unknown>;
   fetch?: typeof fetch;
+  timeoutMs?: number;
 }
 
 /** Timeout também vale para um adapter de leitura que não implemente AbortSignal. */
@@ -64,18 +66,23 @@ Para perguntas sobre finanças pessoais, consulte as ferramentas; sem dados, dig
 
 /** Histórico restrito a esta pergunta; API e ferramentas possuem orçamento rígido. */
 async function askProvider(provider: AiProvider | "openai", question: string, today: string, profileInstructions: string, deps: AiDependencies, env: AiEnvironment): Promise<string> {
+  if (containsChatSecret(question)) return CHAT_SECRET_NOTICE;
+  const failure = (code: string, status: number | null = null) => {
+    console.warn("[chat-ai]", { status, code: `${provider}_${code}` });
+    return AI_FAILURE;
+  };
   const key = (provider === "openai" ? env.OPENAI_API_KEY : provider === "gemini" ? env.GEMINI_API_KEY : env.ANTHROPIC_API_KEY)?.trim();
-  if (!key || !question.trim() || question.length > 512) return AI_FAILURE;
+  if (!key || !question.trim() || question.length > 512) return failure("invalid_request");
   const secrets = [key, env.OPENAI_API_KEY?.trim() ?? "", env.GEMINI_API_KEY?.trim() ?? "", env.ANTHROPIC_API_KEY?.trim() ?? "", env.TELEGRAM_BOT_TOKEN ?? "", env.TELEGRAM_WEBHOOK_SECRET ?? "", env.CRON_SECRET ?? ""];
   const messages: AiMessage[] = [{ role: "user", content: safeAnswer(question, secrets) }];
-  const signal = AbortSignal.timeout(AI_TIMEOUT_MS);
+  const signal = AbortSignal.timeout(Math.min(deps.timeoutMs ?? AI_TIMEOUT_MS, 40_000));
   let toolsUsed = 0;
   let successfulTools = 0;
   const ids = new Set<string>();
   try {
     for (let round = 0; round < AI_MAX_CALLS; round++) {
       signal.throwIfAborted();
-      if (Buffer.byteLength(JSON.stringify(messages)) > AI_MAX_HISTORY_BYTES) return AI_FAILURE;
+      if (Buffer.byteLength(JSON.stringify(messages)) > AI_MAX_HISTORY_BYTES) return failure("history_limit");
       const system = systemPrompt(today, profileInstructions);
       const response = await withAbort((deps.fetch ?? fetch)(provider === "openai" ? OPENAI_ENDPOINT : provider === "gemini" ? GEMINI_ENDPOINT : "https://api.anthropic.com/v1/messages", {
         method: "POST", headers: provider === "gemini" ? { "Content-Type": "application/json", "x-goog-api-key": key } : { "Content-Type": "application/json", Authorization: `Bearer ${key}`, ...(provider === "anthropic" ? { "anthropic-version": "2026-10-21" } : {}) },
@@ -83,24 +90,24 @@ async function askProvider(provider: AiProvider | "openai", question: string, to
           output_config: { effort: "low" }, system, tools: AI_TOOLS, messages }),
         cache: "no-store", redirect: "error", signal,
       }), signal);
-      if (!response.ok) { await response.body?.cancel(); return AI_FAILURE; }
+      if (!response.ok) { await response.body?.cancel().catch(() => {}); return failure("http_error", response.status); }
       const raw = await withAbort(limitedAiJson(response), signal);
-      const gemini = provider === "gemini" ? geminiReply(raw) : null;
+      const gemini = provider === "gemini" ? geminiReply(raw, round) : null;
       const parsed = responseSchema.safeParse(provider === "openai" ? openaiReply(raw) : provider === "gemini" ? gemini : raw);
-      if (!parsed.success) return AI_FAILURE;
+      if (!parsed.success) return failure("invalid_response", response.status);
       const result = parsed.data;
       const calls = result.content.filter((block) => block.type === "tool_use");
       if (!calls.length) {
-        if (result.stop_reason !== "end_turn") return AI_FAILURE;
+        if (result.stop_reason !== "end_turn") return failure("incomplete_response", response.status);
         if (!successfulTools) return AI_NO_DATA;
         const text = result.content.filter((block) => block.type === "text").map((block) => block.text).join("\n");
         return safeAnswer(text, secrets) || AI_FAILURE;
       }
-      if (result.stop_reason !== "tool_use" || round === AI_MAX_CALLS - 1 || toolsUsed + calls.length > AI_MAX_TOOLS) return AI_FAILURE;
+      if (result.stop_reason !== "tool_use" || round === AI_MAX_CALLS - 1 || toolsUsed + calls.length > AI_MAX_TOOLS) return failure("tool_limit", response.status);
       const toolResults = [];
       for (const call of calls) {
         signal.throwIfAborted();
-        if (ids.has(call.id)) return AI_FAILURE;
+        if (ids.has(call.id)) return failure("repeated_tool", response.status);
         ids.add(call.id); toolsUsed++;
         const valid = validToolInput(call.name, call.input, today);
         let value: unknown = { error: "ferramenta_ou_argumentos_invalidos" };
@@ -114,12 +121,12 @@ async function askProvider(provider: AiProvider | "openai", question: string, to
         if (Buffer.byteLength(content) > AI_MAX_TOOL_BYTES) { content = '{"error":"resultado_excede_limite"}'; isError = true; }
         if (value && typeof value === "object" && "error" in value) isError = true;
         if (!isError) successfulTools++;
-        toolResults.push({ type: "tool_result" as const, tool_use_id: call.id, content, ...(isError ? { is_error: true } : {}) });
+        toolResults.push({ type: "tool_result" as const, tool_use_id: call.id, content: redactChatSecrets(content), ...(isError ? { is_error: true } : {}) });
       }
       messages.push({ role: "assistant", content: result.content, ...(gemini ? { geminiParts: gemini.geminiParts } : {}) }, { role: "user", content: toolResults });
     }
-  } catch { /* Nunca registrar pergunta, dados, payload, headers, chaves ou erro do provedor. */ }
-  return AI_FAILURE;
+  } catch { return failure(signal.aborted ? "timeout" : "request_failed"); }
+  return failure("call_limit");
 }
 
 export async function askClaude(question: string, today: string, profileInstructions: string, deps: AiDependencies, env = aiEnvironment()) {

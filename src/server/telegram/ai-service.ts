@@ -4,7 +4,8 @@ import { getUsageProfile } from "@/server/usage-profile";
 import { askClaude, askGemini, askOpenai } from "./ai";
 import { loadAiCredential } from "@/server/ai/credentials-store";
 import { selectAiProvider } from "./ai-provider";
-import { AI_FAILURE, AI_LIMITED, AI_UNAVAILABLE } from "./ai-policy";
+import { AI_FAILURE, AI_LIMITED, AI_UNAVAILABLE, GEMINI_TELEGRAM_TIMEOUT_MS } from "./ai-policy";
+import { CHAT_SECRET_NOTICE, containsChatSecret } from "@/lib/chat-secrets";
 import { consumeAiQuota } from "./ai-quota";
 import { executeReadTool } from "./ai-tools";
 
@@ -16,17 +17,26 @@ export const PROFILE_INSTRUCTIONS: Record<UsageProfile, string> = {
 
 /** Chamado apenas após resolver userId do chat no servidor, fora da transação do webhook. */
 export async function answerQuestion(userId: string, chatId: string, question: string, now = new Date(), personalOnly = false): Promise<string> {
+  if (containsChatSecret(question)) return CHAT_SECRET_NOTICE;
+  let stage = "credential_lookup";
   try {
     const credential = await loadAiCredential(userId);
     const provider = credential ? (credential.provider === "claude" ? "anthropic" : credential.provider) : personalOnly ? null : selectAiProvider();
-    if (!provider) return AI_UNAVAILABLE;
+    if (!provider) {
+      console.info("[chat-ai]", { status: null, code: "provider_not_configured" });
+      return AI_UNAVAILABLE;
+    }
+    stage = "quota_lookup";
     if (!await consumeAiQuota(chatId, now)) return AI_LIMITED;
+    stage = "profile_lookup";
     const profile = await getUsageProfile(userId);
     if (!PROFILE_INSTRUCTIONS[profile]) return AI_FAILURE;
     const today = todayRef(now);
     const deps = {
       runTool: (name, input) => executeReadTool(userId, name, input, today),
+      ...(provider === "gemini" && !chatId.startsWith("site:") ? { timeoutMs: GEMINI_TELEGRAM_TIMEOUT_MS } : {}),
     } satisfies Parameters<typeof askClaude>[3];
+    stage = "provider_call";
     if (credential) {
       const env = { ANTHROPIC_API_KEY: provider === "anthropic" ? credential.apiKey : undefined,
         GEMINI_API_KEY: provider === "gemini" ? credential.apiKey : undefined,
@@ -37,5 +47,8 @@ export async function answerQuestion(userId: string, chatId: string, question: s
     }
     const ask = provider === "gemini" ? askGemini : askClaude;
     return await ask(question, today, PROFILE_INSTRUCTIONS[profile], deps);
-  } catch { return AI_FAILURE; }
+  } catch {
+    console.warn("[chat-ai]", { status: null, code: `${stage}_failed` });
+    return AI_FAILURE;
+  }
 }

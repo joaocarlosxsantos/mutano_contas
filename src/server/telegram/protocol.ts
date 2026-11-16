@@ -41,6 +41,7 @@ const callbackSchema = z.object({
 export const updateSchema = z.object({
   update_id: z.number().int().nonnegative().max(2_147_483_647),
   message: z.object({
+    message_id: id.optional(),
     text: z.string().max(MAX_TEXT_LENGTH).optional(),
     chat: z.object({ id, type: z.literal("private") }),
     from: z.object({ id, is_bot: z.literal(false) }),

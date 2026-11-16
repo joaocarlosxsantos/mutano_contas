@@ -45,6 +45,7 @@ vi.mock("@/server/ai/credentials-store", () => ({ getAiCredentialStatus: mocks.a
 import { disconnect, issueLink, loadTelegramBalance, processMessage } from "./store";
 import { telegramLinkCodes, telegramLinks, telegramPreferences, users } from "@/db/schema";
 import { hashCode, newLinkCode, type TelegramMessage } from "./protocol";
+import { CHAT_SECRET_NOTICE } from "@/lib/chat-secrets";
 
 const message = (text: string): TelegramMessage => ({ text, chat: { id: 123, type: "private" }, from: { id: 123, is_bot: false } });
 const sqlQuery = (value: unknown) => new PgDialect().sqlToQuery(value as SQL);
@@ -80,6 +81,15 @@ beforeEach(() => {
 });
 
 describe("persistência Telegram", () => {
+  it.each([`AQ.${"a".repeat(50)}`, `AIza${"a".repeat(35)}`, `sk-ant-${"a".repeat(35)}`, `sk-proj-${"a".repeat(35)}`])("bloqueia segredo antes do banco/parser de lançamentos ou IA", async token => {
+    const log = vi.spyOn(console, "info");
+    try {
+      expect(await processMessage(900, message(`paguei 10 ${token}`))).toBe(CHAT_SECRET_NOTICE);
+      expect(mocks.transaction).not.toHaveBeenCalled(); expect(mocks.ai).not.toHaveBeenCalled();
+      expect(mocks.aiStatus).not.toHaveBeenCalled(); expect(mocks.insert).not.toHaveBeenCalled();
+      expect(log).not.toHaveBeenCalled();
+    } finally { log.mockRestore(); }
+  });
   it("encaminha texto livre vinculado ao BYOK após liberar transação", async () => {
     mocks.results.push([{ count: 1 }], [{ userId: "linked-owner" }]);
     mocks.aiStatus.mockResolvedValue({ configured: true }); mocks.ai.mockResolvedValue("Resposta pessoal");

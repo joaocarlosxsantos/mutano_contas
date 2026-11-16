@@ -1,5 +1,6 @@
 import { appDetailsUrl, createDraftUndoKeyboard, type DetailAction } from "./inline-actions";
 import type { TelegramCallback } from "./protocol";
+import { redactChatSecrets } from "@/lib/chat-secrets";
 
 /** Final callback outcome is delivered in chat after the immediate webhook ACK. */
 export async function sendCallbackResult(callback: TelegramCallback, text: string,
@@ -9,7 +10,7 @@ export async function sendCallbackResult(callback: TelegramCallback, text: strin
     const response = await fetcher(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST", cache: "no-store", signal: AbortSignal.timeout(2_000),
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: callback.message.chat.id, text, protect_content: true }),
+      body: JSON.stringify({ chat_id: callback.message.chat.id, text: redactChatSecrets(text), protect_content: true }),
     });
     const data: unknown = await response.json();
     return response.ok && typeof data === "object" && data !== null && "ok" in data && data.ok === true;
@@ -41,7 +42,7 @@ export async function sendCallbackDraftUndo(chatId: string, text: string, draftI
     const response = await fetcher(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST", cache: "no-store", signal: AbortSignal.timeout(2_000),
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: Number(chatId), text, protect_content: true, reply_markup: keyboard }),
+      body: JSON.stringify({ chat_id: Number(chatId), text: redactChatSecrets(text), protect_content: true, reply_markup: keyboard }),
     });
     const data: unknown = await response.json();
     return response.ok && typeof data === "object" && data !== null && "ok" in data && data.ok === true;

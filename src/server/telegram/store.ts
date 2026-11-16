@@ -8,6 +8,7 @@ import { withOpenFinanceAge } from "@/server/open-finance/data-age";
 import { parseNaturalTransaction } from "./natural-transaction-parser";
 import { createTransactionDraft, undoTransactionDraft } from "./draft-store";
 import { getAiCredentialStatus } from "@/server/ai/credentials-store";
+import { CHAT_SECRET_NOTICE, containsChatSecret } from "@/lib/chat-secrets";
 
 export async function issueLink(userId: string) {
   const token = newLinkCode();
@@ -64,6 +65,8 @@ async function replyToCommand(message: TelegramMessage, tx: TelegramTransaction,
 }
 
 export async function processMessage(updateId: number, message: TelegramMessage): Promise<string | null> {
+  // Antes do parser de lançamentos, do banco, das cotas e de qualquer consulta à IA.
+  if (containsChatSecret(message.text)) return CHAT_SECRET_NOTICE;
   const chatId = String(message.chat.id);
   const result = await db.transaction(async (tx) => {
     const now = new Date();

@@ -7,6 +7,7 @@ vi.mock("./ai", () => ({ askClaude: mocks.ask, askGemini: mocks.gemini, askOpena
 vi.mock("./ai-tools", () => ({ executeReadTool: mocks.read }));
 import { answerQuestion, PROFILE_INSTRUCTIONS } from "./ai-service";
 import { AI_FAILURE, AI_LIMITED, AI_UNAVAILABLE } from "./ai-policy";
+import { CHAT_SECRET_NOTICE } from "@/lib/chat-secrets";
 beforeEach(() => {
   vi.resetAllMocks(); vi.stubEnv("ANTHROPIC_API_KEY", "fake-test-key");
   mocks.credential.mockResolvedValue(null);
@@ -16,6 +17,30 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs());
 
 describe("serviço IA vinculado", () => {
+  it("segredo na pergunta não carrega credencial nem consome cota ou chama LLM", async () => {
+    const token = `AQ.${"a".repeat(50)}`;
+    expect(await answerQuestion("owner", "123", `saldo ${token}`)).toBe(CHAT_SECRET_NOTICE);
+    expect(mocks.credential).not.toHaveBeenCalled(); expect(mocks.quota).not.toHaveBeenCalled();
+    expect(mocks.ask).not.toHaveBeenCalled(); expect(mocks.gemini).not.toHaveBeenCalled();
+  });
+  it("falha de lookup/descriptografia loga somente código fixo", async () => {
+    const token = `AQ.${"a".repeat(50)}`;
+    mocks.credential.mockRejectedValue(new Error(token));
+    const log = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      expect(await answerQuestion("owner", "123", "saldo?")).toBe(AI_FAILURE);
+      expect(log).toHaveBeenCalledExactlyOnceWith("[chat-ai]", { status: null, code: "credential_lookup_failed" });
+      expect(mocks.gemini).not.toHaveBeenCalled();
+    } finally { log.mockRestore(); }
+  });
+  it("BYOK Gemini usa orçamento de 40s no Telegram, site mantém orçamento padrão", async () => {
+    mocks.credential.mockResolvedValue({ provider: "gemini", apiKey: "personal-secret" });
+    mocks.gemini.mockResolvedValue("Resposta");
+    await answerQuestion("linked-owner", "123", "saldo?");
+    expect(mocks.gemini.mock.calls[0][3].timeoutMs).toBe(40_000);
+    await answerQuestion("linked-owner", "site:linked-owner", "saldo?", new Date(), true);
+    expect(mocks.gemini.mock.calls[1][3].timeoutMs).toBeUndefined();
+  });
   it.each(["claude", "openai", "gemini"])("prioriza BYOK %s sem alterar env global ou misturar donos", async provider => {
     mocks.credential.mockResolvedValue({ provider, apiKey: "personal-secret" });
     const ask = provider === "claude" ? mocks.ask : provider === "gemini" ? mocks.gemini : mocks.openai;

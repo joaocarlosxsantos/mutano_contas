@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { askGemini } from "./ai";
-import { AI_FAILURE, AI_MAX_CALLS, AI_MAX_OUTPUT_TOKENS, AI_NO_DATA } from "./ai-policy";
-import { GEMINI_ENDPOINT, GEMINI_MODEL } from "./gemini";
+import { AI_FAILURE, AI_MAX_CALLS, AI_NO_DATA } from "./ai-policy";
+import { GEMINI_ENDPOINT, GEMINI_MODEL, GEMINI_MAX_OUTPUT_TOKENS } from "./gemini";
+import { CHAT_SECRET_NOTICE } from "@/lib/chat-secrets";
 
 const env = { GEMINI_API_KEY: "fake-google-secret", ANTHROPIC_API_KEY: "fake-anthropic-secret" };
 const call = (name = "get_balance", args: unknown = {}, id = "call-1", signature = "opaque-signature") => Response.json({ candidates: [{ finishReason: "STOP", content: { role: "model", parts: [{ functionCall: { id, name, args }, thoughtSignature: signature }] } }] });
@@ -9,6 +10,41 @@ const text = (answer = "Saldo disponível: R$ 10,00.", reason = "STOP") => Respo
 afterEach(() => vi.restoreAllMocks());
 
 describe("Gemini REST com function calling nativo", () => {
+  it("bloqueia segredo da pergunta sem fetch/ferramenta ou log", async () => {
+    const token = `AQ.${"a".repeat(50)}`;
+    const fetch = vi.fn(); const runTool = vi.fn();
+    const warn = vi.spyOn(console, "warn"); const log = vi.spyOn(console, "error");
+    expect(await askGemini(`saldo ${token}`, "2026-11-10", "", { fetch, runTool }, env)).toBe(CHAT_SECRET_NOTICE);
+    expect(fetch).not.toHaveBeenCalled(); expect(runTool).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled(); expect(log).not.toHaveBeenCalled();
+  });
+  it("aceita functionCall sem id, preserva assinatura e responde por nome", async () => {
+    const parts = [{ functionCall: { name: "get_balance", args: {} }, thoughtSignature: "opaque" }];
+    const fetch = vi.fn().mockResolvedValueOnce(Response.json({ candidates: [{ finishReason: "STOP", content: { role: "model", parts } }] })).mockResolvedValueOnce(text());
+    const runTool = vi.fn().mockResolvedValue({ availableCents: 1000 });
+    expect(await askGemini("saldo?", "2026-11-10", "", { fetch, runTool, timeoutMs: 40_000 }, env)).toContain("10,00");
+    expect(runTool).toHaveBeenCalledWith("get_balance", {});
+    const next = JSON.parse(fetch.mock.calls[1][1].body);
+    expect(next.contents[1].parts).toEqual(parts);
+    expect(next.contents[2].parts).toEqual([{ functionResponse: { name: "get_balance", response: { availableCents: 1000 } } }]);
+  });
+  it("duas rodadas sem id não colidem no controle interno de ferramentas", async () => {
+    const noIdCall = () => Response.json({ candidates: [{ finishReason: "STOP", content: { role: "model", parts: [{ functionCall: { name: "get_balance", args: {} } }] } }] });
+    const fetch = vi.fn().mockResolvedValueOnce(noIdCall()).mockResolvedValueOnce(noIdCall()).mockResolvedValueOnce(text());
+    const runTool = vi.fn().mockResolvedValue({ availableCents: 1000 });
+    expect(await askGemini("saldo?", "2026-11-10", "", { fetch, runTool }, env)).toContain("10,00");
+    expect(runTool).toHaveBeenCalledTimes(2);
+  });
+  it("remove AQ. vindo de ferramenta/saída e registra somente status/code de falha HTTP", async () => {
+    const token = `AQ.${"a".repeat(50)}`;
+    const fetch = vi.fn().mockResolvedValueOnce(call()).mockResolvedValueOnce(text(`nome ${token}`));
+    const result = await askGemini("saldo?", "2026-11-10", "", { fetch, runTool: vi.fn().mockResolvedValue({ name: token }) }, env);
+    expect(result).not.toContain(token);
+    expect(fetch.mock.calls[1][1].body).not.toContain(token);
+    const log = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(await askGemini("saldo?", "2026-11-10", "", { fetch: vi.fn().mockResolvedValue(new Response(token, { status: 403 })), runTool: vi.fn() }, env)).toBe(AI_FAILURE);
+    expect(log).toHaveBeenCalledExactlyOnceWith("[chat-ai]", { status: 403, code: "gemini_http_error" });
+  });
   it("usa modelo fixo, chave no header e as mesmas ferramentas/limites", async () => {
     const fetch = vi.fn().mockResolvedValueOnce(call()).mockResolvedValueOnce(text());
     const runTool = vi.fn().mockResolvedValue({ availableCents: 1000 });
@@ -20,7 +56,7 @@ describe("Gemini REST com function calling nativo", () => {
     expect(init.headers["x-goog-api-key"]).toBe(env.GEMINI_API_KEY);
     const body = JSON.parse(init.body);
     expect(JSON.stringify(body)).not.toContain(env.GEMINI_API_KEY);
-    expect(body.generationConfig.maxOutputTokens).toBe(AI_MAX_OUTPUT_TOKENS);
+    expect(body.generationConfig.maxOutputTokens).toBe(GEMINI_MAX_OUTPUT_TOKENS);
     expect(body.generationConfig.thinkingConfig.thinkingLevel).toBe("LOW");
     expect(body.generationConfig).not.toHaveProperty("temperature");
     expect(body.tools).toHaveLength(1);
