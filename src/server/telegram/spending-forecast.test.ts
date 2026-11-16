@@ -55,7 +55,7 @@ describe("Fontes da previsão Telegram", () => {
   it("comandos e alerta compartilham a fonte e respeitam a conexão fornecida", async () => {
     const data = () => connection([[tx()], [], [], [{ monthlyIncomeCents: 10000 }], []]).db;
     expect(await manualForecast("owner", data(), now)).toContain("falta mensal");
-    expect(await manualDailyBudget("owner", data(), now)).toContain("Sem margem");
+    expect(await manualDailyBudget("owner", data(), now)).toContain("não há margem");
     expect(await loadForecastAlert("owner", now, data())).toMatchObject({ balanceCents: -40000, recommendedDailyCents: 0 });
   });
 });

@@ -28,7 +28,7 @@ describe("dados do relatório mensal", () => {
     expect(output).toContain("Saldo do período");
     expect(output).toContain("25,00");
     expect(output).toContain("Mercado");
-    expect(output).toContain("Orçamentos estourados");
+    expect(output).toContain("⚠️ Orçamentos acima do limite");
     expect(output).not.toContain("https://bad.test");
     expect(output).toContain("Posição atual (parcial) — não é o saldo de fechamento");
     expect(output).toMatch(/Disponível: R\$\s*10,00/);

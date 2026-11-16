@@ -20,7 +20,7 @@ describe("webhook Telegram", () => {
       const pending = tasks[0]();
       await vi.advanceTimersByTimeAsync(TELEGRAM_MESSAGE_TIMEOUT_MS);
       await pending;
-      expect(send.mock.calls[0][1]).toContain("Tente novamente");
+      expect(send.mock.calls[0][1]).toContain("Tente de novo");
     } finally { vi.useRealTimers(); log.mockRestore(); }
   });
   it.each([`AQ.${"a".repeat(50)}`, `AIza${"a".repeat(35)}`, `sk-ant-${"a".repeat(35)}`, `sk-proj-${"a".repeat(35)}`, `texto ${"x".repeat(520)} AQ.${"a".repeat(50)}`])("segredo é excluído/avisado sem processador, trabalho pendente ou logs", async token => {
@@ -62,7 +62,7 @@ describe("webhook Telegram", () => {
       await handleWebhook(request({ ...payload, message: { ...payload.message, text: "saldo?" } }), "secret", process, undefined, undefined,
         { remove: vi.fn(), background: { schedule: task => tasks.push(task), send } });
       await tasks[0]();
-      expect(send.mock.calls[0][1]).toContain("Tente novamente");
+      expect(send.mock.calls[0][1]).toContain("Tente de novo");
       expect(JSON.stringify(log.mock.calls)).not.toContain(token);
       expect(log).toHaveBeenCalledWith("[telegram-webhook]", { code: "message_processing_failed" });
     } finally { log.mockRestore(); }
@@ -120,7 +120,7 @@ describe("webhook Telegram", () => {
     const reply = await result.json();
     expect(reply).toEqual({
       method: "sendMessage", chat_id: 123,
-      text: "Não foi possível consultar seus dados agora. Tente novamente em instantes.",
+      text: "⚠️ Não consegui consultar seus dados agora. Tente de novo em instantes.",
       protect_content: true,
     });
     expect(reply.text.length).toBeLessThanOrEqual(4096);

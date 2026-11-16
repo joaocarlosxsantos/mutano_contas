@@ -58,13 +58,13 @@ describe("boas-vindas e roteamento autorizado", () => {
   });
   it("/saldo separa disponível, investido e patrimônio, sem recalcular ou somar valores", async () => {
     const reply = await commandReply(message("/saldo"), deps());
-    expect(reply).toMatch(/Disponível:.*123,45\nInvestido:.*200,00\nPatrimônio:.*310,00/);
+    expect(reply).toMatch(/Disponível:.*123,45\n📈 Investido:.*200,00\n🏦 Patrimônio:.*310,00/);
   });
   it("/saldo aceita o contrato antigo com investimento/patrimônio ausentes como zero", async () => {
     const d = deps();
     vi.mocked(d.balance).mockResolvedValue({ availableCents: 12345, totalIncomplete: true, needsOpeningBalance: true });
     const reply = await commandReply(message("/saldo"), d);
-    expect(reply).toMatch(/Investido:.*0,00\nPatrimônio:.*0,00/);
+    expect(reply).toMatch(/Investido:.*0,00\n🏦 Patrimônio:.*0,00/);
     expect(reply).toContain("Total parcial");
     expect(reply).toContain("saldos iniciais");
   });

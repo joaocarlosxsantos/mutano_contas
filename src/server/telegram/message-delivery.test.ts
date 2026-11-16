@@ -24,8 +24,9 @@ describe("entrega segura Telegram", () => {
   });
   it("mensagem pós-ACK protege conteúdo e remove segredos antes do envio", async () => {
     const fetch = vi.fn().mockResolvedValue(Response.json({ ok: true }));
-    expect(await sendMessageResult(message, `saldo: ${secret}`, undefined, "fake-bot-token", fetch)).toBe(true);
+    expect(await sendMessageResult(message, `💰 <b>Saldo & conta</b> _cartão_ [nome](tg://user?id=1): ${secret}`, undefined, "fake-bot-token", fetch)).toBe(true);
     const body = JSON.parse(fetch.mock.calls[0][1].body);
-    expect(body).toEqual({ chat_id: 123, text: "saldo: [segredo removido]", protect_content: true });
+    expect(body).not.toHaveProperty("parse_mode");
+    expect(body).toEqual({ chat_id: 123, text: "💰 <b>Saldo & conta</b> _cartão_ [nome](tg://user?id=1): [segredo removido]", protect_content: true });
   });
 });

@@ -12,10 +12,10 @@ export const AI_TIMEOUT_MS = 18_000;
 export const GEMINI_TELEGRAM_TIMEOUT_MS = 40_000;
 export const AI_DAILY_LIMIT = 20;
 export const AI_MINUTE_LIMIT = 2;
-export const AI_FAILURE = "Não consegui consultar a IA agora. Tente novamente mais tarde ou use /saldo e /resumo.";
-export const AI_UNAVAILABLE = "A IA está indisponível no momento. Você pode usar /saldo, /resumo e /ajuda; os avisos por regra continuam funcionando.";
-export const AI_LIMITED = "Você atingiu o limite de perguntas com IA (2 por minuto e 20 por dia, em São Paulo). Aguarde ou use /saldo e /resumo.";
-export const AI_NO_DATA = "Posso consultar saldo, gastos por categoria e período, maiores despesas, comparação de meses e contas a vencer. Inclua o período na sua pergunta.";
+export const AI_FAILURE = "⚠️ Não consegui consultar a IA agora. Tente de novo em instantes ou use /saldo e /resumo.";
+export const AI_UNAVAILABLE = "⚠️ A IA está indisponível no momento. Enquanto isso, use /saldo, /resumo e /ajuda. 🔔 Seus avisos por regra continuam funcionando.";
+export const AI_LIMITED = "⏳ Chegamos ao limite de perguntas com IA: 2 por minuto e 20 por dia, no horário de São Paulo. Aguarde um pouco ou use /saldo e /resumo.";
+export const AI_NO_DATA = "💬 Me diga o período que você quer consultar. Posso buscar 💰 saldo, 🏷️ gastos por categoria, 📤 maiores despesas, 📅 comparação de meses e 🧾 contas a vencer.";
 
 export const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((value) => {
   const parsed = new Date(`${value}T00:00:00Z`);

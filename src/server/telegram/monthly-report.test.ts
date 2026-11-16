@@ -15,7 +15,7 @@ describe("/relatorio", () => {
     expect(report).toHaveBeenCalledWith("linked-owner");
     await commandReply(message("/relatorio user_id=other"), deps);
     vi.mocked(deps.linkedUser).mockResolvedValue(null);
-    expect(await commandReply(message("/relatorio"), deps)).toContain("Vincule");
+    expect(await commandReply(message("/relatorio"), deps)).toContain("Conecte");
     expect(report).toHaveBeenCalledTimes(1);
   });
 });

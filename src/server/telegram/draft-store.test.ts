@@ -151,7 +151,7 @@ describe("draft-store: criação, confirmação e desfazer atômicos", () => {
     });
 
     expect(res.ok).toBe(true);
-    expect(res.message).toContain("sucesso");
+    expect(res.message).toContain("✅ Pronto!");
     const txInsert = mocks.events.find((e) => e.kind === "values" && e.table === transactions) as { value: { notes: string; amountCents: number } };
     expect(txInsert.value.notes).toBe("telegram:dr_test123");
     expect(txInsert.value.amountCents).toBe(3500);
@@ -194,7 +194,7 @@ describe("draft-store: criação, confirmação e desfazer atômicos", () => {
       now,
     });
     expect(resConfirmed.ok).toBe(false);
-    expect(resConfirmed.message).toContain("anteriormente");
+    expect(resConfirmed.message).toContain("já foi confirmado");
   });
 
   it("undoTransactionDraft: desfaz lançamento se não houver alteração no hash", async () => {
@@ -241,7 +241,7 @@ describe("draft-store: criação, confirmação e desfazer atômicos", () => {
     });
 
     expect(res.ok).toBe(true);
-    expect(res.message).toContain("sucesso");
+    expect(res.message).toContain("✅ Pronto!");
 
     // Conferir se delete foi chamado na tabela transactions
     const deleteEvent = mocks.events.find((e) => e.kind === "delete" && e.table === transactions);
@@ -290,7 +290,7 @@ describe("draft-store: criação, confirmação e desfazer atômicos", () => {
     });
 
     expect(res.ok).toBe(false);
-    expect(res.message).toContain("alterado no app");
+    expect(res.message).toContain("mudou no app");
     // Não pode ter excluído a transaction
     expect(mocks.events.some((e) => e.kind === "delete" && e.table === transactions)).toBe(false);
   });

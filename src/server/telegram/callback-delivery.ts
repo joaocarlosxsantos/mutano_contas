@@ -25,7 +25,7 @@ export async function sendCallbackDetails(callback: TelegramCallback, action: De
     const response = await fetcher(`https://api.telegram.org/bot${token}/sendMessage`, {
       method: "POST", cache: "no-store", signal: AbortSignal.timeout(2_000),
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: callback.message.chat.id, text: "Veja os detalhes no app.", protect_content: true,
+      body: JSON.stringify({ chat_id: callback.message.chat.id, text: "🔎 Os detalhes estão no app. Toque abaixo para abrir.", protect_content: true,
         reply_markup: { inline_keyboard: [[{ text: "Abrir no app", url: appDetailsUrl(action) }]] } }),
     });
     const data: unknown = await response.json();

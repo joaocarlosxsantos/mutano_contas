@@ -102,14 +102,14 @@ export function appDetailsUrl(action: DetailAction, configured = process.env.NEX
 }
 
 export const CALLBACK_TEXT = {
-  denied: "Vincule seu Telegram no app para usar os botões.",
-  invalid: "Botão inválido. Envie /menu e tente novamente.",
-  expired: "Botão expirado. Envie /menu e tente novamente.",
-  replay: "Este pedido já foi processado ou ficou desatualizado. Envie /menu.",
-  limited: "Muitos toques. Aguarde um minuto e tente de novo.",
-  paused: "Avisos pausados. Retome em Configurações no app.",
-  failed: "Não foi possível concluir. Tente novamente.",
-  details: "Detalhes enviados no chat.",
-  detailsFailed: "Não consegui abrir os detalhes. Tente novamente.",
+  denied: "🔗 Conecte seu Telegram no app para usar os botões.",
+  invalid: "⚠️ Não reconheci esse botão. Envie /menu e tente de novo.",
+  expired: "⏳ Esse botão expirou. Envie /menu para abrir novas opções.",
+  replay: "🔎 Esse pedido já foi processado ou ficou desatualizado. Envie /menu.",
+  limited: "⏳ Aguarde um minuto e tente tocar de novo.",
+  paused: "✅ Avisos pausados. Quando quiser retomar, abra Configurações no app.",
+  failed: "⚠️ Não consegui concluir agora. Tente de novo.",
+  details: "✅ Pronto! Os detalhes estão no chat.",
+  detailsFailed: "⚠️ Não consegui abrir os detalhes. Tente de novo.",
 } as const;
 export type InlineResult = { text: string; details?: DetailAction };

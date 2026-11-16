@@ -77,22 +77,22 @@ export async function processInlineCallback(updateId: number, callback: Telegram
       if (res.ok) {
         try {
           const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((res.draft?.amountCents ?? 0) / 100);
-          await sendCallbackDraftUndo(chatId, `Lançamento confirmado!\n• ${res.draft?.description}: ${money}`, draftId, ownerKey(link), secret);
+          await sendCallbackDraftUndo(chatId, `✅ Lançamento confirmado!\n• ${res.draft?.description}: ${money}`, draftId, ownerKey(link), secret);
         } catch { /* Envio do botão desfazer não bloqueia o recibo */ }
       }
-      return { text: res.message ?? (res.ok ? "Lançamento confirmado!" : "Erro ao confirmar.") };
+      return { text: res.message ?? (res.ok ? "✅ Lançamento confirmado!" : "⚠️ Não consegui confirmar. Tente de novo.") };
     }
 
     if (action.action.startsWith("tu:")) {
       const draftId = action.action.slice(3);
       const res = await undoTransactionDraft({ draftId, chatId, connection: tx as unknown as typeof db, now });
-      return { text: res.message ?? (res.ok ? "Lançamento desfeito!" : "Erro ao desfazer.") };
+      return { text: res.message ?? (res.ok ? "✅ Lançamento desfeito!" : "⚠️ Não consegui desfazer. Tente de novo.") };
     }
 
     if (action.action.startsWith("tx:")) {
       const draftId = action.action.slice(3);
       const res = await cancelTransactionDraft({ draftId, chatId, connection: tx as unknown as typeof db, now });
-      return { text: res.message ?? (res.ok ? "Lançamento cancelado." : "Erro ao cancelar.") };
+      return { text: res.message ?? (res.ok ? "✅ Lançamento cancelado." : "⚠️ Não consegui cancelar. Tente de novo.") };
     }
 
     if (action.action.startsWith("d")) return { text: CALLBACK_TEXT.details, details: action.action as DetailAction };
@@ -102,6 +102,6 @@ export async function processInlineCallback(updateId: number, callback: Telegram
     await tx.insert(telegramPreferences).values({ userId: link.userId, [field]: false })
       .onConflictDoUpdate({ target: telegramPreferences.userId, set: { [field]: false, updatedAt: now } });
     return { text: action.action === "p" ? CALLBACK_TEXT.paused
-      : `Avisos de ${SILENCE_TYPES[action.action as keyof typeof SILENCE_TYPES].label} silenciados. Outros avisos continuam como estão.` };
+      : `✅ Avisos de ${SILENCE_TYPES[action.action as keyof typeof SILENCE_TYPES].label} silenciados. Outros avisos continuam como estão.` };
   });
 }

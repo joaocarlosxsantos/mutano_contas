@@ -129,7 +129,7 @@ describe("entrega de detalhes", () => {
     expect(fetcher).toHaveBeenCalledWith("https://api.telegram.org/botfake-test-token/sendMessage", expect.objectContaining({ method: "POST", signal: expect.any(AbortSignal), cache: "no-store" }));
     const body = JSON.parse(fetcher.mock.calls[0][1].body);
     expect(body.chat_id).toBe(123);
-    expect(body.text).toBe("Veja os detalhes no app.");
+    expect(body.text).toBe("🔎 Os detalhes estão no app. Toque abaixo para abrir.");
     expect(body.reply_markup.inline_keyboard[0][0]).toEqual({ text: "Abrir no app", url: expect.stringMatching(/^https:\/\/[^/]+\/contas$/) });
     expect(body.protect_content).toBe(true); expect(body).not.toHaveProperty("parse_mode");
   });

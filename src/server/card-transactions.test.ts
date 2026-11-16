@@ -99,8 +99,8 @@ it("o /cartao mostra só compras ocorridas, incluindo a 1ª parcela na data da c
   });
 
   const result = await loadCardSummary("owner", undefined, new Date("2026-11-11T02:30:00Z"));
-  expect(result.match(/^  - .*$/gm)?.map((line) => line.split(":")[0]))
-    .toEqual(["  - 10/11 Compra do dia", "  - 05/11 Mercado", "  - 30/09 Loja (1/3)"]);
+  expect(result.match(/^  📅 .*$/gm)?.map((line) => line.split(":")[0]))
+    .toEqual(["  📅 10/11 · 🛍️ Compra do dia", "  📅 05/11 · 🛍️ Mercado", "  📅 30/09 · 🛍️ Loja (1/3)"]);
   expect(result).toContain("150,00");
   expect(result).toContain("350,00");
   expect(query.mock.calls.at(-1)?.[0]).toMatch(/order by "transactions"\."date" desc,.*"transactions"\."id" desc limit/);

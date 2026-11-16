@@ -74,13 +74,13 @@ export async function createTransactionDraft(params: {
     .limit(1);
 
   if (!user) {
-    return { ok: false, error: "Usuário não encontrado." };
+    return { ok: false, error: "⚠️ Usuário não encontrado." };
   }
 
   if (user.usageProfile === "integracao_total") {
     return {
       ok: false,
-      error: "Seu perfil está configurado para integração automática. Lançamentos manuais são permitidos apenas nos perfis manual ou híbrido. Ajuste em Configurações no app.",
+      error: "⚠️ Seu perfil está configurado para integração automática. Lançamentos manuais são permitidos apenas nos perfis manual ou híbrido. Ajuste em Configurações no app.",
     };
   }
 
@@ -93,7 +93,7 @@ export async function createTransactionDraft(params: {
   if (!userAccounts.length) {
     return {
       ok: false,
-      error: "Nenhuma conta ativa encontrada para registrar o lançamento. Cadastre uma conta no app.",
+      error: "⚠️ Nenhuma conta ativa encontrada para registrar o lançamento. Cadastre uma conta no app.",
     };
   }
 
@@ -147,7 +147,7 @@ export async function createTransactionDraft(params: {
     if (existing) {
       return { ok: true, draft: existing, accountName: selectedAccount.name };
     }
-    return { ok: false, error: "Não foi possível criar o rascunho de lançamento." };
+    return { ok: false, error: "⚠️ Não foi possível criar o rascunho de lançamento." };
   }
 
   return { ok: true, draft, accountName: selectedAccount.name };
@@ -175,24 +175,24 @@ export async function confirmTransactionDraft(params: {
       .limit(1);
 
     if (!draft) {
-      return { ok: false, message: "Rascunho não encontrado." };
+      return { ok: false, message: "🔎 Não encontrei esse rascunho." };
     }
 
     if (draft.status === "CONFIRMED") {
-      return { ok: false, message: "Lançamento já foi confirmado anteriormente." };
+      return { ok: false, message: "✅ Esse lançamento já foi confirmado." };
     }
     if (draft.status === "CANCELLED") {
-      return { ok: false, message: "Este lançamento foi cancelado." };
+      return { ok: false, message: "✅ Esse lançamento foi cancelado." };
     }
     if (draft.status === "UNDONE") {
-      return { ok: false, message: "Este lançamento foi desfeito." };
+      return { ok: false, message: "↩️ Esse lançamento foi desfeito." };
     }
     if (draft.status === "EXPIRED" || draft.expiresAt <= now) {
       await tx
         .update(telegramTransactionDrafts)
         .set({ status: "EXPIRED", updatedAt: now })
         .where(eq(telegramTransactionDrafts.id, draft.id));
-      return { ok: false, message: "Este rascunho expirou. Envie novamente para registrar." };
+      return { ok: false, message: "⏳ Esse rascunho expirou. Envie de novo para registrar." };
     }
 
     // 2. Revalidação do vínculo atual do chat/dono
@@ -204,7 +204,7 @@ export async function confirmTransactionDraft(params: {
       .limit(1);
 
     if (!link || link.createdAt.getTime() !== draft.linkCreatedAt.getTime()) {
-      return { ok: false, message: "Vínculo do Telegram alterado. Operação negada." };
+      return { ok: false, message: "🔒 A conexão do Telegram mudou. Conecte de novo pelo app." };
     }
 
     // 3. Revalidação do perfil do usuário
@@ -216,12 +216,12 @@ export async function confirmTransactionDraft(params: {
       .limit(1);
 
     if (!user || user.usageProfile === "integracao_total") {
-      return { ok: false, message: "Perfil não permite lançamentos manuais." };
+      return { ok: false, message: "⚠️ Seu perfil não permite lançamentos manuais. Confira Configurações no app." };
     }
 
     // 4. Revalidação da conta do dono
     if (!draft.accountId) {
-      return { ok: false, message: "Conta não definida no rascunho." };
+      return { ok: false, message: "🏦 Esse rascunho está sem conta. Envie o lançamento de novo." };
     }
 
     const [account] = await tx
@@ -231,7 +231,7 @@ export async function confirmTransactionDraft(params: {
       .limit(1);
 
     if (!account) {
-      return { ok: false, message: "Conta selecionada não está mais disponível." };
+      return { ok: false, message: "🏦 Essa conta não está mais disponível. Confira suas contas no app." };
     }
 
     // 5. Criação do lançamento em transactions na mesma transação
@@ -281,7 +281,7 @@ export async function confirmTransactionDraft(params: {
       draft: updatedDraft,
       transactionId: txId,
       accountName: account.name,
-      message: "Lançamento confirmado com sucesso!",
+      message: "✅ Pronto! Lançamento confirmado.",
     };
   });
 }
@@ -329,19 +329,19 @@ export async function undoTransactionDraft(params: {
     }
 
     if (!draft) {
-      return { ok: false, message: "Nenhum lançamento recente encontrado para desfazer." };
+      return { ok: false, message: "🔎 Não encontrei um lançamento recente para desfazer." };
     }
 
     if (draft.status === "UNDONE") {
-      return { ok: false, message: "Este lançamento já foi desfeito anteriormente." };
+      return { ok: false, message: "↩️ Esse lançamento já foi desfeito." };
     }
 
     if (draft.status !== "CONFIRMED" || !draft.transactionId || !draft.confirmedPayloadHash) {
-      return { ok: false, message: "Apenas lançamentos confirmados podem ser desfeitos." };
+      return { ok: false, message: "⚠️ Só posso desfazer lançamentos confirmados." };
     }
 
     if (!draft.undoUntil || draft.undoUntil <= now) {
-      return { ok: false, message: "O prazo para desfazer este lançamento expirou. Ajuste pelo app." };
+      return { ok: false, message: "⏳ O prazo para desfazer expirou. Você pode ajustar pelo app." };
     }
 
     // Revalidar vínculo do chat
@@ -353,7 +353,7 @@ export async function undoTransactionDraft(params: {
       .limit(1);
 
     if (!link) {
-      return { ok: false, message: "Vínculo do Telegram inválido." };
+      return { ok: false, message: "🔒 Conecte seu Telegram de novo pelo app." };
     }
 
     // Buscar lançamento em transactions para conferir integridade
@@ -365,7 +365,7 @@ export async function undoTransactionDraft(params: {
       .limit(1);
 
     if (!existingTx) {
-      return { ok: false, message: "Lançamento não encontrado no banco ou já excluído no app." };
+      return { ok: false, message: "🔎 Não encontrei esse lançamento. Ele pode ter sido excluído no app." };
     }
 
     // Conferir se o lançamento foi alterado no app
@@ -387,7 +387,7 @@ export async function undoTransactionDraft(params: {
     ) {
       return {
         ok: false,
-        message: "O lançamento foi alterado no app e não pode ser desfeito pelo Telegram.",
+        message: "⚠️ Esse lançamento mudou no app. Faça o ajuste por lá.",
       };
     }
 
@@ -410,7 +410,7 @@ export async function undoTransactionDraft(params: {
       draft: undoneDraft,
       amountCents: draft.amountCents,
       description: draft.description,
-      message: "Lançamento desfeito com sucesso!",
+      message: "✅ Pronto! Lançamento desfeito.",
     };
   });
 }
@@ -436,15 +436,15 @@ export async function cancelTransactionDraft(params: {
       .limit(1);
 
     if (!draft) {
-      return { ok: false, message: "Rascunho não encontrado." };
+      return { ok: false, message: "🔎 Não encontrei esse rascunho." };
     }
 
     if (draft.status === "CANCELLED") {
-      return { ok: true, message: "Lançamento já estava cancelado." };
+      return { ok: true, message: "✅ Esse lançamento já estava cancelado." };
     }
 
     if (draft.status !== "PENDING") {
-      return { ok: false, message: "Apenas rascunhos pendentes podem ser cancelados." };
+      return { ok: false, message: "⚠️ Só posso cancelar rascunhos pendentes." };
     }
 
     await tx
@@ -455,6 +455,6 @@ export async function cancelTransactionDraft(params: {
       })
       .where(eq(telegramTransactionDrafts.id, draft.id));
 
-    return { ok: true, message: "Lançamento cancelado." };
+    return { ok: true, message: "✅ Lançamento cancelado." };
   });
 }

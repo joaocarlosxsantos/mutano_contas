@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import styles from "./site-chat.module.css";
 
-export const SITE_CHAT_GREETING: ChatMessage = { id: 0, role: "assistant", text: "Olá! Escolha um comando para consultar suas contas." };
+export const SITE_CHAT_GREETING: ChatMessage = { id: 0, role: "assistant", text: "Oi! 👋 Vamos olhar suas contas? Escolha um comando ou escreva sua pergunta." };
 
 type TranscriptMessage = ChatMessage & { href?: string; linkLabel?: string };
 
@@ -125,21 +125,21 @@ export function SiteChat() {
       const response = await fetch("/api/chat", { method: "POST", credentials: "same-origin", cache: "no-store",
         headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestPayload), signal: controller.signal });
       const result: unknown = await response.json().catch(() => ({}));
-      if (response.status === 401) { setMessages([]); setSignedOut(true); throw new Error("Sessão encerrada. Entre novamente para consultar."); }
+      if (response.status === 401) { setMessages([]); setSignedOut(true); throw new Error("🔒 Sua sessão terminou. Entre de novo para consultar."); }
       if (!response.ok) {
-        throw new Error(response.status === 429 ? "Você enviou muitas consultas. Aguarde um minuto e tente novamente." : "Não foi possível consultar agora. Tente novamente em instantes.");
+        throw new Error(response.status === 429 ? "⏳ Vamos dar uma pausa? Aguarde um minuto e tente de novo." : "⚠️ Não consegui consultar agora. Tente de novo em instantes.");
       }
       const reply = (result as { reply?: unknown })?.reply;
-      if (typeof reply !== "string" || reply.length > 12_000) throw new Error("Não foi possível consultar agora. Tente novamente em instantes.");
+      if (typeof reply !== "string" || reply.length > 12_000) throw new Error("⚠️ Não consegui consultar agora. Tente de novo em instantes.");
       if ("message" in payload && /a ia está indisponível no momento/i.test(reply)) {
-        setMessages(old => [...old.slice(-19), { id: nextId.current++, role: "assistant", text: "Para fazer perguntas livres, configure uma chave de IA em Minha conta.", href: "/usuario", linkLabel: "Abrir Minha conta" }]);
+        setMessages(old => [...old.slice(-19), { id: nextId.current++, role: "assistant", text: "💬 Para conversar por aqui, configure sua chave de IA em Minha conta.", href: "/usuario", linkLabel: "Abrir Minha conta" }]);
       } else {
         setMessages(old => [...old.slice(-19), { id: nextId.current++, role: "assistant", text: reply }]);
       }
     } catch (cause) {
-      if (controller.signal.aborted) setError("A consulta demorou demais. Tente novamente.");
-      else if (cause instanceof TypeError) setError("Não foi possível conectar. Verifique sua conexão e tente novamente.");
-      else setError(cause instanceof Error ? cause.message : "Não foi possível consultar agora. Tente novamente em instantes.");
+      if (controller.signal.aborted) setError("⏳ A consulta demorou mais que o esperado. Tente de novo.");
+      else if (cause instanceof TypeError) setError("📶 Não consegui conectar. Confira sua conexão e tente de novo.");
+      else setError(cause instanceof Error ? cause.message : "⚠️ Não consegui consultar agora. Tente de novo em instantes.");
     } finally {
       clearTimeout(timeout); setBusy(false); inFlight.current = false; request.current = null;
     }
@@ -147,7 +147,7 @@ export function SiteChat() {
 
   async function select(command: string) {
     if (command === "/pausar") {
-      const accepted = await confirm({ title: "Pausar avisos do Telegram?", description: "As consultas continuam disponíveis. Para retomar os avisos, use Configurações.", confirmLabel: "Pausar avisos" });
+      const accepted = await confirm({ title: "Pausar avisos do Telegram?", description: "🔔 Você pode continuar consultando. Quando quiser retomar os avisos, abra Configurações.", confirmLabel: "Pausar avisos" });
       if (!accepted) return;
     }
     await submit({ command }, command);

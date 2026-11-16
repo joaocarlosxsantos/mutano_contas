@@ -27,14 +27,14 @@ export async function POST(request: Request) {
   try {
     const session = await auth();
     const userId = (session?.user as { id?: string } | undefined)?.id;
-    if (!userId) return error("Entre na sua conta para usar o chat.", 401);
+    if (!userId) return error("🔒 Entre na sua conta para conversar por aqui.", 401);
     if (request.headers.get("origin") !== new URL(request.url).origin || request.headers.get("sec-fetch-site") === "cross-site")
-      return error("Origem inválida.", 403);
+      return error("⚠️ Não consegui validar esta consulta. Abra o chat pelo app.", 403);
     if (request.headers.get("content-type")?.split(";")[0].trim().toLowerCase() !== "application/json")
-      return error("Envie um comando em JSON.", 415);
-    if (!(await siteChatOwnerExists(userId))) return error("Sessão encerrada. Entre novamente.", 401);
+      return error("⚠️ Não consegui ler a consulta. Escolha uma opção do menu.", 415);
+    if (!(await siteChatOwnerExists(userId))) return error("🔒 Sua sessão terminou. Entre de novo.", 401);
     const limit = await claimSiteChatRequest(userId);
-    if (!limit.allowed) return error("Muitas consultas. Aguarde um minuto e tente novamente.", 429, { "Retry-After": String(limit.retryAfterSeconds) });
+    if (!limit.allowed) return error("⏳ Aguarde um minuto antes de consultar de novo.", 429, { "Retry-After": String(limit.retryAfterSeconds) });
     let input;
     let secretDetected = false;
     try {
@@ -45,8 +45,8 @@ export async function POST(request: Request) {
       }
       input = inputSchema.safeParse(body);
     }
-    catch { return error("Comando inválido. Escolha uma opção do menu.", 400); }
-    if (!input.success) return error("Comando inválido. Escolha uma opção do menu.", 400);
+    catch { return error("💬 Não reconheci esse comando. Escolha uma opção do menu.", 400); }
+    if (!input.success) return error("💬 Não reconheci esse comando. Escolha uma opção do menu.", 400);
     const data = input.data;
     if (secretDetected || ("message" in data && containsChatSecret(data.message))) return Response.json({ reply: CHAT_SECRET_NOTICE }, { headers });
     if ("history" in data && data.history?.some((h) => containsChatSecret(h.text))) return Response.json({ reply: CHAT_SECRET_NOTICE }, { headers });
@@ -54,6 +54,6 @@ export async function POST(request: Request) {
       : await withOpenFinanceAge(userId, () => answerQuestion(userId, `site:${userId}`, data.message, new Date(), true, ...(data.history ? [data.history] : [])));
     return Response.json({ reply: reply ? redactChatSecrets(reply) : reply }, { headers });
   } catch {
-    return error("Não foi possível consultar agora. Tente novamente.", 503);
+    return error("⚠️ Não consegui consultar agora. Tente de novo em instantes.", 503);
   }
 }

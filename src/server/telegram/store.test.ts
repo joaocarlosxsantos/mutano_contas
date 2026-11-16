@@ -90,7 +90,7 @@ describe("persistência Telegram", () => {
   });
   it("ajuda sem vínculo não chama o serviço nem carrega BYOK", async () => {
     mocks.results.push([{ count: 1 }], []);
-    expect(await processMessage(811, message("Onde configuro a IA do app?"))).toContain("Vincule");
+    expect(await processMessage(811, message("Onde configuro a IA do app?"))).toContain("Conecte");
     expect(mocks.ai).not.toHaveBeenCalled(); expect(mocks.aiStatus).not.toHaveBeenCalled();
   });
   it.each([`AQ.${"a".repeat(50)}`, `AIza${"a".repeat(35)}`, `sk-ant-${"a".repeat(35)}`, `sk-proj-${"a".repeat(35)}`])("bloqueia segredo antes do banco/parser de lançamentos ou IA", async token => {
@@ -131,7 +131,7 @@ describe("persistência Telegram", () => {
   });
   it("vínculo removido ou trocado entre claim e leitura não lê dados de outro dono", async () => {
     mocks.results.push([{ count: 1 }], [{ userId: "linked-owner" }], [{ userId: "different-owner" }]);
-    expect(await processMessage(13, message("/saldo"))).toContain("Vincule");
+    expect(await processMessage(13, message("/saldo"))).toContain("Conecte");
     expect(mocks.balance).not.toHaveBeenCalled();
   });
   it("esquema impede chat e usuário em múltiplos vínculos e remove vínculo ao excluir dono", () => {
@@ -199,7 +199,7 @@ describe("persistência Telegram", () => {
   it("consome por DELETE RETURNING com validade e nunca sobrescreve vínculo existente", async () => {
     const token = newLinkCode();
     mocks.results.push([{ count: 1 }], [{ userId: "code-owner" }], []);
-    expect(await processMessage(12, message(`/start ${token.code}`))).toContain("já vinculada");
+    expect(await processMessage(12, message(`/start ${token.code}`))).toContain("já está conectada");
     const predicate = sqlQuery(mocks.events.find((e) => e.kind === "where")?.value);
     expect(predicate.sql).toContain('"telegram_link_codes"."expires_at" >');
     expect(predicate.sql).toContain("clock_timestamp()");
@@ -238,7 +238,7 @@ describe("persistência Telegram", () => {
   });
   it("chat sem vínculo, comando desconhecido e replay não chamam IA", async () => {
     mocks.results.push([{ count: 1 }], []);
-    expect(await processMessage(17, message("saldo?"))).toContain("Vincule");
+    expect(await processMessage(17, message("saldo?"))).toContain("Conecte");
     mocks.results.push([{ count: 1 }]);
     await processMessage(18, message("/desconhecido"));
     mocks.results.push([]);
@@ -297,8 +297,8 @@ describe("persistência Telegram", () => {
     );
 
     const reply = await processMessage(24, message("mercado 35"));
-    expect(reply).toContain("Confirmar despesa?");
-    expect(reply).toContain("Mercado: R$ 35,00");
+    expect(reply).toContain("Confirmar esta 📤 despesa?");
+    expect(reply).toContain("Mercado: 💰 R$ 35,00");
     expect(reply).toContain("Conta: Nubank");
   });
   it("processa /avisos mostrando status dos alertas", async () => {
@@ -309,7 +309,7 @@ describe("persistência Telegram", () => {
     );
 
     const reply = await processMessage(25, message("/avisos"));
-    expect(reply).toContain("Avisos Automáticos: Ativos");
+    expect(reply).toContain("Seus avisos automáticos: Ativos");
     expect(reply).toContain("Horários: 8h, 14h, 20h");
     expect(reply).toContain("Resumo diário: ✅");
   });

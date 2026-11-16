@@ -96,7 +96,7 @@ export async function processMessage(updateId: number, message: TelegramMessage)
 
     if (isFreeQuestion(message.text)) {
       const [link] = await tx.select({ userId: telegramLinks.userId }).from(telegramLinks).where(eq(telegramLinks.chatId, chatId)).limit(1);
-      if (!link) return "Vincule seu Telegram em Configurações no Mutano Contas antes de fazer perguntas.";
+      if (!link) return "🔗 Conecte seu Telegram em Configurações no Mutano Contas antes de fazer perguntas.";
       return { kind: "question" as const, userId: link.userId, question: message.text!.trim() };
     }
 
@@ -115,7 +115,7 @@ export async function processMessage(updateId: number, message: TelegramMessage)
         .limit(1);
 
       if (!link) {
-        return "Vincule seu Telegram em Configurações no Mutano Contas antes de registrar lançamentos.";
+        return "🔗 Conecte seu Telegram em Configurações no Mutano Contas antes de registrar lançamentos.";
       }
 
       const draftRes = await createTransactionDraft({
@@ -129,7 +129,7 @@ export async function processMessage(updateId: number, message: TelegramMessage)
       });
 
       if (!draftRes.ok) {
-        return draftRes.error ?? "Não foi possível registrar o lançamento.";
+        return draftRes.error ?? "⚠️ Não consegui registrar o lançamento. Tente de novo em instantes.";
       }
 
       const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" })
@@ -137,8 +137,8 @@ export async function processMessage(updateId: number, message: TelegramMessage)
         .replace(/\u00A0/g, " ");
       const dateParts = parsed.date.split("-");
       const dateStr = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
-      const kindLabel = parsed.kind === "INCOME" ? "receita" : "despesa";
-      return `Confirmar ${kindLabel}?\n• ${parsed.description}: ${money}\n• Data: ${dateStr}\n• Conta: ${draftRes.accountName}`;
+      const kindLabel = parsed.kind === "INCOME" ? "📥 receita" : "📤 despesa";
+      return `Confirmar esta ${kindLabel}?\n🧾 ${parsed.description}: 💰 ${money}\n📅 Data: ${dateStr}\n🏦 Conta: ${draftRes.accountName}`;
     }
 
     if (message.text?.trim() && !message.text.trim().startsWith("/")) {

@@ -8,7 +8,7 @@ import { BOT_COMMANDS } from "@/server/telegram/commands";
 
 describe("Chat acessível e menu compartilhado", () => {
   it("mantém uma saudação própria sem afirmar equivalência com o Telegram", () => {
-    expect(SITE_CHAT_GREETING.text).toBe("Olá! Escolha um comando para consultar suas contas.");
+    expect(SITE_CHAT_GREETING.text).toBe("Oi! 👋 Vamos olhar suas contas? Escolha um comando ou escreva sua pergunta.");
     expect(SITE_CHAT_GREETING.text).not.toMatch(/respostas?.{0,40}telegram|telegram.{0,40}respostas?/i);
   });
   it("expõe todos os comandos publicados pelo bot e somente comandos exatos", () => {

@@ -57,7 +57,7 @@ function formatDayMonth(d: Date): string {
 
 export function formatCardSummary(cards: CardSummaryData[]): string {
   if (cards.length === 0) {
-    return "Nenhum cartão de crédito cadastrado. Cadastre suas contas em Configurações > Contas no Mutano Contas.";
+    return "💳 Você ainda não tem um cartão cadastrado. Adicione em Configurações > Contas no Mutano Contas.";
   }
 
   const displayedCards = cards.slice(0, 5);
@@ -72,20 +72,20 @@ export function formatCardSummary(cards: CardSummaryData[]): string {
         : "não informado";
 
     const lines: string[] = [
-      `💳 *${cardTitle}*`,
-      `• Fatura atual: ${invoiceFormatted}`,
-      `• Limite disponível: ${limitFormatted}`,
+      `💳 ${cardTitle}`,
+      `🧾 Fatura atual: ${invoiceFormatted}`,
+      `💰 Limite disponível: ${limitFormatted}`,
     ];
 
     if (card.recentPurchases.length === 0) {
-      lines.push("• Nenhuma compra recente registrada");
+      lines.push("🛍️ Nenhuma compra recente registrada");
     } else {
-      lines.push("• Últimas compras:");
+      lines.push("🛍️ Últimas compras:");
       for (const purchase of card.recentPurchases.slice(0, 5)) {
         const desc = sanitizePurchaseDescription(purchase.description);
         const amount = formatCurrency(purchase.amountCents);
         const dateStr = formatDayMonth(new Date(purchase.date));
-        lines.push(`  - ${dateStr} ${desc}: ${amount}`);
+        lines.push(`  📅 ${dateStr} · 🛍️ ${desc}: 💰 ${amount}`);
       }
     }
 

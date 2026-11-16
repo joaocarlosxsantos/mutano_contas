@@ -77,7 +77,7 @@ describe("callback owner / idempotência", () => {
     expect(fetcher).toHaveBeenCalledTimes(delivered ? 1 : 2);
     expect(fetcher.mock.calls[0][0]).toBe("https://api.telegram.org/bottest-token/sendMessage");
     const body = JSON.parse(fetcher.mock.calls[0][1].body);
-    expect(body).toMatchObject({ chat_id: 123, text: "Veja os detalhes no app.", protect_content: true });
+    expect(body).toMatchObject({ chat_id: 123, text: "🔎 Os detalhes estão no app. Toque abaixo para abrir.", protect_content: true });
     expect(new URL(body.reply_markup.inline_keyboard[0][0].url).pathname).toBe("/painel");
     if (!delivered) expect(JSON.parse(fetcher.mock.calls[1][1].body).text).toBe(CALLBACK_TEXT.detailsFailed);
     expect(processMessage).not.toHaveBeenCalled();

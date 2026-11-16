@@ -163,15 +163,15 @@ export async function manualSummary(userId: string, connection: Pick<typeof db, 
 /** Consulta de assinaturas detectadas e aumentos de preço para o bot */
 export async function manualSubscriptionsInsight(userId: string, connection: Pick<typeof db, "select"> = db): Promise<string> {
   const subs = await getDetectedSubscriptions(userId, connection);
-  if (!subs.length) return "Nenhuma assinatura mensal ou anual confirmada por cobranças recorrentes.";
+  if (!subs.length) return "🔄 Ainda não encontrei assinaturas mensais ou anuais confirmadas por cobranças recorrentes.";
 
-  const lines: string[] = ["Assinaturas identificadas nos seus lançamentos:"];
+  const lines: string[] = ["🔄 Estas são as assinaturas que encontrei nos seus lançamentos:"];
   for (const s of subs.slice(0, 6)) {
     const val = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(s.currentAmountCents / 100);
-    const statusText = s.isRegistered ? "regra cadastrada" : "não cadastrado em regras";
-    const increaseText = s.hasPriceIncrease ? ` (preço subiu +${s.priceIncreasePct}%)` : "";
+    const statusText = s.isRegistered ? "✅ regra cadastrada" : "⚠️ sem regra cadastrada";
+    const increaseText = s.hasPriceIncrease ? ` (⚠️ preço subiu +${s.priceIncreasePct}%)` : "";
     const name = s.name.replace(/[\r\n\t\u0000-\u001f\u007f]/g, " ").slice(0, 60);
-    lines.push(`• ${name}: ${val}/${s.cadence === "annual" ? "ano" : "mês"} [${statusText}]${increaseText}`);
+    lines.push(`🔄 ${name}: 💰 ${val}/${s.cadence === "annual" ? "ano" : "mês"} [${statusText}]${increaseText}`);
   }
   return lines.join("\n").slice(0, 3800);
 }
@@ -179,15 +179,15 @@ export async function manualSubscriptionsInsight(userId: string, connection: Pic
 /** /previsao: resultado mensal, compromissos e ritmo variável robusto. */
 export async function manualForecast(userId: string, connection: Pick<typeof db, "select"> = db, now = new Date()): Promise<string> {
   const { forecast, committedCents, historyDays, insights } = await loadSpendingForecast(userId, connection, now);
-  return [`Previsão (${monthLabel(currentMonthRef(now))}): ${forecast.projectedBalanceCents >= 0 ? "sobra" : "falta"} mensal de ${formatCents(Math.abs(forecast.projectedBalanceCents))}.`,
-    `Ritmo variável: ${formatCents(forecast.dailyAvgCents)}/dia; compromissos incluídos: ${formatCents(committedCents)}.`,
-    ...(historyDays < 14 ? ["Histórico curto: estimativa limitada."] : []),
+  return [`📅 Previsão (${monthLabel(currentMonthRef(now))}): ${forecast.projectedBalanceCents >= 0 ? "sobra" : "falta"} mensal de ${formatCents(Math.abs(forecast.projectedBalanceCents))}.`,
+    `🛍️ Ritmo variável: ${formatCents(forecast.dailyAvgCents)}/dia; 🧾 compromissos incluídos: ${formatCents(committedCents)}.`,
+    ...(historyDays < 14 ? ["⚠️ Ainda há pouco histórico. Use esta estimativa com cuidado."] : []),
     ...insights.slice(0, 3)].join("\n");
 }
 
 /** /hoje: saldo mensal livre após reservar os compromissos, ponderado pelo dia. */
 export async function manualDailyBudget(userId: string, connection: Pick<typeof db, "select"> = db, now = new Date()): Promise<string> {
   const { daily } = await loadSpendingForecast(userId, connection, now);
-  if (daily.availableForRestOfMonthCents <= 0) return `Sem margem para novos gastos. Falta mensal após compromissos: ${formatCents(Math.abs(daily.availableForRestOfMonthCents))}.`;
-  return `Restante para hoje: ${formatCents(daily.remainingTodayCents)}. Teto do dia: ${formatCents(daily.dailyAllowanceCents)}, ponderado pelo dia da semana.\nLivre no mês após compromissos: ${formatCents(daily.availableForRestOfMonthCents)} para ${daily.daysRemainingWithToday} dias (renda prevista).`;
+  if (daily.availableForRestOfMonthCents <= 0) return `⚠️ Por enquanto, não há margem para novos gastos. Falta mensal após compromissos: ${formatCents(Math.abs(daily.availableForRestOfMonthCents))}.`;
+  return `💰 Restante para hoje: ${formatCents(daily.remainingTodayCents)}. 🎯 Teto do dia: ${formatCents(daily.dailyAllowanceCents)}, ponderado pelo dia da semana.\n📅 Livre no mês após compromissos: ${formatCents(daily.availableForRestOfMonthCents)} para ${daily.daysRemainingWithToday} dias (renda prevista).`;
 }

@@ -10,7 +10,7 @@ export type MessageDelivery = {
     send(message: TelegramMessage, text: string, keyboard?: InlineKeyboard): Promise<boolean>;
   };
 };
-const MESSAGE_FAILURE = "Não foi possível consultar seus dados agora. Tente novamente em instantes.";
+const MESSAGE_FAILURE = "⚠️ Não consegui consultar seus dados agora. Tente de novo em instantes.";
 export const TELEGRAM_MESSAGE_TIMEOUT_MS = 50_000;
 
 export type InlineDependencies = {

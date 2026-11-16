@@ -48,23 +48,23 @@ export async function loadMonthlyReport(
   const priorBalance = prior.incomeCents - prior.expenseCents;
   const delta = (cents: number) => `${cents > 0 ? "+" : ""}${formatCents(cents)}`;
   const lines = [
-    `Mutano Contas · ${automatic ? "Fechamento" : "Relatório parcial"} de ${monthLabel(ref)}`,
-    `Receitas: ${formatCents(current.incomeCents)}`,
-    `Despesas: ${formatCents(current.expenseCents)}`,
-    `Saldo do período: ${formatCents(balance)}`,
+    `📅 Mutano Contas · ${automatic ? "Fechamento" : "Relatório parcial"} de ${monthLabel(ref)}`,
+    `📥 Receitas: ${formatCents(current.incomeCents)}`,
+    `📤 Despesas: ${formatCents(current.expenseCents)}`,
+    `💰 Saldo do período: ${formatCents(balance)}`,
     "",
-    `Comparação com ${monthLabel(previous)}${automatic ? "" : " (mesmos dias, até o fim do mês anterior)"}`,
-    `Receitas: ${delta(current.incomeCents - prior.incomeCents)} · despesas: ${delta(current.expenseCents - prior.expenseCents)}`,
-    `Variação do saldo: ${delta(balance - priorBalance)}`,
+    `📅 Comparação com ${monthLabel(previous)}${automatic ? "" : " (mesmos dias, até o fim do mês anterior)"}`,
+    `📥 Receitas: ${delta(current.incomeCents - prior.incomeCents)} · 📤 despesas: ${delta(current.expenseCents - prior.expenseCents)}`,
+    `💰 Variação do saldo: ${delta(balance - priorBalance)}`,
   ];
-  lines.push("", `Posição atual${balances.totalIncomplete ? " (parcial)" : ""} — não é o saldo de fechamento`,
-    `Disponível: ${formatCents(balances.availableCents)}`,
-    `Investido: ${formatCents(balances.investedCents)}`,
-    `Patrimônio líquido: ${formatCents(balances.netWorthCents)}`);
+  lines.push("", `💰 Posição atual${balances.totalIncomplete ? " (parcial)" : ""} — não é o saldo de fechamento`,
+    `💰 Disponível: ${formatCents(balances.availableCents)}`,
+    `📈 Investido: ${formatCents(balances.investedCents)}`,
+    `🏦 Patrimônio líquido: ${formatCents(balances.netWorthCents)}`);
   if (spending) {
-    lines.push("", "Maiores categorias de despesa");
-    for (const row of spendingRows.slice(0, 5)) lines.push(`${safeLabel(row.name)}: ${formatCents(row.totalCents)}`);
-    if (!spendingRows.length) lines.push("Nenhuma despesa registrada.");
+    lines.push("", "🏷️ Onde você mais gastou");
+    for (const row of spendingRows.slice(0, 5)) lines.push(`🏷️ ${safeLabel(row.name)}: ${formatCents(row.totalCents)}`);
+    if (!spendingRows.length) lines.push("📤 Nenhuma despesa registrada por aqui.");
   }
   if (budget) {
     const limitByCategory = new Map(limits.map((row) => [row.categoryId, row.limitCents]));
@@ -72,9 +72,9 @@ export async function loadMonthlyReport(
       const limit = limitByCategory.get(row.id);
       return limit !== undefined && row.totalCents > limit ? [{ name: row.name, overCents: row.totalCents - limit }] : [];
     }).sort((a, b) => b.overCents - a.overCents);
-    lines.push("", "Orçamentos estourados");
-    for (const row of over.slice(0, 5)) lines.push(`${safeLabel(row.name)}: ${formatCents(row.overCents)} acima do limite`);
-    if (!over.length) lines.push(limits.length ? "Nenhum estouro no período." : "Nenhum orçamento definido para o período.");
+    lines.push("", "⚠️ Orçamentos acima do limite");
+    for (const row of over.slice(0, 5)) lines.push(`🏷️ ${safeLabel(row.name)}: ${formatCents(row.overCents)} acima do limite`);
+    if (!over.length) lines.push(limits.length ? "✅ Nenhum estouro no período." : "🎯 Você ainda não definiu um orçamento para o período.");
     if (over.length > 5) lines.push(`Mais ${over.length - 5} no app.`);
   }
   return lines.join("\n");

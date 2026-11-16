@@ -19,7 +19,7 @@ import {
 describe("card-summary (TDD para /cartao)", () => {
   it("sem cartão cadastrado retorna mensagem amigável", () => {
     const text = formatCardSummary([]);
-    expect(text).toContain("Nenhum cartão de crédito cadastrado");
+    expect(text).toContain("Você ainda não tem um cartão cadastrado");
     expect(text).toContain("Contas");
   });
 
@@ -114,7 +114,7 @@ describe("card-summary (TDD para /cartao)", () => {
         "user-test-1",
         mockConn as unknown as Parameters<typeof loadCardSummary>[1],
       );
-      expect(result).toContain("Nenhum cartão de crédito cadastrado");
+      expect(result).toContain("Você ainda não tem um cartão cadastrado");
       expect(mockConn.select).toHaveBeenCalledTimes(1);
     });
 

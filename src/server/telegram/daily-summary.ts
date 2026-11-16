@@ -48,28 +48,28 @@ export function formatDailySummary(data: DailySummaryData, isWeekly = false): st
   const sections: string[] = [];
 
   // Cabeçalho
-  sections.push(isWeekly ? `🌅 *Mutano Contas — Resumo Semanal (${data.dayLabel})*` : `🌅 *Mutano Contas — Resumo do Dia (${data.dayLabel})*`);
+  sections.push(isWeekly ? `📅 Mutano Contas — Resumo Semanal (${data.dayLabel})` : `📅 Mutano Contas — Resumo do Dia (${data.dayLabel})`);
 
   // (1) CONTA
-  const accountLines: string[] = ["💰 *CONTA*"];
+  const accountLines: string[] = ["🏦 Suas contas"];
   const totalStr = formatCurrency(data.accounts.totalAvailableCents);
-  accountLines.push(`• Saldo total disponível: ${totalStr}${data.accounts.incomplete ? " (parcial)" : ""}`);
-  if (data.accounts.investedCents !== undefined) accountLines.push(`• Investido: ${formatCurrency(data.accounts.investedCents)}${data.accounts.incomplete ? " (parcial)" : ""}`);
-  if (data.accounts.netWorthCents !== undefined) accountLines.push(`• Patrimônio líquido: ${formatCurrency(data.accounts.netWorthCents)}${data.accounts.incomplete ? " (parcial)" : ""}`);
+  accountLines.push(`💰 Saldo total disponível: ${totalStr}${data.accounts.incomplete ? " (parcial)" : ""}`);
+  if (data.accounts.investedCents !== undefined) accountLines.push(`📈 Investido: ${formatCurrency(data.accounts.investedCents)}${data.accounts.incomplete ? " (parcial)" : ""}`);
+  if (data.accounts.netWorthCents !== undefined) accountLines.push(`🏦 Patrimônio líquido: ${formatCurrency(data.accounts.netWorthCents)}${data.accounts.incomplete ? " (parcial)" : ""}`);
 
   if (data.yesterdayMovements.hasMovements) {
     const inc = formatCurrency(data.yesterdayMovements.incomeCents);
     const exp = formatCurrency(data.yesterdayMovements.expenseCents);
-    accountLines.push(isWeekly ? `• Últimos 7 dias: entradas ${inc} · saídas ${exp}` : `• Ontem: entradas ${inc} · saídas ${exp}`);
+    accountLines.push(isWeekly ? `📅 Últimos 7 dias: 📥 entradas ${inc} · 📤 saídas ${exp}` : `📅 Ontem: 📥 entradas ${inc} · 📤 saídas ${exp}`);
   } else {
-    accountLines.push(isWeekly ? "• Últimos 7 dias: sem movimentações registradas" : "• Ontem: sem movimentações registradas");
+    accountLines.push(isWeekly ? "📅 Últimos 7 dias: sem movimentações registradas" : "📅 Ontem: sem movimentações registradas");
   }
   sections.push(accountLines.join("\n"));
 
   // (2) CARTÃO
-  const cardLines: string[] = ["💳 *CARTÃO*"];
+  const cardLines: string[] = ["💳 Seus cartões"];
   if (data.cards.length === 0) {
-    cardLines.push("• Nenhum cartão de crédito cadastrado");
+    cardLines.push("💳 Nenhum cartão de crédito cadastrado");
   } else {
     for (const card of data.cards.slice(0, 5)) {
       const name = sanitizeCardName(card.name);
@@ -80,22 +80,22 @@ export function formatDailySummary(data: DailySummaryData, isWeekly = false): st
         const avail = formatCurrency(card.availableLimitCents);
         if (card.totalLimitCents !== null && card.totalLimitCents !== undefined && card.totalLimitCents > 0) {
           const used = formatCurrency(Math.max(0, card.totalLimitCents - card.availableLimitCents));
-          limitText = ` · Limite: ${used} usado / ${avail} disponível`;
+          limitText = ` · 💰 Limite: ${used} usado / ${avail} disponível`;
         } else {
-          limitText = ` · Limite disponível: ${avail}`;
+          limitText = ` · 💰 Limite disponível: ${avail}`;
         }
       }
 
-      const dueText = card.dueDay ? ` · Vence dia ${card.dueDay}` : "";
-      cardLines.push(`• *${name}*: Fatura ${invoice}${limitText}${dueText}`);
+      const dueText = card.dueDay ? ` · 📅 Vence dia ${card.dueDay}` : "";
+      cardLines.push(`💳 ${name}: 🧾 Fatura ${invoice}${limitText}${dueText}`);
     }
   }
   sections.push(cardLines.join("\n"));
 
   // (3) INSIGHTS DO DIA (2 a 3 itens)
-  const insightLines: string[] = ["💡 *INSIGHTS DO DIA*"];
+  const insightLines: string[] = ["💡 Para ficar de olho"];
   if (data.insights.length === 0) {
-    insightLines.push("• Suas contas e limites estão em dia para hoje.");
+    insightLines.push("🔎 Não há destaques neste resumo. Confira os detalhes no app.");
   } else {
     for (const item of data.insights.slice(0, 3)) {
       insightLines.push(`• ${item}`);
@@ -206,9 +206,9 @@ export function selectDailyInsights(
   if (data.due?.length) {
     for (const b of data.due) {
       if (b.diffDays === 0) {
-        list.push(`Conta a vencer hoje: ${sanitizeLabel(b.name)} (${formatCurrency(b.totalCents)})`);
+        list.push(`🧾 Conta a vencer hoje: ${sanitizeLabel(b.name)} (${formatCurrency(b.totalCents)})`);
       } else if (b.diffDays === 1) {
-        list.push(`Conta a vencer amanhã: ${sanitizeLabel(b.name)} (${formatCurrency(b.totalCents)})`);
+        list.push(`🧾 Conta a vencer amanhã: ${sanitizeLabel(b.name)} (${formatCurrency(b.totalCents)})`);
       }
       if (list.length >= 3) return list;
     }
@@ -218,11 +218,11 @@ export function selectDailyInsights(
   if (data.cardInvoices?.length) {
     for (const c of data.cardInvoices) {
       if (c.diffDays === 0) {
-        list.push(`Fatura do ${sanitizeLabel(c.cardName)} vence hoje (${formatCurrency(c.invoiceCents)})`);
+        list.push(`💳 Fatura do ${sanitizeLabel(c.cardName)} vence hoje (${formatCurrency(c.invoiceCents)})`);
       } else if (c.diffDays === 1) {
-        list.push(`Fatura do ${sanitizeLabel(c.cardName)} vence amanhã (${formatCurrency(c.invoiceCents)})`);
+        list.push(`💳 Fatura do ${sanitizeLabel(c.cardName)} vence amanhã (${formatCurrency(c.invoiceCents)})`);
       } else if (c.diffDays === 3) {
-        list.push(`Fatura do ${sanitizeLabel(c.cardName)} vence em 3 dias (${formatCurrency(c.invoiceCents)})`);
+        list.push(`💳 Fatura do ${sanitizeLabel(c.cardName)} vence em 3 dias (${formatCurrency(c.invoiceCents)})`);
       }
       if (list.length >= 3) return list;
     }
@@ -233,21 +233,21 @@ export function selectDailyInsights(
     const exceeded = data.budgets.filter((b) => b.spentCents >= b.limitCents && b.limitCents > 0);
     for (const b of exceeded) {
       const pct = b.pct ?? Math.round((b.spentCents / b.limitCents) * 100);
-      list.push(`Orçamento estourado em ${sanitizeLabel(b.name)}: ${formatCurrency(b.spentCents)} de ${formatCurrency(b.limitCents)} (${pct}%)`);
+      list.push(`⚠️ Orçamento estourado em ${sanitizeLabel(b.name)}: ${formatCurrency(b.spentCents)} de ${formatCurrency(b.limitCents)} (${pct}%)`);
       if (list.length >= 3) return list;
     }
 
     const warning = data.budgets.filter((b) => b.spentCents >= Math.round(b.limitCents * 0.8) && b.spentCents < b.limitCents && b.limitCents > 0);
     for (const b of warning) {
       const pct = b.pct ?? Math.round((b.spentCents / b.limitCents) * 100);
-      list.push(`Atenção: orçamento de ${sanitizeLabel(b.name)} atingiu ${pct}% (${formatCurrency(b.spentCents)} de ${formatCurrency(b.limitCents)})`);
+      list.push(`⚠️ Atenção: orçamento de ${sanitizeLabel(b.name)} atingiu ${pct}% (${formatCurrency(b.spentCents)} de ${formatCurrency(b.limitCents)})`);
       if (list.length >= 3) return list;
     }
   }
 
   // 4. Previsão de saldo negativo para o fim do mês
   if (data.forecast && data.forecast.balanceCents < 0) {
-    list.push(`Previsão de saldo negativo para o fim do mês: ${formatCurrency(data.forecast.balanceCents)} no ritmo atual`);
+    list.push(`⚠️ Previsão de saldo negativo para o fim do mês: ${formatCurrency(data.forecast.balanceCents)} no ritmo atual`);
     if (list.length >= 3) return list;
   }
 
@@ -255,7 +255,7 @@ export function selectDailyInsights(
   if (data.subscriptions?.length) {
     const hikes = data.subscriptions.filter((s) => s.hasPriceIncrease);
     for (const s of hikes) {
-      list.push(`Aviso de assinatura: ${sanitizeLabel(s.name)} subiu para ${formatCurrency(s.currentCents)} (+${s.priceIncreasePct}%)`);
+      list.push(`🔄 Aviso de assinatura: ${sanitizeLabel(s.name)} subiu para ${formatCurrency(s.currentCents)} (+${s.priceIncreasePct}%)`);
       if (list.length >= 3) return list;
     }
   }
@@ -264,14 +264,14 @@ export function selectDailyInsights(
   if (data.categories?.length) {
     const elevated = data.categories.filter((c) => c.todayCents > (c.historyCents / 30) * 1.5 && c.todayCents >= 1000);
     for (const c of elevated) {
-      list.push(`Gasto recente acima da média em ${sanitizeLabel(c.name)}: ${formatCurrency(c.todayCents)}`);
+      list.push(`🛍️ Gasto recente acima da média em ${sanitizeLabel(c.name)}: ${formatCurrency(c.todayCents)}`);
       if (list.length >= 3) return list;
     }
   }
 
   // 7. Cota de gasto diário recomendado para hoje (se houver e ainda couber)
   if (list.length < 3 && dailyBudgetCents !== undefined && dailyBudgetCents > 0) {
-    list.push(`Cota de hoje: você pode gastar até ${formatCurrency(dailyBudgetCents)} para fechar o mês no azul`);
+    list.push(`🎯 Cota de hoje: você pode gastar até ${formatCurrency(dailyBudgetCents)} para fechar o mês no azul`);
   }
 
   return list.slice(0, 3);
@@ -323,7 +323,7 @@ export async function loadDailySummaryData(
   }
   const priority = selectDailyInsights(enrichedInsightData);
   const insights = [...priority, ...spendingInsights,
-    ...(dailyBudgetCents !== undefined ? [`Cota restante hoje: ${formatCurrency(dailyBudgetCents)} (compromissos reservados).`] : [])].slice(0, 3);
+    ...(dailyBudgetCents !== undefined ? [`🎯 Cota restante hoje: ${formatCurrency(dailyBudgetCents)} (compromissos reservados).`] : [])].slice(0, 3);
 
   return {
     dayLabel,

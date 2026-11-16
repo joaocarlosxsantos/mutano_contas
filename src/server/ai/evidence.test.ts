@@ -60,12 +60,12 @@ describe("avaliação de dez consultas pessoais/mistas", () => {
     ["Quanto gastei no cartão?", "get_spending_by_category", { start: "2026-11-14", end: "2026-11-15", accountScope: "credit_card", totalCents: 6050, includesPending: true, rows: [{ category: "Lazer", amountCents: 6050 }] }, "60,50"],
     ["Gastos de todas as contas e onde lançar?", "get_spending_by_category", { start: "2026-11-14", end: "2026-11-15", totalCents: 500, rows: [] }, "5,00"],
     ["Maiores despesas?", "get_largest_expenses", { start: "2026-11-14", end: "2026-11-15", rows: [{ category: "Lazer", amountCents: 1234 }] }, "12,34"],
-    ["Como ordenar minhas despesas e a maior?", "get_largest_expenses", { start: "2026-11-14", end: "2026-11-15", rows: [] }, "Nenhum registro"],
+    ["Como ordenar minhas despesas e a maior?", "get_largest_expenses", { start: "2026-11-14", end: "2026-11-15", rows: [] }, "Não encontrei registros"],
     ["Compare outubro e novembro", "compare_months", { rows: [{ month: "2026-10", incomeCents: 100, expenseCents: 300 }, { month: "2026-11", incomeCents: 200, expenseCents: 400 }] }, "4,00"],
     ["Contas a vencer?", "get_due_bills", { rows: [{ date: "2026-11-17", totalCents: 999 }] }, "9,99"],
-    ["Como vejo contas a vencer e quais tenho?", "get_due_bills", { rows: [] }, "Nenhuma conta"],
+    ["Como vejo contas a vencer e quais tenho?", "get_due_bills", { rows: [] }, "Não encontrei contas"],
     ["Quais foram as transações?", "list_transactions", { start: "2026-11-14", end: "2026-11-15", accountScope: "all", rows: [{ date: "2026-11-14", description: "Café", amountCents: 1500, accountType: "cartão", pending: true }] }, "15,00"],
-    ["Quais transações vazias?", "list_transactions", { start: "2026-11-14", end: "2026-11-15", rows: [] }, "Nenhuma transação encontrada"],
+    ["Quais transações vazias?", "list_transactions", { start: "2026-11-14", end: "2026-11-15", rows: [] }, "Não encontrei transações"],
     ["Qual meu investimento de amanhã?", "unknown", {}, AI_NO_DATA],
   ])("%s", (_question, name, value, expected) => {
     expect(groundedReply([], [{ name, value }])).toContain(expected);

@@ -43,16 +43,16 @@ export function ownerCommandDependencies(tx: CommandConnection, now = new Date()
       const hours = (prefs?.hours ?? [8, 14, 20]).map((h) => `${h}h`).join(", ");
       const check = (val: boolean | undefined) => (val !== false ? "✅" : "⏸️");
       return [
-        `🔔 Avisos Automáticos: ${enabled ? "Ativos" : "Pausados"}`,
+        `🔔 Seus avisos automáticos: ${enabled ? "Ativos" : "Pausados"}`,
         `⏰ Horários: ${hours}`,
         "",
         "Tipos de avisos:",
-        `• Resumo diário: ${check(prefs?.summary)}`,
-        `• Gastos acima da média: ${check(prefs?.spending)}`,
-        `• Contas a pagar: ${check(prefs?.dueBills)}`,
-        `• Limites de orçamento: ${check(prefs?.budget)}`,
-        `• Faturas de cartão: ${check(prefs?.cardInvoice)}`,
-        `• Previsão de saldo: ${check(prefs?.negativeForecast)}`,
+        `📅 Resumo diário: ${check(prefs?.summary)}`,
+        `🛍️ Gastos acima da média: ${check(prefs?.spending)}`,
+        `🧾 Contas a pagar: ${check(prefs?.dueBills)}`,
+        `🎯 Limites de orçamento: ${check(prefs?.budget)}`,
+        `💳 Faturas de cartão: ${check(prefs?.cardInvoice)}`,
+        `💰 Previsão de saldo: ${check(prefs?.negativeForecast)}`,
         "",
         "Use /pausar para pausar todos os avisos ou ajuste horários em Configurações no app.",
       ].join("\n");

@@ -103,54 +103,54 @@ export async function commandReply(message: TelegramMessage, deps: CommandDepend
   const chatId = String(message.chat.id);
   if (text.startsWith("/start ")) {
     const code = text.slice(7);
-    if (!codePattern.test(code)) return "Link inválido ou expirado. Gere outro em Configurações.";
+    if (!codePattern.test(code)) return "⚠️ Esse link não é válido ou já expirou. Gere outro em Configurações.";
     const linked = await deps.consumeCode(hashCode(code), chatId);
-    return linked ? LINKED_WELCOME : "Link inválido, expirado ou conta já vinculada. Desconecte no app e gere outro link.";
+    return linked ? LINKED_WELCOME : "⚠️ Esse link pode ter expirado ou a conta já está conectada. Desconecte no app e gere outro link.";
   }
   const isCardsCommand = text === "/cartao" || text.startsWith("/cartao ");
   if (!isFinancialCommand(text) && text !== "/pausar" && text !== "/avisos" && text !== "/desfazer") {
     const owner = await deps.linkedUser(chatId);
-    return owner ? HELP : "Vincule seu Telegram em Configurações no Mutano Contas para usar o bot. Gere o link de vínculo no app.";
+    return owner ? HELP : "🔗 Conecte seu Telegram em Configurações no Mutano Contas para usar o bot. Gere o link de vínculo no app.";
   }
   const userId = await deps.linkedUser(chatId);
   if (!userId) {
-    if (text === "/resumo") return "Vincule seu Telegram em Configurações no Mutano Contas antes de consultar o resumo.";
-    if (text === "/relatorio") return "Vincule seu Telegram em Configurações no Mutano Contas antes de consultar o relatório.";
-    if (isCardsCommand) return "Vincule seu Telegram em Configurações no Mutano Contas antes de consultar cartões.";
-    if (text === "/previsao") return "Vincule seu Telegram em Configurações no Mutano Contas antes de consultar a previsão.";
-    if (text === "/hoje") return "Vincule seu Telegram em Configurações no Mutano Contas antes de consultar o cálculo diário.";
-    if (text === "/assinaturas") return "Vincule seu Telegram em Configurações no Mutano Contas antes de consultar assinaturas.";
-    if (text === "/avisos") return "Vincule seu Telegram em Configurações no Mutano Contas antes de consultar avisos.";
-    if (text === "/desfazer") return "Vincule seu Telegram em Configurações no Mutano Contas antes de desfazer lançamentos.";
-    return "Vincule seu Telegram em Configurações no Mutano Contas antes de consultar o saldo.";
+    if (text === "/resumo") return "🔗 Conecte seu Telegram em Configurações no Mutano Contas antes de consultar o resumo.";
+    if (text === "/relatorio") return "🔗 Conecte seu Telegram em Configurações no Mutano Contas antes de consultar o relatório.";
+    if (isCardsCommand) return "🔗 Conecte seu Telegram em Configurações no Mutano Contas antes de consultar cartões.";
+    if (text === "/previsao") return "🔗 Conecte seu Telegram em Configurações no Mutano Contas antes de consultar a previsão.";
+    if (text === "/hoje") return "🔗 Conecte seu Telegram em Configurações no Mutano Contas antes de consultar o cálculo diário.";
+    if (text === "/assinaturas") return "🔗 Conecte seu Telegram em Configurações no Mutano Contas antes de consultar assinaturas.";
+    if (text === "/avisos") return "🔗 Conecte seu Telegram em Configurações no Mutano Contas antes de consultar avisos.";
+    if (text === "/desfazer") return "🔗 Conecte seu Telegram em Configurações no Mutano Contas antes de desfazer lançamentos.";
+    return "🔗 Conecte seu Telegram em Configurações no Mutano Contas antes de consultar o saldo.";
   }
   if (text === "/avisos") {
-    return deps.notifications ? deps.notifications(userId) : "Configurações de avisos temporariamente indisponíveis.";
+    return deps.notifications ? deps.notifications(userId) : "⚠️ Não consegui abrir seus avisos agora. Tente de novo em instantes.";
   }
   if (text === "/desfazer") {
-    return deps.undo ? deps.undo(userId) : "Nenhum lançamento recente encontrado para desfazer.";
+    return deps.undo ? deps.undo(userId) : "🔎 Não encontrei um lançamento recente para desfazer.";
   }
   if (text === "/relatorio") {
-    return deps.report ? deps.report(userId) : "Relatório temporariamente indisponível.";
+    return deps.report ? deps.report(userId) : "⚠️ Não consegui buscar seu relatório agora. Tente de novo em instantes.";
   }
-  if (isCardsCommand) return deps.cards ? deps.cards(userId) : "Resumo de cartões temporariamente indisponível.";
-  if (text === "/previsao") return deps.forecast ? deps.forecast(userId) : "Previsão temporariamente indisponível.";
-  if (text === "/hoje") return deps.dailyBudget ? deps.dailyBudget(userId) : "Cálculo diário temporariamente indisponível.";
-  if (text === "/assinaturas") return deps.subscriptions ? deps.subscriptions(userId) : "Assinaturas temporariamente indisponíveis.";
+  if (isCardsCommand) return deps.cards ? deps.cards(userId) : "⚠️ Não consegui buscar seus cartões agora. Tente de novo em instantes.";
+  if (text === "/previsao") return deps.forecast ? deps.forecast(userId) : "⚠️ Não consegui buscar sua previsão agora. Tente de novo em instantes.";
+  if (text === "/hoje") return deps.dailyBudget ? deps.dailyBudget(userId) : "⚠️ Não consegui calcular o valor de hoje. Tente de novo em instantes.";
+  if (text === "/assinaturas") return deps.subscriptions ? deps.subscriptions(userId) : "⚠️ Não consegui buscar suas assinaturas agora. Tente de novo em instantes.";
   if (text === "/resumo") {
-    return deps.summary ? deps.summary(userId) : "Resumo temporariamente indisponível.";
+    return deps.summary ? deps.summary(userId) : "⚠️ Não consegui buscar seu resumo agora. Tente de novo em instantes.";
   }
   if (text === "/resumo semana" || text === "/resumo semanal") {
-    return deps.summary ? deps.summary(userId, "weekly") : "Resumo temporariamente indisponível.";
+    return deps.summary ? deps.summary(userId, "weekly") : "⚠️ Não consegui buscar seu resumo agora. Tente de novo em instantes.";
   }
   if (text === "/pausar") {
-    if (!deps.pause) return "Não foi possível pausar agora. Tente no app.";
+    if (!deps.pause) return "⚠️ Não consegui pausar agora. Tente pelo app.";
     await deps.pause(userId);
-    return "Avisos automáticos pausados. Para retomar, abra Configurações no app. /saldo e /resumo continuam disponíveis.";
+    return "✅ Avisos automáticos pausados. Quando quiser retomar, abra Configurações no app. /saldo e /resumo continuam disponíveis.";
   }
   const result = await deps.balance(userId);
   const money = (cents: number | undefined) => new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format((typeof cents === "number" && Number.isFinite(cents) ? cents : 0) / 100);
-  return `Saldos registrados no app:\nDisponível: ${money(result.availableCents)}\nInvestido: ${money(result.investedCents)}\nPatrimônio: ${money(result.netWorthCents)}` +
-    (result.totalIncomplete ? " Total parcial: há conta integrada sem saldo atualizado." : "") +
-    (result.needsOpeningBalance ? " Confira os saldos iniciais das contas no app." : "");
+  return `Aqui estão seus saldos registrados no app:\n💰 Disponível: ${money(result.availableCents)}\n📈 Investido: ${money(result.investedCents)}\n🏦 Patrimônio: ${money(result.netWorthCents)}` +
+    (result.totalIncomplete ? "\n⚠️ Total parcial: há conta integrada sem saldo atualizado." : "") +
+    (result.needsOpeningBalance ? "\n🏦 Confira os saldos iniciais das contas no app." : "");
 }

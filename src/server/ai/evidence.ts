@@ -15,20 +15,20 @@ function financialBlock({ name, value }: FinancialEvidence): string | null {
     const parsed = z.object({ availableCents: cents, investedCents: cents, netWorthCents: cents, partial: z.boolean(), checkOpeningBalance: z.boolean() }).safeParse(value);
     if (!parsed.success) return null;
     const data = parsed.data;
-    return `Saldo atual${data.partial ? " (parcial)" : ""}:\nDisponível: ${money(data.availableCents)}\nInvestido: ${money(data.investedCents)}\nPatrimônio líquido: ${money(data.netWorthCents)}`
-      + (data.partial ? "\nHá saldo integrado ausente; este consolidado está incompleto." : "")
-      + (data.checkOpeningBalance ? "\nConfira os saldos iniciais no app." : "");
+    return `💰 Seu saldo atual${data.partial ? " (parcial)" : ""}:\n💰 Disponível: ${money(data.availableCents)}\n📈 Investido: ${money(data.investedCents)}\n🏦 Patrimônio líquido: ${money(data.netWorthCents)}`
+      + (data.partial ? "\n⚠️ Falta atualizar um saldo integrado. Este total é parcial." : "")
+      + (data.checkOpeningBalance ? "\n🏦 Confira os saldos iniciais no app." : "");
   }
   if (name === "get_spending_by_category" || name === "get_largest_expenses") {
     const parsed = z.object({ start: date, end: date, accountScope: z.enum(["all", "credit_card", "checking"]).optional(), totalCents: cents.optional(), includesPending: z.boolean().optional(), rows: z.array(z.object({ category: z.string(), amountCents: cents, date: date.optional() })).max(5) }).safeParse(value);
     if (!parsed.success) return null;
     const data = parsed.data;
     const scope = data.accountScope === "credit_card" ? "só cartão de crédito" : data.accountScope === "checking" ? "só conta corrente" : "todas as contas, incluindo cartão";
-    return `${name === "get_largest_expenses" ? "Maiores despesas" : "Gastos por categoria"} — ${data.start} a ${data.end} (${scope}):\n`
-      + (data.totalCents !== undefined ? `Total do período: ${money(data.totalCents)}\n` : "")
-      + (data.rows.map((row, index) => `${row.date ? row.date + " · " : ""}${categoryLabel(row.category, index)}: ${money(row.amountCents)}`).join("\n") || "Nenhum registro nesse período.")
-      + "\nAté 5 itens; valores das parcelas registradas, pela data do lançamento/compra, sem pagamento de fatura."
-      + (data.includesPending ? "\nInclui compras de cartão pendentes: total provisório." : "");
+    return `${name === "get_largest_expenses" ? "📤 Suas maiores despesas" : "🏷️ Seus gastos por categoria"} — 📅 ${data.start} a ${data.end} (${scope}):\n`
+      + (data.totalCents !== undefined ? `💰 Total do período: ${money(data.totalCents)}\n` : "")
+      + (data.rows.map((row, index) => `${row.date ? "📅 " + row.date + " · " : ""}🏷️ ${categoryLabel(row.category, index)}: ${money(row.amountCents)}`).join("\n") || "🔎 Não encontrei registros nesse período.")
+      + "\n📋 Até 5 itens. Uso a data do lançamento/compra e o valor de cada parcela, sem contar o pagamento da fatura."
+      + (data.includesPending ? "\n⚠️ Inclui compras de cartão pendentes: total provisório." : "");
   }
   if (name === "list_transactions") {
     const rowSchema = z.object({
@@ -50,27 +50,27 @@ function financialBlock({ name, value }: FinancialEvidence): string | null {
     const scope = data.accountScope === "credit_card" ? "só cartão de crédito" : data.accountScope === "checking" ? "só conta corrente" : "todas as contas, incluindo cartão";
     const lines: string[] = [];
     for (const row of data.rows) {
-      const badge = row.pending ? " · pendente" : "";
-      const line = `• ${row.date} · ${row.description}: ${money(row.amountCents)} (${row.accountType}${badge})`;
+      const badge = row.pending ? " · ⚠️ pendente" : "";
+      const line = `📅 ${row.date} · 🛍️ ${row.description}: 💰 ${money(row.amountCents)} (${row.accountType}${badge})`;
       if ([...lines, line].join("\n").length > 950) {
         lines.push(`... e mais ${data.rows.length - lines.length} transações.`);
         break;
       }
       lines.push(line);
     }
-    return `Transações — ${data.start} a ${data.end} (${scope}):\n`
-      + (lines.join("\n") || "Nenhuma transação encontrada nesse período.")
-      + (data.includesPending ? "\nInclui compras de cartão pendentes: provisório." : "");
+    return `Aqui estão suas transações — 📅 ${data.start} a ${data.end} (${scope}):\n`
+      + (lines.join("\n") || "🔎 Não encontrei transações nesse período.")
+      + (data.includesPending ? "\n⚠️ Inclui compras de cartão pendentes: provisório." : "");
   }
   if (name === "compare_months") {
     const parsed = z.object({ rows: z.array(z.object({ month, incomeCents: cents, expenseCents: cents, includesPending: z.boolean().optional() })).length(2) }).safeParse(value);
     if (!parsed.success) return null;
-    return "Comparação dos meses registrados:\n" + parsed.data.rows.map(row => `${row.month}: entradas ${money(row.incomeCents)}, despesas ${money(row.expenseCents)}${row.includesPending ? " (provisório: inclui cartão pendente)" : ""}`).join("\n");
+    return "📅 Vamos comparar os meses registrados:\n" + parsed.data.rows.map(row => `📅 ${row.month}: 📥 entradas ${money(row.incomeCents)}, 📤 despesas ${money(row.expenseCents)}${row.includesPending ? " (provisório: inclui cartão pendente)" : ""}`).join("\n");
   }
   if (name === "get_due_bills") {
     const parsed = z.object({ rows: z.array(z.object({ date, totalCents: cents })).max(5) }).safeParse(value);
     if (!parsed.success) return null;
-    return "Contas a vencer (até 5, valores totais da conta):\n" + (parsed.data.rows.map((row, index) => `${dueBillLabel(index)} · ${row.date}: ${money(row.totalCents)}`).join("\n") || "Nenhuma conta registrada nesse intervalo.");
+    return "🧾 Suas contas a vencer (até 5, valores totais da conta):\n" + (parsed.data.rows.map((row, index) => `🧾 ${dueBillLabel(index)} · 📅 ${row.date}: 💰 ${money(row.totalCents)}`).join("\n") || "🔎 Não encontrei contas nesse intervalo.");
   }
   return null;
 }
@@ -98,6 +98,6 @@ export function groundedReply(chunks: readonly HelpChunk[], evidence: readonly F
     if ([...blocks, block].join("\n\n").length <= 1650) blocks.push(block);
   }
   if (!blocks.length) return AI_NO_DATA;
-  if (!hasFinancialEvidence) blocks.push("Seus valores pessoais não foram consultados. Para uma consulta financeira, informe o período.");
+  if (!hasFinancialEvidence) blocks.push("💬 Para consultar seus valores, me diga o período que você quer ver. Seus dados financeiros ainda não foram consultados.");
   return safeAnswer(blocks.join("\n\n"), []);
 }

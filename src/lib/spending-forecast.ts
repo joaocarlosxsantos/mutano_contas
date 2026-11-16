@@ -106,8 +106,8 @@ export function spendingForecast(input: {
   const yesterday = iso(time - DAY);
   const yesterdaySpent = on(yesterday);
   const comparison = (name: string, current: number, previous: number) => previous > 0
-    ? `${name}: ${Math.round(Math.abs(current - previous) / previous * 100)}% ${current >= previous ? "mais" : "menos"} (${formatCents(current)}).`
-    : `${name}: ${formatCents(current)}; sem gasto na referência.`;
+    ? `📊 ${name}: ${Math.round(Math.abs(current - previous) / previous * 100)}% ${current >= previous ? "mais" : "menos"} (${formatCents(current)}).`
+    : `📊 ${name}: ${formatCents(current)}; sem gasto na referência.`;
   const insights: string[] = [];
   if (historyStart <= time - 8 * DAY) {
     insights.push(comparison("Ontem vs mesmo dia da semana passada", yesterdaySpent, on(iso(time - 8 * DAY))));
@@ -124,19 +124,19 @@ export function spendingForecast(input: {
   const rises = [...new Set(recent.map(r => r.category))].map(category => ({ category,
     delta: sum(recent.filter(r => r.category === category)) - sum(prior.filter(r => r.category === category)),
   })).filter(r => r.delta > 0).sort((a, b) => b.delta - a.delta).slice(0, 2);
-  if (rises.length) insights.push(`Categorias que subiram na semana: ${rises.map(r => `${label(r.category)} +${formatCents(r.delta)}`).join(", ")}.`);
+  if (rises.length) insights.push(`🏷️ Categorias que subiram na semana: ${rises.map(r => `${label(r.category)} +${formatCents(r.delta)}`).join(", ")}.`);
   const atypical = recent.filter(r => isVariableSpending(r) && r.amountCents > Math.max(10000, weekdayCents[new Date(stamp(r.date)).getUTCDay()] * 3)).sort((a, b) => b.amountCents - a.amountCents)[0];
-  if (atypical) insights.push(`Maior gasto atípico: ${label(atypical.description)}, ${formatCents(atypical.amountCents)}.`);
-  if (income > 0) insights.push(`Ritmo vs renda mensal: ${Math.round(projectedExpenseCents / income * 100)}% projetados; teto restante hoje ${formatCents(remaining)}.`);
+  if (atypical) insights.push(`🛍️ Maior gasto atípico: ${label(atypical.description)}, ${formatCents(atypical.amountCents)}.`);
+  if (income > 0) insights.push(`📥 Ritmo vs renda mensal: ${Math.round(projectedExpenseCents / income * 100)}% projetados; 🎯 teto restante hoje ${formatCents(remaining)}.`);
   for (const budget of input.budgets ?? []) {
     if (budget.limitCents <= 0) continue;
     const spent = sum(realized.filter(r => r.kind === "EXPENSE" && r.category === budget.category));
-    if (spent > budget.limitCents * day / daysInMonth) insights.push(`Ritmo acima do orçamento em ${label(budget.category)}: ${formatCents(spent)} de ${formatCents(budget.limitCents)} (${Math.round(spent / budget.limitCents * 100)}%).`);
+    if (spent > budget.limitCents * day / daysInMonth) insights.push(`⚠️ Ritmo acima do orçamento em ${label(budget.category)}: ${formatCents(spent)} de ${formatCents(budget.limitCents)} (${Math.round(spent / budget.limitCents * 100)}%).`);
   }
   const maxWeekday = weekdayCents.indexOf(Math.max(...weekdayCents));
-  if (weekdayCents[maxWeekday] > 0) insights.push(`Dia mais caro: ${weekdays[maxWeekday]}, padrão de ${formatCents(weekdayCents[maxWeekday])}.`);
+  if (weekdayCents[maxWeekday] > 0) insights.push(`📅 Dia mais caro: ${weekdays[maxWeekday]}, padrão de ${formatCents(weekdayCents[maxWeekday])}.`);
   const upcoming = commitments.filter(r => r.kind === "EXPENSE" && stamp(r.date) >= time && stamp(r.date) <= time + 7 * DAY).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 2);
-  if (upcoming.length) insights.push(`Próximos compromissos: ${upcoming.map(r => `${label(r.name)} ${r.date.slice(8)}/${r.date.slice(5, 7)}: ${formatCents(r.amountCents)}`).join(", ")}.`);
-  insights.push(`Fim do mês: ${projectedBalanceCents >= 0 ? "sobra" : "falta"} de ${formatCents(Math.abs(projectedBalanceCents))} no resultado mensal.`);
+  if (upcoming.length) insights.push(`🧾 Próximos compromissos: ${upcoming.map(r => `${label(r.name)} 📅 ${r.date.slice(8)}/${r.date.slice(5, 7)}: ${formatCents(r.amountCents)}`).join(", ")}.`);
+  insights.push(`📅 Fim do mês: ${projectedBalanceCents >= 0 ? "sobra" : "falta"} de ${formatCents(Math.abs(projectedBalanceCents))} no resultado mensal.`);
   return { forecast, daily, insights, weekdayCents, spentTodayCents: spentToday, committedCents: committed, historyDays: Math.round((time - historyStart) / DAY) };
 }

@@ -70,12 +70,12 @@ describe("Daily Summary - formatDailySummary", () => {
 
     expect(text).toContain("Mutano Contas — Resumo do Dia (11/11)");
     // Seção CONTA
-    expect(text).toContain("💰 *CONTA*");
+    expect(text).toContain("🏦 Suas contas");
     expect(text).toContain("Saldo total disponível: R$ 3.450,20");
-    expect(text).toContain("Ontem: entradas R$ 500,00 · saídas R$ 120,50");
+    expect(text).toContain("Ontem: 📥 entradas R$ 500,00 · 📤 saídas R$ 120,50");
 
     // Seção CARTÃO
-    expect(text).toContain("💳 *CARTÃO*");
+    expect(text).toContain("💳 Seus cartões");
     expect(text).toContain("Nubank Final 1234");
     expect(text).toContain("Fatura R$ 850,00");
     expect(text).toContain("Limite: R$ 1.150,00 usado / R$ 3.850,00 disponível");
@@ -87,7 +87,7 @@ describe("Daily Summary - formatDailySummary", () => {
     expect(text).toContain("Vence dia 10");
 
     // Seção INSIGHTS
-    expect(text).toContain("💡 *INSIGHTS DO DIA*");
+    expect(text).toContain("💡 Para ficar de olho");
     expect(text).toContain("Conta a vencer hoje: Internet Fibra (R$ 99,90)");
     expect(text).toContain("Orçamento de Alimentação atingiu 85%");
     expect(text).toContain("Cota de hoje: você pode gastar até R$ 85,00");
@@ -127,7 +127,7 @@ describe("Daily Summary - formatDailySummary", () => {
       cards: [],
     };
     const text = formatDailySummary(dataNoCards);
-    expect(text).toContain("• Nenhum cartão de crédito cadastrado");
+    expect(text).toContain("💳 Nenhum cartão de crédito cadastrado");
   });
 
   it("trata ausência de insights exibindo mensagem amigável", () => {
@@ -136,7 +136,7 @@ describe("Daily Summary - formatDailySummary", () => {
       insights: [],
     };
     const text = formatDailySummary(dataNoInsights);
-    expect(text).toContain("Suas contas e limites estão em dia para hoje.");
+    expect(text).toContain("Não há destaques neste resumo. Confira os detalhes no app.");
   });
 
   it("sanitiza caracteres de controle e limita tamanho", () => {

@@ -8,24 +8,24 @@ const data = (): InsightData => ({ summaryDay: "2026-11-12", incomeCents: 0, exp
 describe("avisos proativos curtos", () => {
   it("conta de amanhã e fechamento têm uma linha e ação direta", () => {
     expect(proactiveLines({ ...data(), due: [{ name: "Luz", date: "2026-11-13", totalCents: 8500, diffDays: 1 }] }, prefs))
-      .toEqual(["Conta vence amanhã: Luz, R$ 85,00. Veja no app."]);
+      .toEqual(["🧾 Conta vence amanhã: Luz, R$ 85,00. Veja no app."]);
     expect(proactiveLines({ ...data(), cardClosings: [{ id: "c1", cardName: "Visa", closingDate: "2026-11-13", diffDays: 1 }] }, prefs))
-      .toEqual(["Fatura Visa fecha amanhã. Veja /cartao."]);
+      .toEqual(["💳 Fatura Visa fecha amanhã. Veja /cartao."]);
   });
   it("só alerta gasto acima do usual com histórico suficiente e diferença mínima", () => {
     const row = { name: "Mercado", todayCents: 8000, historyCents: 90000, historyCount: 6, historyDays: 4 };
-    expect(proactiveLines({ ...data(), categories: [row] }, prefs)).toEqual(["Gasto acima do usual em Mercado: R$ 80,00. Veja /relatorio."]);
+    expect(proactiveLines({ ...data(), categories: [row] }, prefs)).toEqual(["🛍️ Gasto acima do usual em Mercado: R$ 80,00. Veja /relatorio."]);
     for (const changes of [{ historyCount: 4 }, { historyDays: 2 }, { historyCents: 0 }, { todayCents: 3999 }])
       expect(proactiveLines({ ...data(), categories: [{ ...row, ...changes }] }, prefs)).toEqual([]);
   });
   it("saldo baixo usa só posição conhecida zero/negativa; não inventa um limite em reais", () => {
-    expect(proactiveLines({ ...data(), cashBalanceCents: 0 }, prefs)).toEqual(["Saldo disponível zerado: R$ 0,00. Confira /saldo."]);
-    expect(proactiveLines({ ...data(), cashBalanceCents: -100 }, prefs)[0]).toContain("Saldo disponível negativo");
+    expect(proactiveLines({ ...data(), cashBalanceCents: 0 }, prefs)).toEqual(["💰 Saldo disponível zerado: R$ 0,00. Confira /saldo."]);
+    expect(proactiveLines({ ...data(), cashBalanceCents: -100 }, prefs)[0]).toContain("💰 Saldo disponível negativo");
     for (const balance of [undefined, NaN, Infinity, 1]) expect(proactiveLines({ ...data(), cashBalanceCents: balance }, prefs)).toEqual([]);
   });
   it("problema de sync avisa sem vazar erro e evita alerta de saldo baseado em posição possivelmente antiga", () => {
     expect(proactiveLines({ ...data(), syncProblem: true, cashBalanceCents: -100 }, prefs))
-      .toEqual(["Sincronização com problema. Confira Conexões no app."]);
+      .toEqual(["⚠️ A sincronização precisa de atenção. Confira Conexões no app."]);
   });
   it("respeita as flags existentes de conta, gasto, cartão e saldo, incluindo0025", () => {
     const facts = { ...data(), cashBalanceCents: 0, cardClosings: [{ id: "c1", cardName: "Visa", closingDate: "2026-11-13", diffDays: 1 }],

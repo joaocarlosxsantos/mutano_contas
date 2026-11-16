@@ -75,35 +75,35 @@ const label = (name: string) => name.replace(/[\r\n\t\u0000-\u001f\u007f]/g, " "
 export function buildInsight(data: InsightData, prefs: Preferences, window: InsightWindow, manual = false): string | null {
   const lines: string[] = [];
   if (prefs.summary && (manual || window.hour !== 14)) {
-    lines.push(`Resumo de ${data.summaryDay}: entradas ${money(data.incomeCents)}, gastos ${money(data.expenseCents)}, diferença ${money(data.incomeCents - data.expenseCents)}.`);
+    lines.push(`📅 Resumo de ${data.summaryDay}: 📥 entradas ${money(data.incomeCents)}, 📤 gastos ${money(data.expenseCents)}, 💰 diferença ${money(data.incomeCents - data.expenseCents)}.`);
   }
   if (prefs.spending && (manual || window.hour === 14)) {
     const categories = data.categories.filter((c) => c.historyCount >= 5 && c.historyDays >= 3 &&
       c.todayCents > c.historyCents / 30 * 1.5 && c.todayCents - c.historyCents / 30 >= 1000)
       .sort((a, b) => b.todayCents - a.todayCents).slice(0, 3);
-    for (const c of categories) lines.push(`Gasto acima da média em ${label(c.name)}: hoje ${money(c.todayCents)}; média diária nos 30 dias anteriores ${money(Math.round(c.historyCents / 30))}.`);
+    for (const c of categories) lines.push(`🛍️ Gasto acima da média em ${label(c.name)}: hoje ${money(c.todayCents)}; média diária nos 30 dias anteriores ${money(Math.round(c.historyCents / 30))}.`);
   }
   if (prefs.dueBills) {
     for (const bill of data.due.slice(0, 3)) {
       if (bill.diffDays === 0) {
-        lines.push(`Conta a vencer hoje: ${label(bill.name)}, ${money(bill.totalCents)}.`);
+        lines.push(`🧾 Conta a vencer hoje: ${label(bill.name)}, ${money(bill.totalCents)}.`);
       } else if (bill.diffDays === 1) {
-        lines.push(`Conta a vencer amanhã: ${label(bill.name)}, ${money(bill.totalCents)}.`);
+        lines.push(`🧾 Conta a vencer amanhã: ${label(bill.name)}, ${money(bill.totalCents)}.`);
       } else {
-        lines.push(`Conta a vencer em ${bill.date}: ${label(bill.name)}, ${money(bill.totalCents)}${bill.diffDays !== undefined ? "." : " (total da conta)."}`);
+        lines.push(`🧾 Conta a vencer em ${bill.date}: ${label(bill.name)}, ${money(bill.totalCents)}${bill.diffDays !== undefined ? "." : " (total da conta)."}`);
       }
     }
   }
   if (prefs.cardInvoice && data.cardInvoices?.length) {
     for (const card of data.cardInvoices.slice(0, 3)) {
       if (card.diffDays === 0) {
-        lines.push(`Fatura do ${label(card.cardName)} vence hoje (${card.dueDate}): ${money(card.invoiceCents)}.`);
+        lines.push(`💳 Fatura do ${label(card.cardName)} vence hoje (${card.dueDate}): ${money(card.invoiceCents)}.`);
       } else if (card.diffDays === 1) {
-        lines.push(`Fatura do ${label(card.cardName)} vence amanhã (${card.dueDate}): ${money(card.invoiceCents)}.`);
+        lines.push(`💳 Fatura do ${label(card.cardName)} vence amanhã (${card.dueDate}): ${money(card.invoiceCents)}.`);
       } else if (card.diffDays === 3) {
-        lines.push(`Fatura do ${label(card.cardName)} vence em 3 dias (${card.dueDate}): ${money(card.invoiceCents)}.`);
+        lines.push(`💳 Fatura do ${label(card.cardName)} vence em 3 dias (${card.dueDate}): ${money(card.invoiceCents)}.`);
       } else if (manual) {
-        lines.push(`Fatura do ${label(card.cardName)} vence dia ${card.dueDate}: ${money(card.invoiceCents)}.`);
+        lines.push(`💳 Fatura do ${label(card.cardName)} vence dia ${card.dueDate}: ${money(card.invoiceCents)}.`);
       }
     }
   }
@@ -113,7 +113,7 @@ export function buildInsight(data: InsightData, prefs: Preferences, window: Insi
       .sort((a, b) => (b.spentCents - b.limitCents) - (a.spentCents - a.limitCents)).slice(0, 3);
     for (const b of exceeded) {
       const pct = b.pct ?? Math.round((b.spentCents / b.limitCents) * 100);
-      lines.push(`Orçamento estourou em ${label(b.name)}: ${money(b.spentCents)} de ${money(b.limitCents)} (${pct}%).`);
+      lines.push(`⚠️ Orçamento estourou em ${label(b.name)}: ${money(b.spentCents)} de ${money(b.limitCents)} (${pct}%).`);
     }
 
     // 80%: Alerta preventivo (80% a 99%)
@@ -121,25 +121,25 @@ export function buildInsight(data: InsightData, prefs: Preferences, window: Insi
       .sort((a, b) => b.spentCents / b.limitCents - a.spentCents / a.limitCents).slice(0, 3);
     for (const b of warning) {
       const pct = b.pct ?? Math.round((b.spentCents / b.limitCents) * 100);
-      lines.push(`Atenção: orçamento de ${label(b.name)} atingiu ${pct}%: ${money(b.spentCents)} de ${money(b.limitCents)}.`);
+      lines.push(`⚠️ Atenção: orçamento de ${label(b.name)} atingiu ${pct}%: ${money(b.spentCents)} de ${money(b.limitCents)}.`);
     }
   }
   if (prefs.negativeForecast && data.forecast && data.forecast.balanceCents < 0) {
     lines.push(
-      `Previsão de saldo negativo para o fim do mês: ${money(data.forecast.balanceCents)} no ritmo atual.${data.forecast.recommendedDailyCents !== undefined ? ` Sugestão de teto: ${money(data.forecast.recommendedDailyCents)}/dia.` : ""}`
+      `💰 Previsão de saldo negativo para o fim do mês: ${money(data.forecast.balanceCents)} no ritmo atual.${data.forecast.recommendedDailyCents !== undefined ? ` Sugestão de teto: ${money(data.forecast.recommendedDailyCents)}/dia.` : ""}`
     );
   }
   if (data.subscriptions?.length) {
     const increases = data.subscriptions.filter((s) => s.hasPriceIncrease);
     for (const sub of increases.slice(0, 2)) {
       lines.push(
-        `Aviso de assinatura: ${label(sub.name)} subiu de ${money(sub.previousCents ?? 0)} para ${money(sub.currentCents)} (+${sub.priceIncreasePct}%).`,
+        `🔄 Aviso de assinatura: ${label(sub.name)} subiu de ${money(sub.previousCents ?? 0)} para ${money(sub.currentCents)} (+${sub.priceIncreasePct}%).`,
       );
     }
     const unregistered = data.subscriptions.filter((s) => !s.isRegistered && !s.hasPriceIncrease);
     for (const sub of unregistered.slice(0, 2)) {
       lines.push(
-        `Assinatura detectada nos lançamentos: ${label(sub.name)} (${money(sub.currentCents)}/mês). Registre em Recorrentes no app.`,
+        `🔄 Assinatura detectada nos lançamentos: ${label(sub.name)} (${money(sub.currentCents)}/mês). Registre em Recorrentes no app.`,
       );
     }
   }

@@ -35,7 +35,7 @@ it("rota registra trabalho com after e devolve ACK sem aguardar callback", async
   expect(await response.json()).toEqual({ method: "answerCallbackQuery", callback_query_id: query.id, cache_time: 0 });
   expect(mocks.callback).not.toHaveBeenCalled();
   expect(mocks.after).toHaveBeenCalledOnce();
-  mocks.callback.mockResolvedValue({ text: "Detalhes enviados no chat.", details: "d2" });
+  mocks.callback.mockResolvedValue({ text: "✅ Pronto! Os detalhes estão no chat.", details: "d2" });
   mocks.details.mockResolvedValue(true);
   await mocks.after.mock.calls[0][0]();
   expect(mocks.details).toHaveBeenCalledWith(query, "d2");
