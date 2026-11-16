@@ -52,7 +52,7 @@ async function handle(request: Request, method: "GET" | "PUT" | "DELETE") {
       if (error.code === "provider_model_unavailable") return reply("O modelo de IA configurado está indisponível no provedor. A configuração do app precisa ser revisada.", 502);
       if (error.code === "provider_request_rejected") return reply("O provedor rejeitou os parâmetros da validação. A configuração do app precisa ser revisada.", 502);
       if (error.code === "provider_invalid_response") return reply("O provedor retornou uma resposta inválida durante a validação.", 502);
-      if (error.reason === "timeout") return reply("O provedor excedeu o tempo de validação (15 segundos). Tente novamente.", 503);
+      if (error.reason === "timeout") return reply("O provedor excedeu o tempo de validação. Tente novamente.", 503);
       if (error.reason === "network") return reply("Não foi possível conectar ao provedor durante a validação. Tente novamente.", 503);
       return reply("O provedor está temporariamente indisponível. Tente novamente.", 503);
     }

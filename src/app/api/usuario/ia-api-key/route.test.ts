@@ -101,7 +101,7 @@ describe("API BYOK autenticada", () => {
     [new AiKeyValidationError("provider_model_unavailable", 404), 502, "modelo de IA"],
     [new AiKeyValidationError("provider_request_rejected", 400), 502, "parâmetros"],
     [new AiKeyValidationError("provider_invalid_response", 200), 502, "resposta inválida"],
-    [new AiKeyValidationError("provider_unavailable", null, "timeout"), 503, "15 segundos"],
+    [new AiKeyValidationError("provider_unavailable", null, "timeout"), 503, "tempo de validação"],
     [new AiKeyValidationError("provider_unavailable", null, "network"), 503, "conectar"],
     [new AiKeyValidationError("provider_unavailable", 503), 503, "temporariamente indisponível"],
   ] as const)("expõe somente diagnóstico seguro e loga só status/code", async (error, status, message) => {

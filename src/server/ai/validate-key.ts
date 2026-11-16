@@ -1,5 +1,4 @@
 import { AI_MODEL } from "@/server/telegram/ai-policy";
-import { GEMINI_ENDPOINT } from "@/server/telegram/gemini";
 import { OPENAI_ENDPOINT, OPENAI_MODEL } from "@/server/telegram/openai";
 import { limitedAiJson } from "@/server/telegram/ai";
 import type { UserAiProvider } from "./credentials-schema";
@@ -11,6 +10,8 @@ const defaultReasons: Record<AiKeyErrorCode, AiKeyErrorReason> = {
   provider_request_rejected: "request_rejected", provider_invalid_response: "invalid_response", provider_unavailable: "upstream_error",
 };
 export const AI_KEY_VALIDATION_TIMEOUT_MS = 15_000;
+export const GEMINI_KEY_VALIDATION_TIMEOUT_MS = 10_000;
+const GEMINI_KEY_VALIDATION_URL = "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1";
 
 export class AiKeyValidationError extends Error {
   constructor(public readonly code: AiKeyErrorCode, public readonly providerStatus: number | null = null,
@@ -26,37 +27,30 @@ function googleInvalidKey(raw: unknown) {
     ["API_KEY_INVALID", "API_KEY_EXPIRED", "API_KEY_NOT_FOUND"].includes(detail.reason)));
 }
 
-function successfulGeneration(provider: UserAiProvider, result: unknown) {
+function successfulGeneration(provider: Exclude<UserAiProvider, "gemini">, result: unknown) {
   if (!result || typeof result !== "object" || "error" in result) return false;
   if (provider === "claude") return "content" in result && Array.isArray(result.content);
-  if (provider === "openai") return "choices" in result && Array.isArray(result.choices);
-  if ("candidates" in result && Array.isArray(result.candidates) && result.candidates.length) return true;
-  // Em modelos com thinking, um orçamento curto pode não produzir texto/candidates.
-  // Uso de tokens confirma que a geração autenticada foi processada pelo modelo.
-  if (!("usageMetadata" in result) || !result.usageMetadata || typeof result.usageMetadata !== "object") return false;
-  const usage = result.usageMetadata as { totalTokenCount?: unknown };
-  return typeof usage.totalTokenCount === "number" && Number.isFinite(usage.totalTokenCount) && usage.totalTokenCount > 0;
+  return "choices" in result && Array.isArray(result.choices);
 }
 
 function malformedResponse(error: unknown) {
   return error instanceof SyntaxError || (error instanceof Error && ["response_too_large", "empty_response"].includes(error.message));
 }
 
-/** Uma única geração curta, sem pergunta nem dados financeiros do usuário. */
+/** Gemini autentica sem inferência; os demais mantêm uma única geração curta. */
 export async function validateAiKey(provider: UserAiProvider, apiKey: string, fetcher: typeof fetch = fetch) {
-  const url = provider === "claude" ? "https://api.anthropic.com/v1/messages" : provider === "openai" ? OPENAI_ENDPOINT : GEMINI_ENDPOINT;
+  const url = provider === "claude" ? "https://api.anthropic.com/v1/messages" : provider === "openai" ? OPENAI_ENDPOINT : GEMINI_KEY_VALIDATION_URL;
   const body = provider === "claude" ? { model: AI_MODEL, max_tokens: 8, thinking: { type: "disabled" }, messages: [{ role: "user", content: "Reply OK" }] }
-    : provider === "openai" ? { model: OPENAI_MODEL, max_completion_tokens: 8, store: false, messages: [{ role: "user", content: "Reply OK" }] }
-    : { contents: [{ role: "user", parts: [{ text: "Reply OK" }] }], generationConfig: { maxOutputTokens: 32, thinkingConfig: { thinkingLevel: "LOW", includeThoughts: false } } };
-  const signal = AbortSignal.timeout(AI_KEY_VALIDATION_TIMEOUT_MS);
+    : { model: OPENAI_MODEL, max_completion_tokens: 8, store: false, messages: [{ role: "user", content: "Reply OK" }] };
+  const signal = AbortSignal.timeout(provider === "gemini" ? GEMINI_KEY_VALIDATION_TIMEOUT_MS : AI_KEY_VALIDATION_TIMEOUT_MS);
   let providerStatus: number | null = null;
   let readingResponse = false;
   try {
     const response = await fetcher(url, {
-      method: "POST", cache: "no-store", redirect: "error", signal,
+      method: provider === "gemini" ? "GET" : "POST", cache: "no-store", redirect: "error", signal,
       headers: provider === "gemini" ? { "Content-Type": "application/json", "x-goog-api-key": apiKey }
         : { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, ...(provider === "claude" ? { "anthropic-version": "2026-10-21" } : {}) },
-      body: JSON.stringify(body),
+      ...(provider === "gemini" ? {} : { body: JSON.stringify(body) }),
     });
     providerStatus = response.status;
     if (!response.ok) {
@@ -74,12 +68,21 @@ export async function validateAiKey(provider: UserAiProvider, apiKey: string, fe
       await response.body?.cancel().catch(() => {});
       if ([400, 401, 403].includes(response.status)) throw new AiKeyValidationError("invalid_api_key", response.status);
       if ([402, 429].includes(response.status)) throw new AiKeyValidationError("provider_quota", response.status);
-      if (response.status === 404) throw new AiKeyValidationError("provider_model_unavailable", response.status);
+      if (response.status === 404) throw new AiKeyValidationError(provider === "gemini" ? "provider_request_rejected" : "provider_model_unavailable", response.status);
       if (response.status === 408) throw new AiKeyValidationError("provider_unavailable", response.status, "timeout");
       if (response.status >= 500) throw new AiKeyValidationError("provider_unavailable", response.status);
       throw new AiKeyValidationError("provider_request_rejected", response.status);
     }
-    // A resposta é consumida com limite; seu conteúdo nunca é registrado ou retornado.
+    if (provider === "gemini") {
+      if (response.status !== 200) {
+        await response.body?.cancel().catch(() => {});
+        throw new AiKeyValidationError("provider_invalid_response", response.status);
+      }
+      // 200 de ListModels comprova autenticação, não acesso/geração do modelo do chat.
+      await response.body?.cancel().catch(() => {});
+      return;
+    }
+    // A resposta de geração é consumida com limite, sem registro ou retorno de conteúdo.
     readingResponse = true;
     const result = await limitedAiJson(response);
     if (!successfulGeneration(provider, result)) throw new AiKeyValidationError("provider_invalid_response", response.status);
