@@ -19,7 +19,7 @@ beforeEach(() => {
 });
 
 describe("API BYOK autenticada", () => {
-  it.each([`AIza${"aB3_-".repeat(7)}`, `AIza${"a".repeat(36)}`, `new-google-prefix_${"a".repeat(30)}`])("normaliza chave Gemini colada e valida remotamente antes de salvar", async apiKey => {
+  it.each([`AQ.${"a".repeat(50)}`, `AQ.${"aB3_-.~+/=".repeat(5)}`, `AIza${"aB3_-".repeat(7)}`, `AIza${"a".repeat(36)}`, `new-google-prefix_${"a".repeat(30)}`])("normaliza chave Gemini colada e valida remotamente antes de salvar", async apiKey => {
     mocks.save.mockResolvedValue({ configured: true, provider: "gemini", last4: apiKey.slice(-4) });
     const response = await PUT(request("PUT", { provider: "gemini", apiKey: ` \r\n\t${apiKey}\r\n ` }));
     expect(response.status).toBe(200);
@@ -33,6 +33,24 @@ describe("API BYOK autenticada", () => {
     const response = await PUT(request("PUT", { provider: "gemini", apiKey: `future-prefix_${"a".repeat(30)}` }));
     expect(response.status).toBe(422); expect((await response.json()).code).toBe("invalid_api_key");
     expect(mocks.save).not.toHaveBeenCalled();
+  });
+  it.each([
+    [{ provider: "unknown-private-value", apiKey }, "O campo provider é inválido. Use claude, openai ou gemini."],
+    [{ provider: "gemini", apiKey: "a".repeat(19) }, "O campo apiKey deve ter entre 20 e 256 caracteres."],
+    [{ provider: "gemini", apiKey: "a".repeat(257) }, "O campo apiKey deve ter entre 20 e 256 caracteres."],
+    [{ provider: "gemini", apiKey: 123 }, "O campo apiKey deve ser uma chave em texto."],
+    [{ provider: "gemini", apiKey: `AQ.${"a".repeat(30)}\nprivate-value` }, "Formato do campo apiKey inválido para o provedor selecionado. Cole a chave sem espaços ou quebras de linha internas."],
+    [{ provider: "claude", apiKey: `AQ.${"a".repeat(50)}` }, "Formato do campo apiKey inválido para o provedor selecionado. Cole a chave sem espaços ou quebras de linha internas."],
+    [{ provider: "gemini", apiKey, "unexpected-private-field": true }, "Envie somente os campos provider e apiKey."],
+  ])("identifica campo/tamanho/formato sem expor entrada", async (body, message) => {
+    const log = vi.spyOn(console, "error");
+    try {
+      const response = await PUT(request("PUT", body));
+      expect(response.status).toBe(400);
+      expect(await response.json()).toEqual({ code: "invalid_input", error: message });
+      expect(mocks.validate).not.toHaveBeenCalled(); expect(mocks.save).not.toHaveBeenCalled();
+      expect(log).not.toHaveBeenCalled();
+    } finally { log.mockRestore(); }
   });
   it("salva só após validar e fornece status seguro; remoção idempotente", async () => {
     const response = await PUT(request("PUT", { provider: "openai", apiKey }));

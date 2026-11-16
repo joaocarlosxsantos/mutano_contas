@@ -26,7 +26,20 @@ async function handle(request: Request, method: "GET" | "PUT" | "DELETE") {
     let input;
     try { input = aiCredentialSchema.safeParse(await boundedJson(request)); }
     catch { return errorResponse("invalid_input", "JSON inválido ou corpo acima de 8 KiB.", 400); }
-    if (!input.success) return errorResponse("invalid_input", "Provedor ou formato de chave inválido.", 400);
+    if (!input.success) {
+      // Mensagens estáticas: issues do Zod podem conter a entrada/segredos.
+      const issues = input.error.issues;
+      if (issues.some(issue => issue.path[0] === "provider"))
+        return errorResponse("invalid_input", "O campo provider é inválido. Use claude, openai ou gemini.", 400);
+      const keyIssues = issues.filter(issue => issue.path[0] === "apiKey");
+      if (keyIssues.some(issue => issue.code === "too_small" || issue.code === "too_big"))
+        return errorResponse("invalid_input", "O campo apiKey deve ter entre 20 e 256 caracteres.", 400);
+      if (keyIssues.some(issue => issue.code === "invalid_type"))
+        return errorResponse("invalid_input", "O campo apiKey deve ser uma chave em texto.", 400);
+      if (keyIssues.length)
+        return errorResponse("invalid_input", "Formato do campo apiKey inválido para o provedor selecionado. Cole a chave sem espaços ou quebras de linha internas.", 400);
+      return errorResponse("invalid_input", "Envie somente os campos provider e apiKey.", 400);
+    }
     await validateAiKey(input.data.provider, input.data.apiKey);
     return Response.json(await saveAiCredential(userId, input.data.provider, input.data.apiKey), { headers });
   } catch (error) {

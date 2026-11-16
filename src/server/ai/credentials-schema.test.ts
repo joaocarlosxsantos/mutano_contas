@@ -11,6 +11,7 @@ describe("formato BYOK", () => {
     `AIza${"aB3_-".repeat(7)}`,
     `AIza${"a".repeat(34)}`, `AIza${"a".repeat(36)}`,
     `new-google-prefix_${"aB3_-".repeat(10)}`,
+    `AQ.${"a".repeat(50)}`, `AQ.${"aB3_-.~+/=".repeat(5)}`,
     "a".repeat(20), "a".repeat(256),
   ])("aceita Gemini sem depender de prefixo ou comprimento fixos", apiKey => {
     expect(aiCredentialSchema.parse({ provider: "gemini", apiKey: ` \r\n\t${apiKey}\r\n ` })).toEqual({ provider: "gemini", apiKey });
@@ -23,6 +24,10 @@ describe("formato BYOK", () => {
     { provider: "openai", apiKey: `sk-ant-${"a".repeat(40)}` }, { provider: "gemini", apiKey: "short" },
     { provider: "openai", apiKey: `sk-${"a".repeat(260)}` }, { provider: "claude", apiKey: "sk-ant-abc\r\nx-inject:secret" },
     { provider: "openai", apiKey: `sk-${"a".repeat(40)}`, userId: "victim" },
+    ...([".", "~", "+", "/", "="] as const).flatMap(char => [
+      { provider: "claude", apiKey: `sk-ant-${"a".repeat(30)}${char}` },
+      { provider: "openai", apiKey: `sk-proj-${"a".repeat(30)}${char}` },
+    ]),
   ])("rejeita provedor/formato/identidade inválidos", value => {
     expect(aiCredentialSchema.safeParse(value).success).toBe(false);
   });

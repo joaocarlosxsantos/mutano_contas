@@ -24,7 +24,7 @@ Sem chave (também a resposta de `DELETE`):
 {"provider":"openai","apiKey":"sk-proj-CHAVE_PESSOAL"}
 ```
 
-`provider` aceita somente `claude`, `openai`, `gemini`. O exemplo é ilustrativo, não uma chave válida. Espaços externos são removidos. Chaves têm até 256 caracteres, apenas letras ASCII, números, `_` e `-`; Claude exige prefixo `sk-ant-` e ao menos 20 caracteres após o prefixo, OpenAI `sk-` e ao menos 20 caracteres após o prefixo (não aceita `sk-ant-`); Gemini aceita de 20 a 256 caracteres desse charset, sem prefixo ou comprimento fixos; a chamada ao provedor confirma a validade. O card inicia com Gemini, conforme a recomendação do guia. Payload máximo: 8 KiB. Campos extras são rejeitados. Os erros Zod nunca são devolvidos, pois podem conter a entrada.
+`provider` aceita somente `claude`, `openai`, `gemini`. O exemplo é ilustrativo, não uma chave válida. Espaços externos são removidos. Chaves têm até 256 caracteres. O charset base aceita letras ASCII, números e `_`, `-`, `.`, `~`, `+`, `/`, `=`; Claude e OpenAI continuam restritos a letras ASCII, números, `_` e `-`. Claude exige prefixo `sk-ant-` e ao menos 20 caracteres após o prefixo, OpenAI `sk-` e ao menos 20 caracteres após o prefixo (não aceita `sk-ant-`); Gemini aceita de 20 a 256 caracteres desse charset, sem prefixo ou comprimento fixos; tokens como `AIza...` e `AQ.` são aceitos; a chamada ao provedor confirma a validade. O card inicia com Gemini, conforme a recomendação do guia. Payload máximo: 8 KiB. Campos extras são rejeitados. Os erros Zod nunca são devolvidos, pois podem conter a entrada.
 
 Antes de substituir a chave existente, o servidor realiza uma única geração curta (8 tokens de saída) no modelo do provedor, sem enviar dados financeiros. Essa chamada pode consumir crédito. Falha na validação mantém a configuração anterior. Sucesso retorna o mesmo status seguro de `GET`, com HTTP 200. Nenhuma resposta inclui chave completa ou envelope criptográfico.
 
@@ -36,7 +36,7 @@ Erros têm formato `{ "code": "...", "error": "mensagem em português" }`. A UI 
 
 | HTTP | code | Significado |
 | --- | --- | --- |
-| 400 | `invalid_input` | JSON, tamanho, campos, provedor ou formato inválidos |
+| 400 | `invalid_input` | Mensagem identifica `provider` inválido, tamanho/tipo/formato de `apiKey`, campos extras ou JSON inválido; nunca inclui a entrada |
 | 401 | `unauthorized` | Sessão ausente ou usuário removido |
 | 403 | `invalid_origin` | Origem ausente/diferente ou `Sec-Fetch-Site: cross-site` na mutação |
 | 415 | `unsupported_media_type` | PUT sem JSON |
