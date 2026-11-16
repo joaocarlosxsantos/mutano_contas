@@ -10,8 +10,9 @@ import { consumeAiQuota } from "./ai-quota";
 import { executeReadTool } from "./ai-tools";
 import { retrieveKnowledge } from "@/server/ai/knowledge/retrieve";
 import { redactQuestion } from "@/server/ai/redaction";
-import { scopeSpendingInput, spendingIntent } from "@/server/ai/spending-intent";
+import { isFollowUpQuestion, isListingIntent, scopeSpendingInput, spendingIntent } from "@/server/ai/spending-intent";
 import { groundedReply } from "@/server/ai/evidence";
+import { getChatContext, recordChatTurn } from "./chat-history";
 
 export const PROFILE_INSTRUCTIONS: Record<UsageProfile, string> = {
   integracao_total: "Perfil do app: integração total. Não sugira cadastro, importação ou lançamento manual. Atualizações de movimentação vêm da integração; planejamento no app continua disponível.",
@@ -20,7 +21,14 @@ export const PROFILE_INSTRUCTIONS: Record<UsageProfile, string> = {
 };
 
 /** Chamado apenas após resolver userId do chat no servidor, fora da transação do webhook. */
-export async function answerQuestion(userId: string, chatId: string, question: string, now = new Date(), personalOnly = false): Promise<string> {
+export async function answerQuestion(
+  userId: string,
+  chatId: string,
+  question: string,
+  now = new Date(),
+  personalOnly = false,
+  clientHistory?: Array<{ role: "user" | "assistant"; text: string }>
+): Promise<string> {
   if (containsChatSecret(question)) return CHAT_SECRET_NOTICE;
   let stage = "credential_lookup";
   try {
@@ -38,30 +46,50 @@ export async function answerQuestion(userId: string, chatId: string, question: s
     const today = todayRef(now);
     const safeQuestion = redactQuestion(question);
     const knowledge = { profile, chunks: retrieveKnowledge(safeQuestion, profile) };
-    const intent = spendingIntent(safeQuestion, today);
-    // Consulta fechada: não depender de o modelo escolher saldo em vez de gastos.
-    if ("start_date" in intent && /\b(?:gast|despes|compr|quanto)/i.test(safeQuestion.normalize("NFD").replace(/[\u0300-\u036f]/g, ""))) {
+    const { history, context: previousContext } = getChatContext(chatId, clientHistory);
+    const intent = spendingIntent(safeQuestion, today, previousContext);
+
+    // Consulta fechada: atalho para listagem de transações
+    const isListing = isListingIntent(safeQuestion) || (previousContext.toolName === "list_transactions" && isFollowUpQuestion(safeQuestion));
+    if ("start_date" in intent && isListing) {
+      stage = "spending_lookup";
+      const name = "list_transactions";
+      const value = await executeReadTool(userId, name, { ...intent, limit: 20 }, today);
+      const reply = groundedReply(knowledge.chunks, [{ name, value }]);
+      recordChatTurn(chatId, safeQuestion, reply, { ...intent, toolName: name });
+      return reply;
+    }
+
+    // Consulta fechada: atalho para despesas por categoria ou maiores gastos
+    if ("start_date" in intent && (/\b(?:gast|despes|compr|quanto)/i.test(safeQuestion.normalize("NFD").replace(/[\u0300-\u036f]/g, "")) || isFollowUpQuestion(safeQuestion))) {
       stage = "spending_lookup";
       const name = /\bmaior(?:es)?\b/i.test(safeQuestion) ? "get_largest_expenses" : "get_spending_by_category";
       const value = await executeReadTool(userId, name, { ...intent, ...(name === "get_largest_expenses" ? { limit: 5 } : {}) }, today);
-      return groundedReply(knowledge.chunks, [{ name, value }]);
+      const reply = groundedReply(knowledge.chunks, [{ name, value }]);
+      recordChatTurn(chatId, safeQuestion, reply, { ...intent, toolName: name });
+      return reply;
     }
     const deps = {
-      runTool: (name, input) => executeReadTool(userId, name, scopeSpendingInput(name, input, safeQuestion, today), today),
+      runTool: (name, input) => executeReadTool(userId, name, scopeSpendingInput(name, input, safeQuestion, today, previousContext), today),
       knowledge,
+      history,
       ...(provider === "gemini" && !chatId.startsWith("site:") ? { timeoutMs: GEMINI_TELEGRAM_TIMEOUT_MS } : {}),
     } satisfies Parameters<typeof askClaude>[3];
     stage = "provider_call";
+    let reply: string;
     if (credential) {
       const env = { ANTHROPIC_API_KEY: provider === "anthropic" ? credential.apiKey : undefined,
         GEMINI_API_KEY: provider === "gemini" ? credential.apiKey : undefined,
         OPENAI_API_KEY: provider === "openai" ? credential.apiKey : undefined,
         TELEGRAM_BOT_TOKEN: process.env.TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET: process.env.TELEGRAM_WEBHOOK_SECRET, CRON_SECRET: process.env.CRON_SECRET };
       const ask = provider === "openai" ? askOpenai : provider === "gemini" ? askGemini : askClaude;
-      return await ask(safeQuestion, today, PROFILE_INSTRUCTIONS[profile], deps, env);
+      reply = await ask(safeQuestion, today, PROFILE_INSTRUCTIONS[profile], deps, env);
+    } else {
+      const ask = provider === "gemini" ? askGemini : askClaude;
+      reply = await ask(safeQuestion, today, PROFILE_INSTRUCTIONS[profile], deps);
     }
-    const ask = provider === "gemini" ? askGemini : askClaude;
-    return await ask(safeQuestion, today, PROFILE_INSTRUCTIONS[profile], deps);
+    recordChatTurn(chatId, safeQuestion, reply, { ...intent });
+    return reply;
   } catch {
     console.warn("[chat-ai]", { status: null, code: `${stage}_failed` });
     return AI_FAILURE;

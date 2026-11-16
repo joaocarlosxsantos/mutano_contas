@@ -10,9 +10,16 @@ import { CHAT_SECRET_NOTICE, containsChatSecret, redactChatSecrets } from "@/lib
 export const runtime = "nodejs";
 export const maxDuration = 30;
 const headers = { "Cache-Control": "private, no-store, max-age=0", Vary: "Cookie", "X-Content-Type-Options": "nosniff" };
+const chatHistoryItemSchema = z.object({
+  role: z.enum(["user", "assistant"]),
+  text: z.string().max(1800),
+});
 const inputSchema = z.union([
   z.object({ command: z.string().max(32).refine(isSiteChatCommand) }).strict(),
-  z.object({ message: z.string().trim().min(1).max(512).refine(value => !value.startsWith("/")) }).strict(),
+  z.object({
+    message: z.string().trim().min(1).max(512).refine((value) => !value.startsWith("/")),
+    history: z.array(chatHistoryItemSchema).max(20).optional(),
+  }).strict(),
 ]);
 const error = (message: string, status: number, extra = {}) => Response.json({ error: message }, { status, headers: { ...headers, ...extra } });
 
@@ -42,8 +49,9 @@ export async function POST(request: Request) {
     if (!input.success) return error("Comando inválido. Escolha uma opção do menu.", 400);
     const data = input.data;
     if (secretDetected || ("message" in data && containsChatSecret(data.message))) return Response.json({ reply: CHAT_SECRET_NOTICE }, { headers });
+    if ("history" in data && data.history?.some((h) => containsChatSecret(h.text))) return Response.json({ reply: CHAT_SECRET_NOTICE }, { headers });
     const reply = "command" in data ? await siteCommandReply(userId, data.command)
-      : await withOpenFinanceAge(userId, () => answerQuestion(userId, `site:${userId}`, data.message, new Date(), true));
+      : await withOpenFinanceAge(userId, () => answerQuestion(userId, `site:${userId}`, data.message, new Date(), true, ...(data.history ? [data.history] : [])));
     return Response.json({ reply: reply ? redactChatSecrets(reply) : reply }, { headers });
   } catch {
     return error("Não foi possível consultar agora. Tente novamente.", 503);

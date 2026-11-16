@@ -45,6 +45,30 @@ describe("ferramentas de leitura por dono", () => {
     const serialized = JSON.stringify(result);
     expect(serialized).not.toContain("secret note"); expect(serialized).not.toContain("private"); expect(serialized).not.toContain("https:");
   });
+  it("list_transactions lista despesas/compras sanitizadas com tipo de conta e pendência", async () => {
+    const conn = connection([
+      [
+        { date: new Date("2026-11-10T12:00Z"), description: "Supermercado https://evil.test sk-ant-secret", amountCents: 15000, accountType: "CREDIT_CARD", externalStatus: "PENDING" },
+        { date: new Date("2026-11-09T10:00Z"), description: "Farmácia", amountCents: 4500, accountType: "CHECKING", externalStatus: "POSTED" },
+      ],
+    ]);
+    const args = { start_date: "2026-11-01", end_date: "2026-11-10", limit: 10 };
+    const result = await executeReadTool("owner-1", "list_transactions", args, "2026-11-10", conn.db);
+    expect(conn.limits[0]).toBe(10);
+    const predicate = sqlQuery(conn.predicates[0]);
+    expect(predicate.params).toContain("owner-1");
+    expect(result).toEqual({
+      start: "2026-11-01",
+      end: "2026-11-10",
+      accountScope: "all",
+      currency: "BRL",
+      includesPending: true,
+      rows: [
+        { date: "2026-11-10", description: "Supermercado [link removido] [segredo removido]", amountCents: 15000, accountType: "cartão", pending: true },
+        { date: "2026-11-09", description: "Farmácia", amountCents: 4500, accountType: "conta", pending: false },
+      ],
+    });
+  });
   it("comparativo agrega somente os dois meses e aplica mesmo dono a ambos", async () => {
     const conn = connection([[{ kind: "EXPENSE", total: "1000" }], [{ kind: "INCOME", total: "2000" }]]);
     const result = await executeReadTool("owner", "compare_months", { first_month: "2026-10", second_month: "2026-11" }, "2026-11-10", conn.db);

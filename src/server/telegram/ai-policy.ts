@@ -28,6 +28,7 @@ export const toolSchemas = {
   get_balance: z.object({}).strict(),
   get_spending_by_category: period,
   get_largest_expenses: period.extend({ limit: z.number().int().min(1).max(5) }).strict(),
+  list_transactions: period.extend({ limit: z.number().int().min(1).max(20).optional() }).strict(),
   compare_months: z.object({ first_month: month, second_month: month, account_scope: accountScopeSchema.optional() }).strict(),
   get_due_bills: z.object({ days: z.number().int().min(0).max(7) }).strict(),
 };
@@ -38,6 +39,7 @@ const descriptions: Record<ToolName, string> = {
   get_balance: "Saldos atuais em centavos BRL: disponível, investido e patrimônio líquido, com indicação de total parcial. Mostre Investido separado do Disponível; patrimônio já inclui investimentos, metas e dívidas. Não some os campos novamente.",
   get_spending_by_category: "Total de despesas e até cinco categorias no período inclusivo (máximo 93 dias). account_scope: all (padrão, inclui cartões), credit_card (só cartão), checking (só corrente). Data do lançamento/compra, nunca vencimento da fatura. Inclui compras pendentes de cartão, sinalizadas como provisórias; exclui transferências e pagamentos de fatura. Parcelas são valores registrados, sem multiplicar pelo número de parcelas.",
   get_largest_expenses: "Até cinco maiores despesas no período inclusivo de até 93 dias: data, categoria e valor. account_scope all inclui cartões (padrão); credit_card só cartão; checking só corrente. Usa data do lançamento/compra, nunca vencimento; parcelas registradas, pendências de cartão provisórias. Sem descrição privada ou conta bancária.",
+  list_transactions: "Lista até 20 transações (despesas/compras) no período de até 93 dias: data, descrição sanitizada, valor em centavos BRL, tipo de conta (cartão ou conta) e se está pendente. account_scope: all (padrão), credit_card ou checking. Usa data do lançamento/compra; não inclui transferências nem pagamentos de fatura.",
   compare_months: "Compara entradas e despesas de dois meses completos/registrados. No máximo 24 meses de distância; não inclui dias futuros.",
   get_due_bills: "Até cinco contas ainda não pagas que vencem hoje ou nos próximos 0 a 7 dias. Valores totais da conta, inclusive contas em grupo.",
 };

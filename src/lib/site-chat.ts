@@ -16,6 +16,14 @@ export const isSiteChatCommand = (value: unknown): value is string => typeof val
   && SITE_CHAT_COMMANDS.some(item => item.command === value);
 
 export type ChatMessage = { id: number; role: "user" | "assistant"; text: string };
+export type ChatHistoryItem = { role: "user" | "assistant"; text: string };
+
+export function buildRecentChatHistory(messages: ChatMessage[], max = 8): ChatHistoryItem[] {
+  return messages
+    .filter(m => m.id !== 0 && Boolean(m.text && m.text.trim()))
+    .slice(-max)
+    .map(m => ({ role: m.role, text: m.text.trim() }));
+}
 
 /** Keep the launcher clear of mobile navigation/install banners at its current edge. */
 export function floatingChatBottom(viewportHeight: number, anchor: { left: number; right: number }, obstacles: { left: number; right: number; top: number; height: number }[]) {

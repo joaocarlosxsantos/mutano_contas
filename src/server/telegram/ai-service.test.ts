@@ -6,9 +6,11 @@ vi.mock("@/server/usage-profile", () => ({ getUsageProfile: mocks.profile }));
 vi.mock("./ai", () => ({ askClaude: mocks.ask, askGemini: mocks.gemini, askOpenai: mocks.openai }));
 vi.mock("./ai-tools", () => ({ executeReadTool: mocks.read }));
 import { answerQuestion, PROFILE_INSTRUCTIONS } from "./ai-service";
+import { clearChatHistory } from "./chat-history";
 import { AI_FAILURE, AI_LIMITED, AI_UNAVAILABLE } from "./ai-policy";
 import { CHAT_SECRET_NOTICE } from "@/lib/chat-secrets";
 beforeEach(() => {
+  clearChatHistory();
   vi.resetAllMocks(); vi.stubEnv("ANTHROPIC_API_KEY", "fake-test-key");
   mocks.credential.mockResolvedValue(null);
   vi.stubEnv("GEMINI_API_KEY", ""); vi.stubEnv("AI_PROVIDER", "");
@@ -24,6 +26,57 @@ describe("serviço IA vinculado", () => {
     expect(mocks.read).toHaveBeenCalledWith("owner", "get_spending_by_category", { account_scope: "credit_card", start_date: "2026-11-14", end_date: "2026-11-15" }, "2026-11-15");
     expect(result).toContain("60,50"); expect(result).toContain("só cartão"); expect(result).toContain("provisório");
     expect(result).not.toContain("alice"); expect(mocks.gemini).not.toHaveBeenCalled();
+  });
+  it("multi-turno: turno 1 gastos fim de semana, turno 2 lista transações herdando período, turno 3 filtra cartão", async () => {
+    // Turno 1: quanto gastei no fim de semana
+    mocks.read.mockResolvedValueOnce({
+      start: "2026-11-14",
+      end: "2026-11-15",
+      totalCents: 25000,
+      accountScope: "all",
+      includesPending: false,
+      rows: [{ category: "Alimentação", amountCents: 25000 }],
+    });
+    const turn1 = await answerQuestion("owner", "chat-multi", "quanto gastei no fim de semana", new Date("2026-11-16T12:00Z"));
+    expect(mocks.read).toHaveBeenLastCalledWith("owner", "get_spending_by_category", { account_scope: "all", start_date: "2026-11-14", end_date: "2026-11-15" }, "2026-11-16");
+    expect(turn1).toContain("250,00");
+    expect(turn1).toContain("Alimentação");
+
+    // Turno 2: quais foram as transações?
+    mocks.read.mockResolvedValueOnce({
+      start: "2026-11-14",
+      end: "2026-11-15",
+      accountScope: "all",
+      currency: "BRL",
+      includesPending: false,
+      rows: [
+        { date: "2026-11-15", description: "Restaurante", amountCents: 15000, accountType: "cartão", pending: false },
+        { date: "2026-11-14", description: "Supermercado", amountCents: 10000, accountType: "conta", pending: false },
+      ],
+    });
+    const turn2 = await answerQuestion("owner", "chat-multi", "quais foram as transações?", new Date("2026-11-16T12:00Z"));
+    expect(mocks.read).toHaveBeenLastCalledWith("owner", "list_transactions", { account_scope: "all", start_date: "2026-11-14", end_date: "2026-11-15", limit: 20 }, "2026-11-16");
+    expect(turn2).toContain("Restaurante");
+    expect(turn2).toContain("150,00");
+    expect(turn2).toContain("Supermercado");
+    expect(turn2).toContain("100,00");
+
+    // Turno 3: e no cartão?
+    mocks.read.mockResolvedValueOnce({
+      start: "2026-11-14",
+      end: "2026-11-15",
+      accountScope: "credit_card",
+      currency: "BRL",
+      includesPending: false,
+      rows: [
+        { date: "2026-11-15", description: "Restaurante", amountCents: 15000, accountType: "cartão", pending: false },
+      ],
+    });
+    const turn3 = await answerQuestion("owner", "chat-multi", "e no cartão?", new Date("2026-11-16T12:00Z"));
+    expect(mocks.read).toHaveBeenLastCalledWith("owner", "list_transactions", { account_scope: "credit_card", start_date: "2026-11-14", end_date: "2026-11-15", limit: 20 }, "2026-11-16");
+    expect(turn3).toContain("Restaurante");
+    expect(turn3).toContain("só cartão de crédito");
+    expect(turn3).not.toContain("Supermercado");
   });
   it("fora do atalho de fim de semana, pergunta é redigida e scope é fixado na ferramenta", async () => {
     await answerQuestion("owner", "123", "gastos no cartão em novembro? alice@example.test", new Date("2026-11-16T12:00Z"));

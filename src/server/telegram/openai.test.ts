@@ -16,7 +16,7 @@ describe("OpenAI com as mesmas ferramentas de leitura", () => {
     const [url, init] = fetch.mock.calls[0];
     expect(url).toBe(OPENAI_ENDPOINT); expect(init.headers.Authorization).toBe(`Bearer ${env.OPENAI_API_KEY}`);
     const first = JSON.parse(init.body); expect(first.model).toBe(OPENAI_MODEL); expect(first.store).toBe(false);
-    expect(first.tools).toHaveLength(5); expect(first.messages[0].content).toContain("Não há ferramenta de escrita");
+    expect(first.tools).toHaveLength(6); expect(first.messages[0].content).toContain("Não há ferramenta de escrita");
     expect(init.body).not.toContain(env.OPENAI_API_KEY);
     const second = JSON.parse(fetch.mock.calls[1][1].body);
     expect(second.messages.at(-1)).toEqual({ role: "tool", tool_call_id: "call-1", content: '{"availableCents":1000}' });

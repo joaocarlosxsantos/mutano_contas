@@ -64,6 +64,8 @@ describe("avaliação de dez consultas pessoais/mistas", () => {
     ["Compare outubro e novembro", "compare_months", { rows: [{ month: "2026-10", incomeCents: 100, expenseCents: 300 }, { month: "2026-11", incomeCents: 200, expenseCents: 400 }] }, "4,00"],
     ["Contas a vencer?", "get_due_bills", { rows: [{ date: "2026-11-17", totalCents: 999 }] }, "9,99"],
     ["Como vejo contas a vencer e quais tenho?", "get_due_bills", { rows: [] }, "Nenhuma conta"],
+    ["Quais foram as transações?", "list_transactions", { start: "2026-11-14", end: "2026-11-15", accountScope: "all", rows: [{ date: "2026-11-14", description: "Café", amountCents: 1500, accountType: "cartão", pending: true }] }, "15,00"],
+    ["Quais transações vazias?", "list_transactions", { start: "2026-11-14", end: "2026-11-15", rows: [] }, "Nenhuma transação encontrada"],
     ["Qual meu investimento de amanhã?", "unknown", {}, AI_NO_DATA],
   ])("%s", (_question, name, value, expected) => {
     expect(groundedReply([], [{ name, value }])).toContain(expected);

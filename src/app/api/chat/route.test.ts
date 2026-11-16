@@ -90,4 +90,18 @@ describe("Chat HTTP autenticado", () => {
     mocks.limit.mockRejectedValue(new Error("database secret"));
     const failed = await POST(request()); expect(failed.status).toBe(503); expect(await failed.text()).not.toContain("secret");
   });
+  it("aceita histórico recente e repassa para answerQuestion", async () => {
+    mocks.ai.mockResolvedValue("Transações listadas");
+    const history = [{ role: "user" as const, text: "quanto gastei?" }, { role: "assistant" as const, text: "R$ 100" }];
+    const response = await POST(request({ message: "quais foram?", history }));
+    expect(await response.json()).toEqual({ reply: "Transações listadas" });
+    expect(mocks.ai).toHaveBeenCalledWith("session-owner", "site:session-owner", "quais foram?", expect.any(Date), true, history);
+  });
+  it("bloqueia segredo contido no histórico sem chamar IA", async () => {
+    const token = `AQ.${"a".repeat(50)}`;
+    const history = [{ role: "user" as const, text: `chave: ${token}` }];
+    const response = await POST(request({ message: "quais foram?", history }));
+    expect(await response.json()).toEqual({ reply: CHAT_SECRET_NOTICE });
+    expect(mocks.ai).not.toHaveBeenCalled();
+  });
 });

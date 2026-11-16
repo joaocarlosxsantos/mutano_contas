@@ -84,7 +84,7 @@ describe("Gemini REST com function calling nativo", () => {
     expect(body.generationConfig.thinkingConfig.thinkingLevel).toBe("MINIMAL");
     expect(body.generationConfig).not.toHaveProperty("temperature");
     expect(body.tools).toHaveLength(1);
-    expect(body.tools[0].functionDeclarations).toHaveLength(5);
+    expect(body.tools[0].functionDeclarations).toHaveLength(6);
     for (const tool of body.tools[0].functionDeclarations) {
       expect(tool.parametersJsonSchema.additionalProperties).toBe(false);
       expect(tool.parametersJsonSchema).not.toHaveProperty("$schema");

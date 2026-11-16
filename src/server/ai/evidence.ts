@@ -30,6 +30,38 @@ function financialBlock({ name, value }: FinancialEvidence): string | null {
       + "\nAté 5 itens; valores das parcelas registradas, pela data do lançamento/compra, sem pagamento de fatura."
       + (data.includesPending ? "\nInclui compras de cartão pendentes: total provisório." : "");
   }
+  if (name === "list_transactions") {
+    const rowSchema = z.object({
+      date,
+      description: z.string(),
+      amountCents: cents,
+      accountType: z.string(),
+      pending: z.boolean().optional(),
+    });
+    const parsed = z.object({
+      start: date,
+      end: date,
+      accountScope: z.enum(["all", "credit_card", "checking"]).optional(),
+      includesPending: z.boolean().optional(),
+      rows: z.array(rowSchema).max(20),
+    }).safeParse(value);
+    if (!parsed.success) return null;
+    const data = parsed.data;
+    const scope = data.accountScope === "credit_card" ? "só cartão de crédito" : data.accountScope === "checking" ? "só conta corrente" : "todas as contas, incluindo cartão";
+    const lines: string[] = [];
+    for (const row of data.rows) {
+      const badge = row.pending ? " · pendente" : "";
+      const line = `• ${row.date} · ${row.description}: ${money(row.amountCents)} (${row.accountType}${badge})`;
+      if ([...lines, line].join("\n").length > 950) {
+        lines.push(`... e mais ${data.rows.length - lines.length} transações.`);
+        break;
+      }
+      lines.push(line);
+    }
+    return `Transações — ${data.start} a ${data.end} (${scope}):\n`
+      + (lines.join("\n") || "Nenhuma transação encontrada nesse período.")
+      + (data.includesPending ? "\nInclui compras de cartão pendentes: provisório." : "");
+  }
   if (name === "compare_months") {
     const parsed = z.object({ rows: z.array(z.object({ month, incomeCents: cents, expenseCents: cents, includesPending: z.boolean().optional() })).length(2) }).safeParse(value);
     if (!parsed.success) return null;

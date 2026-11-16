@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent, type KeyboardEvent } from "react";
 import { ChevronDown, LoaderCircle, MessageCircle, Send, X } from "lucide-react";
-import { SITE_CHAT_COMMANDS, floatingChatBottom, type ChatMessage } from "@/lib/site-chat";
+import { SITE_CHAT_COMMANDS, floatingChatBottom, buildRecentChatHistory, type ChatMessage } from "@/lib/site-chat";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import styles from "./site-chat.module.css";
@@ -16,7 +16,7 @@ export function ChatTranscript({ messages, busy }: { messages: TranscriptMessage
     {messages.map(message => <div key={message.id} className={message.role === "user" ? "ml-8 text-right" : "mr-3"}>
       <span className="mb-1 block text-xs font-medium text-[var(--text-muted)]">{message.role === "user" ? "Você" : "Mutano"}</span>
       <div className={`inline-block max-w-full whitespace-pre-wrap break-words rounded-xl px-3 py-2.5 text-left text-sm leading-relaxed ${message.role === "user" ? "bg-[var(--acento)] text-[var(--on-acento)]" : "bg-[var(--surface-2)] text-[var(--text)]"}`}>
-        <p>{message.text}</p>
+        <p className="whitespace-pre-wrap break-words">{message.text}</p>
         {message.href && message.linkLabel ? <a href={message.href} className="mt-2 inline-flex min-h-11 items-center font-medium underline underline-offset-4">{message.linkLabel}</a> : null}
       </div>
     </div>)}
@@ -104,8 +104,11 @@ export function SiteChat() {
     request.current = controller;
     const timeout = setTimeout(() => controller.abort(), 30_000);
     try {
+      const requestPayload = "message" in payload
+        ? { message: payload.message, history: buildRecentChatHistory(messages) }
+        : payload;
       const response = await fetch("/api/chat", { method: "POST", credentials: "same-origin", cache: "no-store",
-        headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload), signal: controller.signal });
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify(requestPayload), signal: controller.signal });
       const result: unknown = await response.json().catch(() => ({}));
       if (response.status === 401) { setMessages([]); setSignedOut(true); throw new Error("Sessão encerrada. Entre novamente para consultar."); }
       if (!response.ok) {

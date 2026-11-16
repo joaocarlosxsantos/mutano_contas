@@ -28,7 +28,7 @@ export function geminiRequest(messages: AiMessage[], system: string) {
     }
   }
   const contents = messages.map((message) => {
-    if (typeof message.content === "string") return { role: "user", parts: [{ text: message.content }] };
+    if (typeof message.content === "string") return { role: message.role === "assistant" ? "model" : "user", parts: [{ text: message.content }] };
     if (message.role === "assistant") {
       // Replay intacto das assinaturas opacas exigidas pelo function calling Gemini.
       if (!message.geminiParts) throw new Error("missing_gemini_parts");

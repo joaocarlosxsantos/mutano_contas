@@ -3,7 +3,7 @@ import { db } from "@/db";
 import { accounts, bills, categories, transactions } from "@/db/schema";
 import { getBalances } from "@/server/queries";
 import { dayDate } from "./insights";
-import { validToolInput } from "./ai-policy";
+import { safeLabel, validToolInput } from "./ai-policy";
 import { categoryLabel, dueBillLabel } from "@/server/ai/redaction";
 
 /** Não recebe identidade no input: userId é fechado pelo chamador autenticado. */
@@ -36,6 +36,34 @@ export async function executeReadTool(userId: string, name: string, input: unkno
         .where(filter).groupBy(transactions.categoryId, categories.name).orderBy(desc(total)).limit(5);
       return { start: args.start_date, end: args.end_date, accountScope: scope, totalCents: Number(rows[0]?.totalCents ?? 0), includesPending: Number(rows[0]?.pendingCount ?? 0) > 0,
         dateBasis: "purchase_or_posting", installments: "recorded_amounts", top: 5, currency: "BRL", rows: rows.map((row, index) => ({ category: categoryLabel(row.category, index), amountCents: Number(row.amountCents) })) };
+    }
+    if (parsed.name === "list_transactions") {
+      const limit = "limit" in args && typeof args.limit === "number" ? Math.min(Math.max(args.limit, 1), 20) : 20;
+      const rows = await connection.select({
+        date: transactions.date,
+        description: transactions.description,
+        amountCents: transactions.amountCents,
+        accountType: accounts.type,
+        externalStatus: transactions.externalStatus,
+      }).from(transactions)
+        .innerJoin(accounts, ownerAccount)
+        .where(filter)
+        .orderBy(desc(transactions.date), desc(transactions.amountCents))
+        .limit(limit);
+      return {
+        start: args.start_date,
+        end: args.end_date,
+        accountScope: scope,
+        currency: "BRL",
+        includesPending: rows.some((row) => row.externalStatus === "PENDING"),
+        rows: rows.map((row) => ({
+          date: row.date.toISOString().slice(0, 10),
+          description: safeLabel(row.description || "Despesa"),
+          amountCents: row.amountCents,
+          accountType: row.accountType === "CREDIT_CARD" ? "cartão" : "conta",
+          pending: row.externalStatus === "PENDING",
+        })),
+      };
     }
     const limit = "limit" in args ? args.limit : 5;
     const rows = await connection.select({ date: transactions.date, category: categories.name, amountCents: transactions.amountCents, externalStatus: transactions.externalStatus }).from(transactions)

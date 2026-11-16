@@ -2,8 +2,8 @@ import { describe, expect, it } from "vitest";
 import { AI_TOOLS, safeAnswer, safeLabel, validToolInput } from "./ai-policy";
 
 describe("fronteira das ferramentas IA", () => {
-  it("oferece só cinco ferramentas de leitura sem parâmetro de identidade", () => {
-    expect(AI_TOOLS.map((t) => t.name)).toEqual(["get_balance", "get_spending_by_category", "get_largest_expenses", "compare_months", "get_due_bills"]);
+  it("oferece ferramentas de leitura sem parâmetro de identidade", () => {
+    expect(AI_TOOLS.map((t) => t.name)).toEqual(["get_balance", "get_spending_by_category", "get_largest_expenses", "list_transactions", "compare_months", "get_due_bills"]);
     for (const tool of AI_TOOLS) {
       expect(tool.input_schema.additionalProperties).toBe(false);
       expect(JSON.stringify(tool.input_schema)).not.toContain("user_id");
@@ -13,6 +13,8 @@ describe("fronteira das ferramentas IA", () => {
     ["get_balance", { user_id: "attacker" }], ["get_balance", { userId: "attacker" }],
     ["delete_transactions", {}], ["__proto__", {}], ["constructor", {}],
     ["get_largest_expenses", { start_date: "2026-11-01", end_date: "2026-11-10", limit: 50 }],
+    ["list_transactions", { start_date: "2026-11-01", end_date: "2026-11-10", limit: 25 }],
+    ["list_transactions", { start_date: "2026-11-01", end_date: "2026-11-10", limit: 0 }],
     ["get_spending_by_category", { start_date: "2026-01-01", end_date: "2026-11-10" }],
     ["get_spending_by_category", { start_date: "2026-11-10", end_date: "2026-11-01" }],
     ["get_spending_by_category", { start_date: "2026-11-01", end_date: "2026-12-10" }],
