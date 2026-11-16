@@ -13,7 +13,7 @@ type ViewState = { saved?: SavedKey; unavailable: boolean; message?: string; err
 const providers: Record<Provider, { label: string; url: string; hint: string }> = {
   claude: { label: "Claude (Anthropic)", url: "https://console.anthropic.com/settings/keys", hint: "Crie uma chave em Settings → API Keys." },
   openai: { label: "ChatGPT (OpenAI)", url: "https://platform.openai.com/api-keys", hint: "Crie uma chave em API keys." },
-  gemini: { label: "Gemini (Google)", url: "https://aistudio.google.com/app/apikey", hint: "Gere sua chave no Google AI Studio." },
+  gemini: { label: "Gemini (Google)", url: "https://aistudio.google.com/apikey", hint: "Gere sua chave no Google AI Studio." },
 };
 
 function parseStatus(data: unknown): SavedKey | undefined {
@@ -103,7 +103,7 @@ export function AiKeyCard() {
       <CardHeader title="Assistente de IA" subtitle="Use sua própria chave de API para conectar um provedor." />
       <div className="space-y-4 p-4 pt-0">
         {loading ? <p className="flex items-center gap-2 text-sm text-[var(--text-muted)]"><LoaderCircle className="size-4 animate-spin" aria-hidden="true" />Carregando status…</p> : null}
-        {!loading && state.saved ? (
+        {!loading && !state.unavailable && state.saved ? (
           <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-3">
             <p className="flex min-w-0 items-center gap-2 text-sm"><KeyRound className="size-4 shrink-0 text-[var(--text-brand)]" aria-hidden="true" /><span className="min-w-0"><span className="font-medium">{providers[state.saved.provider].label}</span><span className="ml-2 font-mono text-[var(--text-muted)]">••••{state.saved.last4}</span></span></p>
             <Button type="button" variant="outline" size="sm" onClick={() => setConfirmRemove(true)} disabled={removing}><Trash2 className="size-4" aria-hidden="true" />Remover</Button>
@@ -128,11 +128,38 @@ export function AiKeyCard() {
           </form>
         ) : null}
         {state.unavailable ? <p className="rounded-xl bg-[var(--surface-2)] px-3.5 py-2.5 text-sm text-[var(--text-muted)]">Recurso indisponível no momento.</p> : null}
-        {confirmRemove ? <div className="space-y-3 rounded-xl border border-[var(--line)] p-3" role="group" aria-label="Confirmar remoção da chave"><p className="text-sm">Remover a chave de {state.saved ? providers[state.saved.provider].label : "IA"}?</p><div className="flex flex-wrap gap-2"><Button type="button" variant="danger" onClick={remove} disabled={removing}>{removing ? "Removendo…" : "Sim, remover"}</Button><Button type="button" variant="outline" onClick={() => setConfirmRemove(false)} disabled={removing}>Cancelar</Button></div></div> : null}
-        <div aria-live="polite" className="space-y-2 text-sm">
-          {state.error ? <p role="alert" className="text-[var(--text-out)]">{state.error}</p> : null}
-          {state.message ? <p className="text-[var(--text-in)]">{state.message}</p> : null}
-        </div>
+        {!loading && !state.unavailable ? (
+          <section className="space-y-3 border-t border-[var(--line)] pt-4" aria-labelledby="ai-key-guide-title">
+            <h3 id="ai-key-guide-title" className="text-sm font-semibold text-[var(--text)]">Como obter sua chave</h3>
+            <div className="space-y-2">
+              <details className="group rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-3" open>
+                <summary className="cursor-pointer text-sm font-medium text-[var(--text)] marker:text-[var(--text-brand)]">Gemini <span className="ml-1 rounded-full bg-[var(--color-money-in-soft)] px-2 py-0.5 text-xs text-[var(--text-in)]">Recomendado · plano grátis</span></summary>
+                <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm leading-relaxed text-[var(--text-muted)]">
+                  <li><a className="text-[var(--text-brand)] underline" href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">Abra o Google AI Studio</a>.</li>
+                  <li>Entre com sua conta Google.</li>
+                  <li>Selecione <span className="font-medium text-[var(--text)]">Create API key</span>.</li>
+                  <li>Copie a chave e cole no campo acima.</li>
+                </ol>
+              </details>
+              <details className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-3">
+                <summary className="cursor-pointer text-sm font-medium text-[var(--text)]">Claude · exige crédito pré-pago</summary>
+                <p className="mt-3 text-sm leading-relaxed text-[var(--text-muted)]">Na <a className="text-[var(--text-brand)] underline" href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener noreferrer">página de API Keys da Anthropic</a>, escolha <span className="font-medium text-[var(--text)]">Create Key</span>, copie a chave e cole acima.</p>
+              </details>
+              <details className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-3">
+                <summary className="cursor-pointer text-sm font-medium text-[var(--text)]">OpenAI · exige crédito</summary>
+                <p className="mt-3 text-sm leading-relaxed text-[var(--text-muted)]">Na <a className="text-[var(--text-brand)] underline" href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer">página de API keys da OpenAI</a>, escolha <span className="font-medium text-[var(--text)]">Create new secret key</span>, copie a chave e cole acima.</p>
+              </details>
+            </div>
+            <p className="text-xs leading-relaxed text-[var(--text-muted)]">Sua chave fica criptografada. Só os últimos 4 dígitos aparecem; ela não será exibida novamente e você pode removê-la quando quiser. No plano grátis do Gemini, o Google pode usar dados para treinamento.</p>
+          </section>
+        ) : null}
+        {!state.unavailable ? <>
+          {confirmRemove ? <div className="space-y-3 rounded-xl border border-[var(--line)] p-3" role="group" aria-label="Confirmar remoção da chave"><p className="text-sm">Remover a chave de {state.saved ? providers[state.saved.provider].label : "IA"}?</p><div className="flex flex-wrap gap-2"><Button type="button" variant="danger" onClick={remove} disabled={removing}>{removing ? "Removendo…" : "Sim, remover"}</Button><Button type="button" variant="outline" onClick={() => setConfirmRemove(false)} disabled={removing}>Cancelar</Button></div></div> : null}
+          <div aria-live="polite" className="space-y-2 text-sm">
+            {state.error ? <p role="alert" className="text-[var(--text-out)]">{state.error}</p> : null}
+            {state.message ? <p className="text-[var(--text-in)]">{state.message}</p> : null}
+          </div>
+        </> : null}
       </div>
     </Card>
   );
