@@ -7,6 +7,7 @@ import { GEMINI_ENDPOINT, geminiReply, geminiRequest } from "./gemini";
 import type { AiProvider, ProviderEnvironment } from "./ai-provider";
 import { OPENAI_ENDPOINT, openaiReply, openaiRequest } from "./openai";
 import { CHAT_SECRET_NOTICE, containsChatSecret, redactChatSecrets } from "@/lib/chat-secrets";
+import { readGeminiStream } from "./gemini-stream";
 
 const textBlock = z.object({ type: z.literal("text"), text: z.string().max(8000) });
 const toolBlock = z.object({ type: z.literal("tool_use"), id: z.string().min(1).max(100), name: z.string().max(64), input: z.unknown() });
@@ -27,14 +28,14 @@ export interface AiDependencies {
 }
 
 /** Timeout também vale para um adapter de leitura que não implemente AbortSignal. */
-async function withAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+async function withAbort<T>(start: () => Promise<T>, signal: AbortSignal): Promise<T> {
   signal.throwIfAborted();
   let abort: () => void = () => {};
   const stopped = new Promise<never>((_, reject) => {
     abort = () => reject(new Error("ai_timeout"));
     signal.addEventListener("abort", abort, { once: true });
   });
-  try { return await Promise.race([promise, stopped]); }
+  try { return await Promise.race([start(), stopped]); }
   finally { signal.removeEventListener("abort", abort); }
 }
 
@@ -79,19 +80,22 @@ async function askProvider(provider: AiProvider | "openai", question: string, to
   let toolsUsed = 0;
   let successfulTools = 0;
   const ids = new Set<string>();
+  let lastStatus: number | null = null;
   try {
     for (let round = 0; round < AI_MAX_CALLS; round++) {
       signal.throwIfAborted();
       if (Buffer.byteLength(JSON.stringify(messages)) > AI_MAX_HISTORY_BYTES) return failure("history_limit");
       const system = systemPrompt(today, profileInstructions);
-      const response = await withAbort((deps.fetch ?? fetch)(provider === "openai" ? OPENAI_ENDPOINT : provider === "gemini" ? GEMINI_ENDPOINT : "https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: provider === "gemini" ? { "Content-Type": "application/json", "x-goog-api-key": key } : { "Content-Type": "application/json", Authorization: `Bearer ${key}`, ...(provider === "anthropic" ? { "anthropic-version": "2026-10-21" } : {}) },
+      const response = await withAbort(() => (deps.fetch ?? fetch)(provider === "openai" ? OPENAI_ENDPOINT : provider === "gemini" ? GEMINI_ENDPOINT : "https://api.anthropic.com/v1/messages", {
+        method: "POST", headers: provider === "gemini" ? { "Content-Type": "application/json", Accept: "text/event-stream", "x-goog-api-key": key } : { "Content-Type": "application/json", Authorization: `Bearer ${key}`, ...(provider === "anthropic" ? { "anthropic-version": "2026-10-21" } : {}) },
         body: JSON.stringify(provider === "openai" ? openaiRequest(messages, system) : provider === "gemini" ? geminiRequest(messages, system) : { model: AI_MODEL, max_tokens: AI_MAX_OUTPUT_TOKENS, thinking: { type: "disabled" },
           output_config: { effort: "low" }, system, tools: AI_TOOLS, messages }),
         cache: "no-store", redirect: "error", signal,
       }), signal);
+      lastStatus = response.status;
       if (!response.ok) { await response.body?.cancel().catch(() => {}); return failure("http_error", response.status); }
-      const raw = await withAbort(limitedAiJson(response), signal);
+      const raw = await withAbort(() => provider === "gemini" && response.headers.get("content-type")?.includes("text/event-stream")
+        ? readGeminiStream(response, signal) : limitedAiJson(response), signal);
       const gemini = provider === "gemini" ? geminiReply(raw, round) : null;
       const parsed = responseSchema.safeParse(provider === "openai" ? openaiReply(raw) : provider === "gemini" ? gemini : raw);
       if (!parsed.success) return failure("invalid_response", response.status);
@@ -113,7 +117,7 @@ async function askProvider(provider: AiProvider | "openai", question: string, to
         let value: unknown = { error: "ferramenta_ou_argumentos_invalidos" };
         let isError = !valid;
         if (valid) {
-          try { value = await withAbort(deps.runTool(valid.name, valid.input), signal); }
+          try { value = await withAbort(() => deps.runTool(valid.name, valid.input), signal); }
           catch { value = { error: "dados_temporariamente_indisponiveis" }; isError = true; }
         }
         signal.throwIfAborted();
@@ -125,7 +129,7 @@ async function askProvider(provider: AiProvider | "openai", question: string, to
       }
       messages.push({ role: "assistant", content: result.content, ...(gemini ? { geminiParts: gemini.geminiParts } : {}) }, { role: "user", content: toolResults });
     }
-  } catch { return failure(signal.aborted ? "timeout" : "request_failed"); }
+  } catch { return failure(signal.aborted ? (lastStatus ? "body_timeout" : "timeout") : "request_failed", lastStatus); }
   return failure("call_limit");
 }
 

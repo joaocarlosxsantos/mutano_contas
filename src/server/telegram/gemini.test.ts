@@ -10,6 +10,30 @@ const text = (answer = "Saldo disponível: R$ 10,00.", reason = "STOP") => Respo
 afterEach(() => vi.restoreAllMocks());
 
 describe("Gemini REST com function calling nativo", () => {
+  it("loop real usa SSE nas duas chamadas com o mesmo sinal total", async () => {
+    const event = (parts: unknown[]) => new Response(`data: ${JSON.stringify({ candidates: [{ finishReason: "STOP", content: { role: "model", parts } }] })}\n\n`, { headers: { "Content-Type": "text/event-stream" } });
+    const fetch = vi.fn().mockResolvedValueOnce(event([{ functionCall: { name: "get_balance", args: {} }, thoughtSignature: "opaque" }])).mockResolvedValueOnce(event([{ text: "Saldo de R$ 10,00." }]));
+    expect(await askGemini("saldo?", "2026-11-10", "", { fetch, runTool: vi.fn().mockResolvedValue({ availableCents: 1000 }), timeoutMs: 40_000 }, env)).toContain("10,00");
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(fetch.mock.calls[0][0]).toBe(GEMINI_ENDPOINT);
+    expect(GEMINI_ENDPOINT).toContain(":streamGenerateContent?alt=sse");
+    expect(fetch.mock.calls[0][1].headers.Accept).toBe("text/event-stream");
+    expect(fetch.mock.calls[1][1].signal).toBe(fetch.mock.calls[0][1].signal);
+  });
+  it("timeout após headers cancela stream e informa fase/status sem conteúdo", async () => {
+    const controller = new AbortController();
+    vi.spyOn(AbortSignal, "timeout").mockReturnValue(controller.signal);
+    const cancel = vi.fn(); const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const response = new Response(new ReadableStream({ cancel }), { headers: { "Content-Type": "text/event-stream" } });
+    const read = vi.spyOn(response.body!, "getReader");
+    const fetch = vi.fn().mockResolvedValue(response);
+    const pending = askGemini("saldo?", "2026-11-10", "", { fetch, runTool: vi.fn(), timeoutMs: 40_000 }, env);
+    await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+    controller.abort();
+    expect(await pending).toBe(AI_FAILURE);
+    expect(cancel).toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith("[chat-ai]", { status: 200, code: "gemini_body_timeout" });
+  });
   it("bloqueia segredo da pergunta sem fetch/ferramenta ou log", async () => {
     const token = `AQ.${"a".repeat(50)}`;
     const fetch = vi.fn(); const runTool = vi.fn();
@@ -49,7 +73,7 @@ describe("Gemini REST com function calling nativo", () => {
     const fetch = vi.fn().mockResolvedValueOnce(call()).mockResolvedValueOnce(text());
     const runTool = vi.fn().mockResolvedValue({ availableCents: 1000 });
     expect(await askGemini("saldo?", "2026-11-10", "Perfil manual", { fetch, runTool }, env)).toContain("10,00");
-    expect(GEMINI_MODEL).toBe("gemini-3.8-flash");
+    expect(GEMINI_MODEL).toBe("gemini-3.5-flash-lite");
     expect(fetch.mock.calls[0][0]).toBe(GEMINI_ENDPOINT);
     expect(GEMINI_ENDPOINT).not.toContain(env.GEMINI_API_KEY);
     const init = fetch.mock.calls[0][1];
@@ -57,7 +81,7 @@ describe("Gemini REST com function calling nativo", () => {
     const body = JSON.parse(init.body);
     expect(JSON.stringify(body)).not.toContain(env.GEMINI_API_KEY);
     expect(body.generationConfig.maxOutputTokens).toBe(GEMINI_MAX_OUTPUT_TOKENS);
-    expect(body.generationConfig.thinkingConfig.thinkingLevel).toBe("LOW");
+    expect(body.generationConfig.thinkingConfig.thinkingLevel).toBe("MINIMAL");
     expect(body.generationConfig).not.toHaveProperty("temperature");
     expect(body.tools).toHaveLength(1);
     expect(body.tools[0].functionDeclarations).toHaveLength(5);

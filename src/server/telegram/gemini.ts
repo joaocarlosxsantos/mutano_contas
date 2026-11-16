@@ -2,11 +2,12 @@ import { z } from "zod";
 import { AI_TOOLS } from "./ai-policy";
 import type { AiMessage } from "./ai";
 
-// ID estável e Free Tier confirmados nas páginas oficiais de modelo/preços em 10/11/2026.
-export const GEMINI_MODEL = "gemini-3.8-flash";
-// O limite inclui thinking; 500 pode truncar antes da ferramenta/texto final.
-export const GEMINI_MAX_OUTPUT_TOKENS = 2048;
-export const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
+// Configuração única: Flash-Lite estável prioriza latência, MINIMAL é suportado.
+// Não usar thinkingBudget=0 em modelos 3.x (não desliga thinking).
+export const GEMINI_CONFIG = { model: "gemini-3.5-flash-lite", thinkingLevel: "MINIMAL", maxOutputTokens: 1024 } as const;
+export const GEMINI_MODEL = GEMINI_CONFIG.model;
+export const GEMINI_MAX_OUTPUT_TOKENS = GEMINI_CONFIG.maxOutputTokens;
+export const GEMINI_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse`;
 const callSchema = z.object({ id: z.string().min(1).max(100).optional(), name: z.string().max(64), args: z.unknown().optional() });
 const partSchema = z.object({
   text: z.string().max(8000).optional(), functionCall: callSchema.optional(),
@@ -46,7 +47,7 @@ export function geminiRequest(messages: AiMessage[], system: string) {
       return { name: tool.name, description: tool.description, parametersJsonSchema };
     }) }],
     toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-    generationConfig: { maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS, thinkingConfig: { thinkingLevel: "LOW", includeThoughts: false } },
+    generationConfig: { maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS, thinkingConfig: { thinkingLevel: GEMINI_CONFIG.thinkingLevel, includeThoughts: false } },
   };
 }
 
