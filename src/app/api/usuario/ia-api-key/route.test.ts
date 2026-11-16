@@ -19,6 +19,21 @@ beforeEach(() => {
 });
 
 describe("API BYOK autenticada", () => {
+  it.each([`AIza${"aB3_-".repeat(7)}`, `AIza${"a".repeat(36)}`, `new-google-prefix_${"a".repeat(30)}`])("normaliza chave Gemini colada e valida remotamente antes de salvar", async apiKey => {
+    mocks.save.mockResolvedValue({ configured: true, provider: "gemini", last4: apiKey.slice(-4) });
+    const response = await PUT(request("PUT", { provider: "gemini", apiKey: ` \r\n\t${apiKey}\r\n ` }));
+    expect(response.status).toBe(200);
+    expect(mocks.validate).toHaveBeenCalledWith("gemini", apiKey);
+    expect(mocks.save).toHaveBeenCalledWith("owner", "gemini", apiKey);
+    expect(mocks.validate.mock.invocationCallOrder[0]).toBeLessThan(mocks.save.mock.invocationCallOrder[0]);
+    expect(await response.json()).toEqual({ configured: true, provider: "gemini", last4: apiKey.slice(-4) });
+  });
+  it("formato Gemini plausível ainda precisa ser aceito pelo provedor", async () => {
+    mocks.validate.mockRejectedValue(new AiKeyValidationError("invalid_api_key"));
+    const response = await PUT(request("PUT", { provider: "gemini", apiKey: `future-prefix_${"a".repeat(30)}` }));
+    expect(response.status).toBe(422); expect((await response.json()).code).toBe("invalid_api_key");
+    expect(mocks.save).not.toHaveBeenCalled();
+  });
   it("salva só após validar e fornece status seguro; remoção idempotente", async () => {
     const response = await PUT(request("PUT", { provider: "openai", apiKey }));
     expect(response.status).toBe(200);
@@ -47,7 +62,7 @@ describe("API BYOK autenticada", () => {
     const res = await handler(request("GET")); expect(res.status).toBe(429); expect(res.headers.get("retry-after")).toBe("60");
     expect(mocks.validate).not.toHaveBeenCalled(); expect(mocks.save).not.toHaveBeenCalled(); expect(mocks.remove).not.toHaveBeenCalled();
   });
-  it.each([{ provider: "evil", apiKey }, { provider: "openai", apiKey, userId: "victim" }, { provider: "gemini", apiKey }, { provider: "openai", apiKey: "x".repeat(9000) }])("rejeita entrada sem ecoar segredo", async body => {
+  it.each([{ provider: "evil", apiKey }, { provider: "openai", apiKey, userId: "victim" }, { provider: "gemini", apiKey, extra: "unexpected" }, { provider: "gemini", apiKey: "AIza invalid key with spaces" }, { provider: "openai", apiKey: "x".repeat(9000) }])("rejeita entrada sem ecoar segredo", async body => {
     const res = await PUT(request("PUT", body)); expect(res.status).toBe(400); expect(await res.text()).not.toContain(apiKey);
     expect(mocks.validate).not.toHaveBeenCalled(); expect(mocks.save).not.toHaveBeenCalled();
   });

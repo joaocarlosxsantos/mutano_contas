@@ -45,7 +45,7 @@ async function readResponse(response: Response) {
 }
 
 export function AiKeyCard() {
-  const [provider, setProvider] = useState<Provider>("claude");
+  const [provider, setProvider] = useState<Provider>("gemini");
   const [keyValue, setKeyValue] = useState("");
   const [showKey, setShowKey] = useState(false);
   const [state, setState] = useState<ViewState>({ unavailable: false });
@@ -66,18 +66,19 @@ export function AiKeyCard() {
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!keyValue.trim() || state.unavailable) return;
+    const apiKey = keyValue.trim();
+    if (!apiKey || state.unavailable) return;
     setSaving(true);
     setState((current) => ({ ...current, message: undefined, error: undefined }));
     try {
       const data = await readResponse(await fetch("/api/usuario/ia-api-key", {
         method: "PUT", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ provider, apiKey: keyValue.trim() }),
+        body: JSON.stringify({ provider, apiKey }),
       }));
       const saved = parseStatus(data);
       setKeyValue("");
       setShowKey(false);
-      setState({ saved: saved ?? { provider, last4: keyValue.trim().slice(-4) }, unavailable: false, message: "Chave salva com segurança." });
+      setState({ saved: saved ?? { provider, last4: apiKey.slice(-4) }, unavailable: false, message: "Chave salva com segurança." });
     } catch (error) {
       setState((current) => error instanceof Error && error.message === "unavailable" ? { ...current, unavailable: true } : { ...current, error: error instanceof Error ? error.message : "Não foi possível salvar a chave." });
     } finally { setSaving(false); }
