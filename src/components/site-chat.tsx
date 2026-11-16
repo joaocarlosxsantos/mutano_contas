@@ -32,6 +32,21 @@ export function ChatCommandMenu({ busy, onSelect }: { busy: boolean; onSelect: (
   </div>;
 }
 
+export function ChatTypingBubble() {
+  return <div className="mt-3 mr-3" role="status" aria-live="polite">
+    <span className="sr-only">Assistente digitando</span>
+    <span className="mb-1 block text-xs font-medium text-[var(--text-muted)]" aria-hidden="true">Mutano</span>
+    <div className="inline-flex items-center gap-2 rounded-xl bg-[var(--surface-2)] px-3 py-2.5 text-sm text-[var(--text-muted)]" aria-hidden="true">
+      <span>digitando</span>
+      <span className={styles.typingDots}><span className={styles.typingDot} /><span className={styles.typingDot} /><span className={styles.typingDot} /></span>
+    </div>
+  </div>;
+}
+
+export function ChatPending({ busy }: { busy: boolean }) {
+  return busy ? <ChatTypingBubble /> : null;
+}
+
 export function SiteChat() {
   const confirm = useConfirm();
   const [open, setOpen] = useState(false);
@@ -168,7 +183,7 @@ export function SiteChat() {
       </header>
       <div ref={scroller} tabIndex={0} aria-label="Histórico de consultas" className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 focus-visible:outline-2 focus-visible:outline-[var(--acento)]">
         <ChatTranscript messages={messages} busy={busy} />
-        {busy && <p role="status" className="mt-3 text-sm text-[var(--text-muted)]">Consultando seus dados…</p>}
+        <ChatPending busy={busy} />
         {error && <p role="alert" className="mt-3 text-sm text-[var(--text-out)]">{error}</p>}
         {signedOut && <a href="/login" className="mt-3 inline-flex min-h-11 items-center text-sm underline underline-offset-4">Entrar novamente</a>}
       </div>

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
-vi.mock("./site-chat.module.css", () => ({ default: { anchor: "anchor", panel: "panel" } }));
+vi.mock("./site-chat.module.css", () => ({ default: { anchor: "anchor", panel: "panel", typingDots: "typing-dots", typingDot: "typing-dot" } }));
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { ChatCommandMenu, ChatTranscript, SITE_CHAT_GREETING } from "./site-chat";
+import { ChatCommandMenu, ChatPending, ChatTranscript, SITE_CHAT_GREETING } from "./site-chat";
 import { SITE_CHAT_COMMANDS, floatingChatBottom, isSiteChatCommand } from "@/lib/site-chat";
 import { BOT_COMMANDS } from "@/server/telegram/commands";
 
@@ -20,6 +20,13 @@ describe("Chat acessível e menu compartilhado", () => {
   it("mantém texto financeiro literal, linhas e anúncio acessível sem executar HTML", () => {
     const html = renderToStaticMarkup(createElement(ChatTranscript, { busy: false, messages: [{ id: 1, role: "assistant", text: '<script>alert(1)</script>\nR$ 10,00' }] }));
     expect(html).not.toContain("<script>"); expect(html).toContain("&lt;script&gt;"); expect(html).toContain("whitespace-pre-wrap"); expect(html).toContain('role="log"');
+  });
+  it("mostra o indicador 'digitando' só durante a espera e o anuncia ao leitor de tela", () => {
+    const loading = renderToStaticMarkup(createElement(ChatPending, { busy: true }));
+    expect(loading).toContain('role="status"'); expect(loading).toContain('aria-live="polite"');
+    expect(loading).toContain("Assistente digitando"); expect(loading).toContain("digitando");
+    expect(loading.match(/typing-dot"/g)?.length).toBe(3);
+    expect(renderToStaticMarkup(createElement(ChatPending, { busy: false }))).toBe("");
   });
   it("separa o ícone da navegação mobile e do banner de instalação, inclusive em paisagem", () => {
     expect(floatingChatBottom(800, { left: 16, right: 64 }, [{ left: 0, right: 390, top: 720, height: 80 }])).toBe(96);
