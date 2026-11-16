@@ -1,19 +1,47 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ quota: vi.fn(), profile: vi.fn(), ask: vi.fn(), gemini: vi.fn(), read: vi.fn() }));
+const mocks = vi.hoisted(() => ({ quota: vi.fn(), profile: vi.fn(), ask: vi.fn(), gemini: vi.fn(), openai: vi.fn(), credential: vi.fn(), read: vi.fn() }));
+vi.mock("@/server/ai/credentials-store", () => ({ loadAiCredential: mocks.credential }));
 vi.mock("./ai-quota", () => ({ consumeAiQuota: mocks.quota }));
 vi.mock("@/server/usage-profile", () => ({ getUsageProfile: mocks.profile }));
-vi.mock("./ai", () => ({ askClaude: mocks.ask, askGemini: mocks.gemini }));
+vi.mock("./ai", () => ({ askClaude: mocks.ask, askGemini: mocks.gemini, askOpenai: mocks.openai }));
 vi.mock("./ai-tools", () => ({ executeReadTool: mocks.read }));
 import { answerQuestion, PROFILE_INSTRUCTIONS } from "./ai-service";
 import { AI_FAILURE, AI_LIMITED, AI_UNAVAILABLE } from "./ai-policy";
 beforeEach(() => {
   vi.resetAllMocks(); vi.stubEnv("ANTHROPIC_API_KEY", "fake-test-key");
+  mocks.credential.mockResolvedValue(null);
   vi.stubEnv("GEMINI_API_KEY", ""); vi.stubEnv("AI_PROVIDER", "");
   mocks.quota.mockResolvedValue(true); mocks.profile.mockResolvedValue("manual"); mocks.ask.mockResolvedValue("Resposta");
 });
 afterEach(() => vi.unstubAllEnvs());
 
 describe("serviço IA vinculado", () => {
+  it.each(["claude", "openai", "gemini"])("prioriza BYOK %s sem alterar env global ou misturar donos", async provider => {
+    mocks.credential.mockResolvedValue({ provider, apiKey: "personal-secret" });
+    const ask = provider === "claude" ? mocks.ask : provider === "gemini" ? mocks.gemini : mocks.openai;
+    ask.mockResolvedValue("Resposta pessoal");
+    expect(await answerQuestion("owner", "123", "saldo?")).toBe("Resposta pessoal");
+    expect(mocks.credential).toHaveBeenCalledWith("owner");
+    const args = ask.mock.calls[0];
+    expect(args[4][provider === "claude" ? "ANTHROPIC_API_KEY" : provider === "gemini" ? "GEMINI_API_KEY" : "OPENAI_API_KEY"]).toBe("personal-secret");
+    await args[3].runTool("get_balance", {});
+    expect(mocks.read).toHaveBeenCalledWith("owner", "get_balance", {}, expect.any(String));
+    expect(process.env.ANTHROPIC_API_KEY).toBe("fake-test-key");
+  });
+  it("após remoção volta ao legado no Telegram e desativa perguntas pessoais no site", async () => {
+    mocks.credential.mockResolvedValue({ provider: "claude", apiKey: "personal-secret" });
+    await answerQuestion("owner", "123", "saldo?");
+    mocks.credential.mockResolvedValue(null);
+    await answerQuestion("owner", "123", "saldo?");
+    expect(mocks.ask.mock.calls[1]).toHaveLength(4);
+    expect(await answerQuestion("owner", "site:owner", "saldo?", new Date(), true)).toBe(AI_UNAVAILABLE);
+    expect(mocks.ask).toHaveBeenCalledTimes(2);
+  });
+  it("envelope inválido falha fechado sem fallback para chave do servidor", async () => {
+    mocks.credential.mockRejectedValue(new Error("secret"));
+    expect(await answerQuestion("owner", "123", "saldo?")).toBe(AI_FAILURE);
+    expect(mocks.quota).not.toHaveBeenCalled(); expect(mocks.ask).not.toHaveBeenCalled();
+  });
   it("responde usando a ferramenta financeira solicitada", async () => {
     mocks.read.mockResolvedValue({});
     mocks.ask.mockImplementation(async (_question, _today, _profile, deps) => {

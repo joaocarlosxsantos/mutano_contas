@@ -357,6 +357,15 @@ export const transactions = pgTable(
   ],
 );
 
+/** Uma credencial pessoal de IA; o envelope nunca é exposto ao cliente. */
+export const userAiCredentials = pgTable("user_ai_credentials", {
+  userId: varchar("user_id", { length: 32 }).primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  provider: text("provider").$type<"claude" | "openai" | "gemini">().notNull(),
+  apiKeyEnvelope: text("api_key_envelope").notNull(),
+  last4: varchar("last4", { length: 4 }).notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [check("user_ai_credentials_provider_chk", sql`${t.provider} in ('claude', 'openai', 'gemini')`)]);
+
 export const openFinanceCredentials = pgTable("open_finance_credentials", {
   userId: varchar("user_id", { length: 32 }).primaryKey().references(() => users.id, { onDelete: "cascade" }),
   clientIdEnvelope: text("client_id_envelope").notNull(),

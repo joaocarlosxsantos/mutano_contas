@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
   subscriptions: vi.fn(),
   cards: vi.fn(),
   ai: vi.fn(),
+  aiStatus: vi.fn(),
 }));
 vi.mock("@/db", () => ({
   db: {
@@ -39,6 +40,7 @@ vi.mock("./daily-summary", () => ({
   renderDailySummary: (...args: unknown[]) => mocks.summary(...args),
 }));
 vi.mock("./ai-service", () => ({ answerQuestion: (...args: unknown[]) => mocks.ai(...args) }));
+vi.mock("@/server/ai/credentials-store", () => ({ getAiCredentialStatus: mocks.aiStatus }));
 
 import { disconnect, issueLink, loadTelegramBalance, processMessage } from "./store";
 import { telegramLinkCodes, telegramLinks, telegramPreferences, users } from "@/db/schema";
@@ -49,6 +51,7 @@ const sqlQuery = (value: unknown) => new PgDialect().sqlToQuery(value as SQL);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.aiStatus.mockResolvedValue({ configured: false });
   mocks.results.length = mocks.events.length = 0;
   const query = (kind: string, table?: unknown) => {
     mocks.events.push({ kind, value: table });
@@ -77,6 +80,17 @@ beforeEach(() => {
 });
 
 describe("persistência Telegram", () => {
+  it("encaminha texto livre vinculado ao BYOK após liberar transação", async () => {
+    mocks.results.push([{ count: 1 }], [{ userId: "linked-owner" }]);
+    mocks.aiStatus.mockResolvedValue({ configured: true }); mocks.ai.mockResolvedValue("Resposta pessoal");
+    expect(await processMessage(800, message("Como posso melhorar?"))).toContain("Resposta pessoal");
+    expect(mocks.ai).toHaveBeenCalledWith("linked-owner", "123", "Como posso melhorar?", expect.any(Date), true);
+  });
+  it("sem chave texto livre mantém resposta local e não chama LLM", async () => {
+    mocks.results.push([{ count: 1 }], [{ userId: "linked-owner" }], [{ userId: "linked-owner" }]);
+    const response = await processMessage(801, message("Como posso melhorar?"));
+    expect(response).toBeTruthy(); expect(mocks.ai).not.toHaveBeenCalled();
+  });
   it("retorna investimento e patrimônio do dono sem enviar detalhes privados das contas", async () => {
     const connection = { select: vi.fn() } as unknown as Parameters<typeof loadTelegramBalance>[1];
     mocks.balance.mockResolvedValue({ availableCents: 1000, investedCents: 2000, netWorthCents: 2500, totalIncomplete: true, needsOpeningBalance: false, accounts: [{ id: "private-account", name: "private-name" }] });

@@ -5,13 +5,14 @@ import {
 } from "./ai-policy";
 import { GEMINI_ENDPOINT, geminiReply, geminiRequest } from "./gemini";
 import type { AiProvider, ProviderEnvironment } from "./ai-provider";
+import { OPENAI_ENDPOINT, openaiReply, openaiRequest } from "./openai";
 
 const textBlock = z.object({ type: z.literal("text"), text: z.string().max(8000) });
 const toolBlock = z.object({ type: z.literal("tool_use"), id: z.string().min(1).max(100), name: z.string().max(64), input: z.unknown() });
 const responseSchema = z.object({ stop_reason: z.string().max(40), content: z.array(z.union([textBlock, toolBlock])).max(8) });
 type Content = z.infer<typeof responseSchema>["content"];
 export type AiMessage = { role: "user" | "assistant"; content: string | Content | { type: "tool_result"; tool_use_id: string; content: string; is_error?: boolean }[]; geminiParts?: unknown[] };
-type AiEnvironment = ProviderEnvironment & { TELEGRAM_BOT_TOKEN?: string; TELEGRAM_WEBHOOK_SECRET?: string; CRON_SECRET?: string };
+type AiEnvironment = ProviderEnvironment & { OPENAI_API_KEY?: string; TELEGRAM_BOT_TOKEN?: string; TELEGRAM_WEBHOOK_SECRET?: string; CRON_SECRET?: string };
 
 function aiEnvironment(): AiEnvironment {
   return { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY, GEMINI_API_KEY: process.env.GEMINI_API_KEY,
@@ -35,7 +36,7 @@ async function withAbort<T>(promise: Promise<T>, signal: AbortSignal): Promise<T
   finally { signal.removeEventListener("abort", abort); }
 }
 
-async function limitedJson(response: Response) {
+export async function limitedAiJson(response: Response) {
   if (Number(response.headers.get("content-length")) > AI_MAX_RESPONSE_BYTES) throw new Error("response_too_large");
   const reader = response.body?.getReader();
   if (!reader) throw new Error("empty_response");
@@ -62,10 +63,10 @@ Para perguntas sobre finanças pessoais, consulte as ferramentas; sem dados, dig
 }
 
 /** Histórico restrito a esta pergunta; API e ferramentas possuem orçamento rígido. */
-async function askProvider(provider: AiProvider, question: string, today: string, profileInstructions: string, deps: AiDependencies, env: AiEnvironment): Promise<string> {
-  const key = (provider === "gemini" ? env.GEMINI_API_KEY : env.ANTHROPIC_API_KEY)?.trim();
+async function askProvider(provider: AiProvider | "openai", question: string, today: string, profileInstructions: string, deps: AiDependencies, env: AiEnvironment): Promise<string> {
+  const key = (provider === "openai" ? env.OPENAI_API_KEY : provider === "gemini" ? env.GEMINI_API_KEY : env.ANTHROPIC_API_KEY)?.trim();
   if (!key || !question.trim() || question.length > 512) return AI_FAILURE;
-  const secrets = [key, env.GEMINI_API_KEY?.trim() ?? "", env.ANTHROPIC_API_KEY?.trim() ?? "", env.TELEGRAM_BOT_TOKEN ?? "", env.TELEGRAM_WEBHOOK_SECRET ?? "", env.CRON_SECRET ?? ""];
+  const secrets = [key, env.OPENAI_API_KEY?.trim() ?? "", env.GEMINI_API_KEY?.trim() ?? "", env.ANTHROPIC_API_KEY?.trim() ?? "", env.TELEGRAM_BOT_TOKEN ?? "", env.TELEGRAM_WEBHOOK_SECRET ?? "", env.CRON_SECRET ?? ""];
   const messages: AiMessage[] = [{ role: "user", content: safeAnswer(question, secrets) }];
   const signal = AbortSignal.timeout(AI_TIMEOUT_MS);
   let toolsUsed = 0;
@@ -76,16 +77,16 @@ async function askProvider(provider: AiProvider, question: string, today: string
       signal.throwIfAborted();
       if (Buffer.byteLength(JSON.stringify(messages)) > AI_MAX_HISTORY_BYTES) return AI_FAILURE;
       const system = systemPrompt(today, profileInstructions);
-      const response = await withAbort((deps.fetch ?? fetch)(provider === "gemini" ? GEMINI_ENDPOINT : "https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: provider === "gemini" ? { "Content-Type": "application/json", "x-goog-api-key": key } : { "Content-Type": "application/json", Authorization: `Bearer ${key}`, "anthropic-version": "2026-10-21" },
-        body: JSON.stringify(provider === "gemini" ? geminiRequest(messages, system) : { model: AI_MODEL, max_tokens: AI_MAX_OUTPUT_TOKENS, thinking: { type: "disabled" },
+      const response = await withAbort((deps.fetch ?? fetch)(provider === "openai" ? OPENAI_ENDPOINT : provider === "gemini" ? GEMINI_ENDPOINT : "https://api.anthropic.com/v1/messages", {
+        method: "POST", headers: provider === "gemini" ? { "Content-Type": "application/json", "x-goog-api-key": key } : { "Content-Type": "application/json", Authorization: `Bearer ${key}`, ...(provider === "anthropic" ? { "anthropic-version": "2026-10-21" } : {}) },
+        body: JSON.stringify(provider === "openai" ? openaiRequest(messages, system) : provider === "gemini" ? geminiRequest(messages, system) : { model: AI_MODEL, max_tokens: AI_MAX_OUTPUT_TOKENS, thinking: { type: "disabled" },
           output_config: { effort: "low" }, system, tools: AI_TOOLS, messages }),
-        cache: "no-store", signal,
+        cache: "no-store", redirect: "error", signal,
       }), signal);
       if (!response.ok) { await response.body?.cancel(); return AI_FAILURE; }
-      const raw = await withAbort(limitedJson(response), signal);
+      const raw = await withAbort(limitedAiJson(response), signal);
       const gemini = provider === "gemini" ? geminiReply(raw) : null;
-      const parsed = responseSchema.safeParse(provider === "gemini" ? gemini : raw);
+      const parsed = responseSchema.safeParse(provider === "openai" ? openaiReply(raw) : provider === "gemini" ? gemini : raw);
       if (!parsed.success) return AI_FAILURE;
       const result = parsed.data;
       const calls = result.content.filter((block) => block.type === "tool_use");
@@ -127,4 +128,8 @@ export async function askClaude(question: string, today: string, profileInstruct
 
 export async function askGemini(question: string, today: string, profileInstructions: string, deps: AiDependencies, env = aiEnvironment()) {
   return askProvider("gemini", question, today, profileInstructions, deps, env);
+}
+
+export async function askOpenai(question: string, today: string, profileInstructions: string, deps: AiDependencies, env: AiEnvironment) {
+  return askProvider("openai", question, today, profileInstructions, deps, env);
 }

@@ -7,6 +7,7 @@ import { answerQuestion } from "./ai-service";
 import { withOpenFinanceAge } from "@/server/open-finance/data-age";
 import { parseNaturalTransaction } from "./natural-transaction-parser";
 import { createTransactionDraft, undoTransactionDraft } from "./draft-store";
+import { getAiCredentialStatus } from "@/server/ai/credentials-store";
 
 export async function issueLink(userId: string) {
   const token = newLinkCode();
@@ -137,12 +138,18 @@ export async function processMessage(updateId: number, message: TelegramMessage)
       return `Confirmar ${kindLabel}?\n• ${parsed.description}: ${money}\n• Data: ${dateStr}\n• Conta: ${draftRes.accountName}`;
     }
 
+    if (message.text?.trim() && !message.text.trim().startsWith("/")) {
+      const [link] = await tx.select({ userId: telegramLinks.userId }).from(telegramLinks).where(eq(telegramLinks.chatId, chatId)).limit(1);
+      if (link) return { kind: "personal_question" as const, userId: link.userId, question: message.text.trim(), now };
+    }
     return replyToCommand(message, tx, now);
   });
   // Não segurar conexão nem lock do chat enquanto o provedor externo responde.
   if (result && typeof result === "object") {
     // Resposta usa o cache do banco e mostra a idade do dado (refresh só agendado, via cron).
     if (result.kind === "question") return withOpenFinanceAge(result.userId, () => answerQuestion(result.userId, chatId, result.question));
+    if (result.kind === "personal_question" && (await getAiCredentialStatus(result.userId)).configured)
+      return withOpenFinanceAge(result.userId, () => answerQuestion(result.userId, chatId, result.question, new Date(), true));
     // Leituras financeiras (ex.: /resumo com 15+ queries) rodam diretamente no pool
     // sem segurar uma db.transaction aberta por múltiplos round-trips, lendo só o banco.
     return withOpenFinanceAge(result.userId, () => replyToCommand(message, db as unknown as TelegramTransaction, result.now, result.userId));

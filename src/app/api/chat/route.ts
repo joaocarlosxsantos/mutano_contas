@@ -3,11 +3,16 @@ import { auth } from "@/lib/auth";
 import { isSiteChatCommand } from "@/lib/site-chat";
 import { boundedJson } from "@/server/notifications/http";
 import { claimSiteChatRequest, siteChatOwnerExists, siteCommandReply } from "@/server/telegram/site-chat";
+import { answerQuestion } from "@/server/telegram/ai-service";
+import { withOpenFinanceAge } from "@/server/open-finance/data-age";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
 const headers = { "Cache-Control": "private, no-store, max-age=0", Vary: "Cookie", "X-Content-Type-Options": "nosniff" };
-const inputSchema = z.object({ command: z.string().max(32).refine(isSiteChatCommand) }).strict();
+const inputSchema = z.union([
+  z.object({ command: z.string().max(32).refine(isSiteChatCommand) }).strict(),
+  z.object({ message: z.string().trim().min(1).max(512).refine(value => !value.startsWith("/")) }).strict(),
+]);
 const error = (message: string, status: number, extra = {}) => Response.json({ error: message }, { status, headers: { ...headers, ...extra } });
 
 export async function POST(request: Request) {
@@ -26,7 +31,9 @@ export async function POST(request: Request) {
     try { input = inputSchema.safeParse(await boundedJson(request)); }
     catch { return error("Comando inválido. Escolha uma opção do menu.", 400); }
     if (!input.success) return error("Comando inválido. Escolha uma opção do menu.", 400);
-    const reply = await siteCommandReply(userId, input.data.command);
+    const data = input.data;
+    const reply = "command" in data ? await siteCommandReply(userId, data.command)
+      : await withOpenFinanceAge(userId, () => answerQuestion(userId, `site:${userId}`, data.message, new Date(), true));
     return Response.json({ reply }, { headers });
   } catch {
     return error("Não foi possível consultar agora. Tente novamente.", 503);

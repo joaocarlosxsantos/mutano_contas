@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), exists: vi.fn(), limit: vi.fn(), reply: vi.fn() }));
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), exists: vi.fn(), limit: vi.fn(), reply: vi.fn(), ai: vi.fn() }));
+vi.mock("@/server/telegram/ai-service", () => ({ answerQuestion: mocks.ai }));
+vi.mock("@/server/open-finance/data-age", () => ({ withOpenFinanceAge: async (_id: string, build: () => unknown) => build() }));
 vi.mock("@/lib/auth", () => ({ auth: () => mocks.auth() }));
 vi.mock("@/server/telegram/site-chat", () => ({ siteChatOwnerExists: (...args: unknown[]) => mocks.exists(...args),
   claimSiteChatRequest: (...args: unknown[]) => mocks.limit(...args), siteCommandReply: (...args: unknown[]) => mocks.reply(...args) }));
@@ -12,6 +14,16 @@ beforeEach(() => {
   mocks.exists.mockResolvedValue(true); mocks.limit.mockResolvedValue({ allowed: true }); mocks.reply.mockResolvedValue("Saldo registrado");
 });
 describe("Chat HTTP autenticado", () => {
+  it("pergunta livre usa somente a sessão e exige chave pessoal", async () => {
+    mocks.ai.mockResolvedValue("Resposta financeira");
+    const response = await POST(request({ message: "Quanto posso economizar este mês?" }));
+    expect(await response.json()).toEqual({ reply: "Resposta financeira" });
+    expect(mocks.ai).toHaveBeenCalledWith("session-owner", "site:session-owner", "Quanto posso economizar este mês?", expect.any(Date), true);
+    expect(mocks.reply).not.toHaveBeenCalled();
+  });
+  it.each([{ message: " " }, { message: "x".repeat(513) }, { message: "saldo", userId: "victim" }, { message: "saldo", command: "/saldo" }, { message: "/desfazer" }])("rejeita perguntas inválidas %j", async body => {
+    expect((await POST(request(body))).status).toBe(400); expect(mocks.ai).not.toHaveBeenCalled();
+  });
   it("exige sessão antes de acessar dados ou consumir cota", async () => {
     mocks.auth.mockResolvedValue(null);
     const response = await POST(request());
