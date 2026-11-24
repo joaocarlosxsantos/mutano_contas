@@ -16,7 +16,7 @@ const topicOptions: [PreferenceKey, string][] = [
   ["dueBills", "Contas a pagar"], ["cardInvoice", "Cartões e faturas"],
   ["budget", "Orçamento"], ["negativeForecast", "Saldo e previsão"],
   ["spending", "Gastos e assinaturas"], ["summary", "Resumos"],
-  ["goals", "Metas"], ["syncAlerts", "Problemas de sincronização"],
+  ["goals", "Metas"], ["syncAlerts", "Atualizações e problemas de sincronização"],
 ];
 function applicationKey(value: string) {
   const raw = atob(value.replace(/-/g, "+").replace(/_/g, "/"));

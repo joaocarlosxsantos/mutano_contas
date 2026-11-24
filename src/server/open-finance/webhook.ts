@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db } from "@/db";
 import { openFinanceConnections } from "@/db/schema";
+import { todayRef } from "@/lib/dates";
 import { secretFingerprint } from "./crypto";
 import { syncOpenFinanceForUser } from "./sync";
 import { notificationDispatcher } from "@/server/notifications/dispatcher";
@@ -26,6 +27,7 @@ export type PluggyWebhookConnection = { id: string; userId: string };
 export type PluggyWebhookDependencies = {
   findConnection(itemId: string, clientUserId: string | null): Promise<PluggyWebhookConnection | null>;
   schedule(task: () => Promise<void>): void;
+  wait(ms: number): Promise<void>;
 };
 
 export function validPluggyWebhookSecret(actual: string | null, expected: string | undefined) {
@@ -97,6 +99,7 @@ const dependencies: PluggyWebhookDependencies = {
       .limit(1);
     return row ?? null;
   },
+  wait: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
   schedule(task) {
     void task;
     throw new Error("PLUGGY_WEBHOOK_SCHEDULER_MISSING");
@@ -153,23 +156,37 @@ export async function handlePluggyWebhook(
     return Response.json({ ok: true, ignored: true }, { status: 200, headers });
   }
 
-  markProcessed(eventKey, now);
   const found = connection;
   const notifyKey = createHash("sha256").update(`${found.id}|${eventKey}`).digest("hex").slice(0, 40);
   deps.schedule(async () => {
     try {
-      const result = await syncOpenFinanceForUser(found.userId, found.id, "webhook");
+      let result = await syncOpenFinanceForUser(found.userId, found.id, "webhook");
+      if ("skipped" in result && result.skipped) {
+        await deps.wait(5_000);
+        result = await syncOpenFinanceForUser(found.userId, found.id, "webhook");
+      }
+      if ("skipped" in result && result.skipped) {
+        console.info("[pluggy-webhook]", { event: parsed.data.event, status: "skipped" });
+        return;
+      }
       console.info("[pluggy-webhook]", { event: parsed.data.event, status: result.status });
-      if ("ok" in result && result.ok && result.imported > 0) {
-        const imported = result.imported;
-        await notificationDispatcher.dispatch({
-          userId: found.userId,
-          category: "syncAlerts",
-          type: "pluggy_sync_updated",
-          body: `Dados atualizados: ${imported} nova${imported === 1 ? "" : "s"} transaç${imported === 1 ? "ão" : "ões"}`,
-          actionUrl: "/configuracoes/integracao",
-          dedupeKey: `pluggy_sync_${notifyKey}`,
-        });
+      if ("ok" in result && result.ok && !result.error) {
+        markProcessed(eventKey, Date.now());
+        const inserted = result.accounts?.reduce((total, row) => total + row.inserted, 0) ?? 0;
+        try {
+          await notificationDispatcher.dispatch({
+            userId: found.userId,
+            category: "syncAlerts",
+            type: "pluggy_sync_updated",
+            body: inserted > 0
+              ? `Dados atualizados: ${inserted} nova${inserted === 1 ? "" : "s"} transaç${inserted === 1 ? "ão" : "ões"}`
+              : "Dados atualizados pelo banco. Sem transações novas.",
+            actionUrl: "/configuracoes/integracao",
+            dedupeKey: inserted > 0 ? `pluggy_sync_${notifyKey}` : `pluggy_sync_idle_${found.id}_${todayRef(new Date())}`,
+          });
+        } catch (error) {
+          console.error("[pluggy-webhook]", { event: parsed.data.event, status: "notify_failed", code: error instanceof Error ? error.name : "UNKNOWN" });
+        }
       }
     } catch (error) {
       console.error("[pluggy-webhook]", { event: parsed.data.event, status: "sync_failed", code: error instanceof Error ? error.name : "UNKNOWN" });

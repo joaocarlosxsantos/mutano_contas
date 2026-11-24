@@ -34,7 +34,7 @@ describe("webhook Pluggy item/updated", () => {
 
   it("autentica, localiza a conexão e agenda o sync depois do ACK", async () => {
     mocks.findConnection.mockResolvedValue({ id: "conn-1", userId: "owner-1" });
-    mocks.sync.mockResolvedValue({ ok: true, status: "UPDATED", imported: 3 });
+    mocks.sync.mockResolvedValue({ ok: true, status: "UPDATED", imported: 3, accounts: [{ inserted: 3 }] });
     mocks.dispatch.mockResolvedValue({});
     const response = await handlePluggyWebhook(request(updated("e-202", "private-item", "owner-1")), secret, deps);
     expect(response.status).toBe(202);
@@ -69,6 +69,8 @@ describe("webhook Pluggy item/updated", () => {
   it("deduplica eventId e devolve 500 se o lookup falhar", async () => {
     mocks.findConnection.mockResolvedValue({ id: "conn-1", userId: "owner-1" });
     expect((await handlePluggyWebhook(request(updated("e-dup")), secret, deps)).status).toBe(202);
+    mocks.sync.mockResolvedValue({ ok: true, status: "UPDATED", imported: 0, accounts: [] });
+    await scheduled[0]!();
     const duplicate = await handlePluggyWebhook(request(updated("e-dup")), secret, deps);
     expect(duplicate.status).toBe(200);
     expect(await duplicate.json()).toMatchObject({ duplicate: true });
@@ -108,18 +110,23 @@ describe("webhook Pluggy: segredo na URL, eventos e dedupe estável", () => {
     mocks.sync.mockResolvedValue({ ok: true, status: "UPDATED", imported: 0 });
     await scheduled[0]!();
     expect(mocks.sync).toHaveBeenCalledWith("owner-1", "conn-t", "webhook");
+    expect(mocks.dispatch).toHaveBeenCalledWith(expect.objectContaining({ body: expect.stringContaining("Sem transações novas") }));
+    mocks.dispatch.mockClear();
+    mocks.sync.mockResolvedValue({ ok: true, status: "UPDATED", imported: 0, error: "parcial" });
+    await scheduled[0]!();
+    expect(mocks.dispatch).not.toHaveBeenCalled();
     const other = await handlePluggyWebhook(request({ event: "item/login_succeeded", eventId: "e-ls", itemId: "item-1" }), secret, deps);
     expect(await other.json()).toMatchObject({ ignored: true });
   });
 
   it("chave de dedupe é estável: mesmo evento repetido não reagenda, e a notificação não usa Date.now", async () => {
     mocks.findConnection.mockResolvedValue({ id: "conn-s", userId: "owner-1" });
-    mocks.sync.mockResolvedValue({ ok: true, status: "UPDATED", imported: 1 });
+    mocks.sync.mockResolvedValue({ ok: true, status: "UPDATED", imported: 1, accounts: [{ inserted: 1 }] });
     mocks.dispatch.mockResolvedValue({});
     expect((await handlePluggyWebhook(request(updated("e-stable")), secret, deps)).status).toBe(202);
+    await scheduled[0]!();
     expect((await handlePluggyWebhook(request(updated("e-stable")), secret, deps)).status).toBe(200);
     expect(scheduled).toHaveLength(1);
-    await scheduled[0]!();
     const dedupeKey = mocks.dispatch.mock.calls[0]?.[0]?.dedupeKey as string;
     expect(dedupeKey).toMatch(/^pluggy_sync_[0-9a-f]{40}$/);
   });
@@ -129,5 +136,57 @@ describe("webhook Pluggy: segredo na URL, eventos e dedupe estável", () => {
     expect(webhookEventKey("item/updated", "i", "a", "x")).not.toBe(webhookEventKey("item/updated", "i", "b", "x"));
     expect(webhookEventKey("item/updated", "i", undefined, "x")).toBe(webhookEventKey("item/updated", "i", undefined, "x"));
     expect(webhookEventKey("item/updated", "i", undefined, "x")).not.toBe(webhookEventKey("item/updated", "i", undefined, "y"));
+  });
+});
+
+ describe("retentativas e contagem de insercoes", () => {
+  it.each(["throw", "error", "skipped"])("preserva evento apos %s", async failure => {
+    mocks.findConnection.mockResolvedValue({ id: "conn-retry", userId: "owner-1" });
+    const wait = vi.fn().mockResolvedValue(undefined);
+    if (failure === "throw") mocks.sync.mockRejectedValueOnce(new Error("offline"));
+    else mocks.sync.mockResolvedValue(failure === "skipped" ? { skipped: true } : { error: "partial" });
+    const body = updated(`retry-${failure}`);
+    await handlePluggyWebhook(request(body), secret, { ...deps, wait });
+    await scheduled[0]!();
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+    if (failure === "skipped") { expect(wait).toHaveBeenCalledWith(5_000); expect(mocks.sync).toHaveBeenCalledTimes(2); }
+    expect((await handlePluggyWebhook(request(body), secret, { ...deps, wait })).status).toBe(202);
+  });
+  it("retry curto conclui e conta apenas insercoes", async () => {
+    mocks.findConnection.mockResolvedValue({ id: "conn-retry-ok", userId: "owner-1" });
+    mocks.sync.mockResolvedValueOnce({ skipped: true }).mockResolvedValueOnce({ ok: true, status: "UPDATED", imported: 9, accounts: [{ inserted: 2, updated: 7 }] });
+    const wait = vi.fn().mockResolvedValue(undefined);
+    const body = updated("retry-ok");
+    await handlePluggyWebhook(request(body), secret, { ...deps, wait });
+    await scheduled[0]!();
+    expect(mocks.dispatch).toHaveBeenCalledWith(expect.objectContaining({ body: expect.stringContaining("2 novas") }));
+    expect((await handlePluggyWebhook(request(body), secret, deps)).status).toBe(200);
+  });
+  it("atualizacoes sem insercoes usam mensagem e dedupe diarios", async () => {
+    mocks.findConnection.mockResolvedValue({ id: "conn-updates", userId: "owner-1" });
+    mocks.sync.mockResolvedValue({ ok: true, status: "UPDATED", imported: 9, accounts: [{ inserted: 0, updated: 9 }] });
+    await handlePluggyWebhook(request(updated("only-updates")), secret, deps);
+    await scheduled[0]!();
+    expect(mocks.dispatch).toHaveBeenCalledWith(expect.objectContaining({ body: "Dados atualizados pelo banco. Sem transacoes novas.".replace("transacoes", "transa\u00e7\u00f5es"), dedupeKey: expect.stringMatching(/^pluggy_sync_idle_conn-updates_/) }));
+  });
+});
+
+ describe("falha isolada de notificacao", () => {
+  it("loga notify_failed e deduplica evento sem repetir sync concluido", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      mocks.findConnection.mockResolvedValue({ id: "conn-notify-failure", userId: "owner-1" });
+      mocks.sync.mockResolvedValue({ ok: true, status: "UPDATED", imported: 1, accounts: [{ inserted: 1 }] });
+      mocks.dispatch.mockRejectedValueOnce(new Error("offline"));
+      const body = updated("notify-failure-event");
+      await handlePluggyWebhook(request(body), secret, deps);
+      await expect(scheduled[0]!()).resolves.toBeUndefined();
+      expect(log).toHaveBeenCalledWith("[pluggy-webhook]", expect.objectContaining({ status: "notify_failed" }));
+      expect(log).not.toHaveBeenCalledWith("[pluggy-webhook]", expect.objectContaining({ status: "sync_failed" }));
+      const retry = await handlePluggyWebhook(request(body), secret, deps);
+      expect(await retry.json()).toMatchObject({ duplicate: true });
+      expect(mocks.sync).toHaveBeenCalledTimes(1);
+      expect(scheduled).toHaveLength(1);
+    } finally { log.mockRestore(); }
   });
 });

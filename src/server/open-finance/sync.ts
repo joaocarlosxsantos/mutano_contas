@@ -5,12 +5,16 @@ import { getProfileRestriction } from "@/server/usage-profile";
 import { amountToCents, isCompatiblePluggyAccount, openFinanceConnectionIdSchema, shouldImportPluggyTransaction, transactionKind } from "./schemas";
 import { decryptSecret } from "./crypto";
 import { authenticatePluggy, getPluggyAccounts, getPluggyBills, getPluggyInvestmentSnapshot, investmentRemoteId, getPluggyItemStatus, getPluggyTransactions, PluggyHttpError, pluggyErrorForUser } from "./client";
+import { todayRef } from "@/lib/dates";
 import { createId } from "@/lib/id";
 import { resolveTransactionInvoiceRef } from "@/lib/invoices";
 import { anchorPluggyCivilDate, isBeforeCutoff } from "./cutoff";
 import { categorizeBatch, disabledCategorizerProvider, type CategorizationCategory } from "@/server/categorization";
 import { isExternalIdentityTombstoned } from "./deletion-policy";
 
+import { notificationDispatcher } from "@/server/notifications/dispatcher";
+
+export const SYNC_STALE_LOCK_MS = 20 * 60_000;
 export const SYNC_COOLDOWN_MS = 60 * 1000;
 const AUTO_SYNC_COOLDOWN_MS = 5 * 60 * 1000;
 export const safeError = (error: unknown) => error instanceof PluggyHttpError
@@ -59,7 +63,7 @@ export async function syncOpenFinanceForUser(userId: string, input: unknown, mod
   const now = Date.now();
   const lastAttemptTime = connection?.lastAttemptAt instanceof Date ? connection.lastAttemptAt.getTime() : null;
   if (lastAttemptTime !== null && now - lastAttemptTime < cooldownMs) return { skipped: true, error: `Aguarde pelo menos ${mode === "auto" ? "5 minutos" : "60 segundos"} entre sincronizações.` };
-  const lock = await db.update(openFinanceConnections).set({ status: "SYNCING", lastAttemptAt: new Date(now), lastErrorCode: null }).where(and(eq(openFinanceConnections.id, connectionId), eq(openFinanceConnections.userId, userId), or(isNull(openFinanceConnections.lastAttemptAt), lte(openFinanceConnections.lastAttemptAt, new Date(now - cooldownMs))), or(ne(openFinanceConnections.status, "SYNCING"), lt(openFinanceConnections.lastAttemptAt, new Date(now - 20 * 60_000))))).returning({ id: openFinanceConnections.id });
+  const lock = await db.update(openFinanceConnections).set({ status: "SYNCING", lastAttemptAt: new Date(now), lastErrorCode: null }).where(and(eq(openFinanceConnections.id, connectionId), eq(openFinanceConnections.userId, userId), or(isNull(openFinanceConnections.lastAttemptAt), lte(openFinanceConnections.lastAttemptAt, new Date(now - cooldownMs))), or(ne(openFinanceConnections.status, "SYNCING"), lt(openFinanceConnections.lastAttemptAt, new Date(now - SYNC_STALE_LOCK_MS))))).returning({ id: openFinanceConnections.id });
   if (!lock.length) return { skipped: true, error: "Esta conexão já está sincronizando. Aguarde e tente novamente." };
   let upstreamStatus: string | null = null;
   type Summary = { accountName: string; accountType: string; read: number; ignoredByDate: number; ignoredByTombstone: number; ignoredByType: number; invalid: number; inserted: number; updated: number; status: "PENDING" | "OK" | "ERROR"; error?: string };
@@ -225,6 +229,19 @@ export async function syncOpenFinanceForUser(userId: string, input: unknown, mod
     await db.update(openFinanceConnections).set({ status: finalStatus, ...(finalStatus === "UPDATED" ? { lastSyncedAt } : {}), lastErrorCode: accountErrors ? "SYNC_ACCOUNT_ERRORS" : null }).where(and(eq(openFinanceConnections.id, connectionId), eq(openFinanceConnections.userId, userId), eq(openFinanceConnections.lastAttemptAt, new Date(now))));
     console.info("Open Finance sync summary", { ...counts(), categorization: categorizationCounts });
     revalidatePath("/configuracoes/integracao"); revalidatePath("/contas"); revalidatePath("/painel"); revalidatePath("/lancamentos");
+    const inserted = summaries.reduce((total, row) => total + row.inserted, 0);
+    if (mode !== "webhook" && !accountErrors && inserted > 0) {
+      try {
+        await notificationDispatcher.dispatch({
+          userId, category: "syncAlerts", type: "pluggy_sync_updated",
+          body: `Dados atualizados: ${inserted} nova${inserted === 1 ? "" : "s"} transaç${inserted === 1 ? "ão" : "ões"}`,
+          actionUrl: "/configuracoes/integracao",
+          dedupeKey: `pluggy_sync_${connection.id}_${todayRef(new Date(now))}`,
+        });
+      } catch {
+        console.error("Open Finance sync notification failed");
+      }
+    }
     return { ok: true, status: finalStatus, lastSyncedAt, imported, accounts: summaries, categorization: categorizationCounts, ...(accountErrors ? { error: "Algumas contas não puderam ser sincronizadas. Consulte o resumo por conta." } : {}) };
   } catch (error) {
     const detail = persistedError(error);

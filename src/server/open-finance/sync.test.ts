@@ -1,24 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PgDialect } from "drizzle-orm/pg-core";
 import type { SQL } from "drizzle-orm";
-const mocks = vi.hoisted(() => ({ restriction: vi.fn(), select: vi.fn(), update: vi.fn(), transaction: vi.fn(), auth: vi.fn(), item: vi.fn(), itemStatus: vi.fn(), remote: vi.fn(), remoteTx: vi.fn() }));
+const mocks = vi.hoisted(() => ({ restriction: vi.fn(), select: vi.fn(), update: vi.fn(), transaction: vi.fn(), auth: vi.fn(), item: vi.fn(), itemStatus: vi.fn(), remote: vi.fn(), remoteTx: vi.fn(), dispatch: vi.fn() }));
 vi.mock("@/db", () => ({ db: { select: mocks.select, update: mocks.update, transaction: mocks.transaction } }));
 vi.mock("@/server/usage-profile", () => ({ getProfileRestriction: mocks.restriction }));
 vi.mock("./crypto", () => ({ decryptSecret: () => "test-value" }));
 vi.mock("./client", async importOriginal => ({ ...await importOriginal<typeof import("./client")>(), authenticatePluggy: mocks.auth, getPluggyItem: mocks.item, getPluggyItemStatus: mocks.itemStatus, getPluggyAccounts: mocks.remote, getPluggyTransactions: mocks.remoteTx }));
-import { accounts, openFinanceConnections, openFinanceCredentials } from "@/db/schema";
-import { SYNC_COOLDOWN_MS, syncOpenFinanceForUser } from "./sync";
+vi.mock("@/server/notifications/dispatcher", () => ({ notificationDispatcher: { dispatch: mocks.dispatch } }));
+import { accounts, openFinanceConnections, openFinanceCredentials, transactions } from "@/db/schema";
+import { SYNC_STALE_LOCK_MS, SYNC_COOLDOWN_MS, syncOpenFinanceForUser } from "./sync";
 
 const id = "c0000000000000000000000001";
 let connection: { id: string; userId: string; lastAttemptAt: Date | null; lastSyncedAt: Date | null; importFromDate: Date; itemIdEnvelope: string };
 let claimed: boolean;
+let existingTransaction: boolean;
 let predicates: SQL[];
 beforeEach(() => {
   vi.resetAllMocks(); vi.useFakeTimers(); vi.setSystemTime(new Date("2026-11-12T11:00Z"));
   vi.spyOn(console, "error").mockImplementation(() => {});
   vi.spyOn(console, "info").mockImplementation(() => {});
   connection = { id, userId: "owner", lastAttemptAt: null, lastSyncedAt: null, importFromDate: new Date("2026-11-01"), itemIdEnvelope: "test" };
-  claimed = false; predicates = [];
+  claimed = false; existingTransaction = false; predicates = [];
   mocks.restriction.mockResolvedValue(null); mocks.auth.mockResolvedValue("test-key");
   mocks.item.mockResolvedValue({ status: "UPDATED", executionStatus: "SUCCESS" });
   mocks.itemStatus.mockResolvedValue({ status: "UPDATED", executionStatus: "SUCCESS" }); mocks.remote.mockResolvedValue([]);
@@ -32,6 +34,7 @@ beforeEach(() => {
       }
       if (table === accounts) return [{ id: "local", name: "Test", type: "CHECKING", externalAccountId: "remote" }];
       if (table === openFinanceCredentials) return [{ clientIdEnvelope: "test", clientSecretEnvelope: "test" }];
+      if (table === transactions && existingTransaction) return [{ externalId: "new" }];
       return [];
     };
     const query = { from: (value: unknown) => { table = value; return query; }, where: (value: SQL) => { predicate = value; return query; }, for: () => query, limit: async () => rows(), then: (resolve: (value: unknown[]) => unknown) => Promise.resolve(rows()).then(resolve) };
@@ -101,5 +104,50 @@ describe("núcleo de sync comum ao botão, painel e Telegram", () => {
     mocks.auth.mockImplementation(async (_client, _secret, signal: AbortSignal) => { controller.abort(); signal.throwIfAborted(); });
     const result = await syncOpenFinanceForUser("owner", id, "manual", { signal: controller.signal });
     expect(result).toMatchObject({ error: expect.any(String) });
+  });
+});
+
+ describe("notificacoes do nucleo e lock", () => {
+  function prepare(inserted: boolean) {
+    mocks.remote.mockResolvedValue([{ id: "remote", type: "BANK", currencyCode: "BRL", balance: 10 }]);
+    mocks.remoteTx.mockResolvedValue({ transactions: inserted ? [{ id: "new", accountId: "remote", date: "2026-11-10", amount: 10, type: "DEBIT", description: "Teste", currencyCode: "BRL" }] : [], invalid: 0 });
+    mocks.transaction.mockImplementation(async callback => callback({ select: mocks.select, update: () => ({ set: () => ({ where: async () => {} }) }), insert: () => ({ values: () => ({ onConflictDoUpdate: async () => {} }) }) }));
+  }
+  it.each(["manual", "auto"] as const)("notifica insercoes no modo %s sem quebrar sync por falha de dispatch", async mode => {
+    prepare(true); mocks.dispatch.mockRejectedValue(new Error("offline"));
+    expect(await syncOpenFinanceForUser("owner", id, mode)).toMatchObject({ ok: true, status: "UPDATED", imported: 1 });
+    expect(mocks.dispatch).toHaveBeenCalledWith(expect.objectContaining({ body: expect.stringContaining("1 nova"), dedupeKey: `pluggy_sync_${id}_2026-11-12` }));
+  });
+  it.each(["auto", "manual", "webhook"] as const)("nao notifica sem insercoes em %s", async mode => {
+    prepare(false);
+    expect(await syncOpenFinanceForUser("owner", id, mode)).toMatchObject({ ok: true });
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+  it.each(["auto", "manual"] as const)("atualizacoes existentes nao notificam em %s", async mode => {
+    prepare(true); existingTransaction = true;
+    const result = await syncOpenFinanceForUser("owner", id, mode);
+    expect(result).toMatchObject({ ok: true, imported: 1, accounts: [{ inserted: 0, updated: 1 }] });
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+  it("webhook com insercoes deixa notificacao ao chamador", async () => {
+    prepare(true); await syncOpenFinanceForUser("owner", id, "webhook");
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+  it("dedupe diario permanece estavel entre syncs e muda no dia seguinte", async () => {
+    prepare(true);
+    await syncOpenFinanceForUser("owner", id, "manual");
+    vi.advanceTimersByTime(6 * 60_000); claimed = false;
+    await syncOpenFinanceForUser("owner", id, "auto");
+    vi.advanceTimersByTime(24 * 60 * 60_000); claimed = false;
+    await syncOpenFinanceForUser("owner", id, "manual");
+    expect(mocks.dispatch.mock.calls.map(([event]) => event.dedupeKey)).toEqual([
+      `pluggy_sync_${id}_2026-11-12`, `pluggy_sync_${id}_2026-11-12`, `pluggy_sync_${id}_2026-11-13`,
+    ]);
+  });
+  it("claim considera lock stale apos vinte minutos", async () => {
+    await syncOpenFinanceForUser("owner", id, "webhook");
+    const query = new PgDialect().sqlToQuery(predicates[0]);
+    expect(SYNC_STALE_LOCK_MS).toBe(1_200_000);
+    expect(query.params).toContain(new Date(Date.now() - SYNC_STALE_LOCK_MS).toISOString());
   });
 });
