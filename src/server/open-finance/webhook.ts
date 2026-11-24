@@ -4,7 +4,7 @@ import { z } from "zod";
 import { db } from "@/db";
 import { openFinanceConnections } from "@/db/schema";
 import { todayRef } from "@/lib/dates";
-import { secretFingerprint } from "./crypto";
+import { decryptSecret, secretFingerprint } from "./crypto";
 import { syncOpenFinanceForUser } from "./sync";
 import { notificationDispatcher } from "@/server/notifications/dispatcher";
 
@@ -97,7 +97,31 @@ const dependencies: PluggyWebhookDependencies = {
         clientUserId ? eq(openFinanceConnections.userId, clientUserId) : undefined,
       ))
       .limit(1);
-    return row ?? null;
+    if (row) return row;
+    const candidates = await db.select({ id: openFinanceConnections.id, userId: openFinanceConnections.userId, itemIdEnvelope: openFinanceConnections.itemIdEnvelope })
+      .from(openFinanceConnections)
+      .where(clientUserId ? eq(openFinanceConnections.userId, clientUserId) : undefined)
+      .limit(50);
+    const expected = Buffer.from(itemId);
+    for (const candidate of candidates) {
+      let actual: Buffer;
+      try {
+        actual = Buffer.from(decryptSecret(candidate.itemIdEnvelope, candidate.userId, "itemId"));
+      } catch {
+        continue;
+      }
+      if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) continue;
+      try {
+        await db.update(openFinanceConnections).set({ itemIdHash }).where(and(
+          eq(openFinanceConnections.id, candidate.id), eq(openFinanceConnections.userId, candidate.userId),
+        ));
+      } catch {
+        console.warn("[pluggy-webhook]", { status: "item_hash_repair_failed" });
+      }
+      console.info("[pluggy-webhook]", { status: "item_matched_by_envelope" });
+      return { id: candidate.id, userId: candidate.userId };
+    }
+    return null;
   },
   wait: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
   schedule(task) {
@@ -183,6 +207,7 @@ export async function handlePluggyWebhook(
     }
     console.info("[pluggy-webhook]", {
       event: parsed.data.event, status: "item_unknown",
+      fallbackTried: true,
       itemHashKnown: Boolean(owner),
       clientUserIdPresent: Boolean(parsed.data.clientUserId),
       ...(owner ? { clientUserIdMatchesOwner: parsed.data.clientUserId === owner.userId } : {}),

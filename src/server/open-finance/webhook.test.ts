@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ sync: vi.fn(), findConnection: vi.fn(), dispatch: vi.fn(), owner: vi.fn().mockResolvedValue([]), select: vi.fn(), where: vi.fn() }));
+const mocks = vi.hoisted(() => ({ sync: vi.fn(), findConnection: vi.fn(), dispatch: vi.fn(), owner: vi.fn().mockResolvedValue([]), select: vi.fn(), where: vi.fn(), decrypt: vi.fn(), update: vi.fn(), repair: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/db", () => ({ db: { select: (...args: unknown[]) => {
   mocks.select(...args);
   return { from: () => ({ where: (predicate: unknown) => { mocks.where(predicate); return { limit: mocks.owner }; } }) };
-} } }));
-vi.mock("./crypto", () => ({ secretFingerprint: (value: string) => `hash:${value}` }));
+}, update: (...args: unknown[]) => { mocks.update(...args); return { set: (values: unknown) => ({ where: (predicate: unknown) => mocks.repair(values, predicate) }) }; } } }));
+vi.mock("./crypto", () => ({ decryptSecret: mocks.decrypt, secretFingerprint: (value: string) => `hash:${value}` }));
 vi.mock("./sync", () => ({ syncOpenFinanceForUser: mocks.sync }));
 vi.mock("@/server/notifications/dispatcher", () => ({ notificationDispatcher: { dispatch: mocks.dispatch } }));
 
@@ -245,7 +245,7 @@ describe("webhook Pluggy: segredo na URL, eventos e dedupe estável", () => {
       mocks.owner.mockResolvedValueOnce(owner ? [{ userId: owner }] : []);
       const response = await handlePluggyWebhook(request({ event: "item/updated", itemId: "private-item", clientUserId }), secret, deps);
       expect(response.status).toBe(200);
-      expect(log).toHaveBeenCalledWith("[pluggy-webhook]", { event: "item/updated", status: "item_unknown", ...expected });
+      expect(log).toHaveBeenCalledWith("[pluggy-webhook]", { event: "item/updated", status: "item_unknown", fallbackTried: true, ...expected });
       expect(mocks.select).toHaveBeenCalledTimes(1);
       expect(mocks.owner).toHaveBeenCalledWith(1);
       const logs = JSON.stringify(log.mock.calls);
@@ -265,6 +265,60 @@ describe("webhook Pluggy: segredo na URL, eventos e dedupe estável", () => {
       expect((await handlePluggyWebhook(request(updated("diagnostic-error")), secret, deps)).status).toBe(500);
       expect(log).toHaveBeenCalledWith("[pluggy-webhook]", { event: "item/updated", status: "lookup_failed" });
       expect(JSON.stringify(log.mock.calls)).not.toContain("private-hash");
+    } finally { log.mockRestore(); }
+  });
+});
+
+ describe("fallback por envelope", () => {
+  const fallbackDeps = { schedule: deps.schedule };
+  const candidate = { id: "private-connection", userId: "private-owner", itemIdEnvelope: "private-envelope" };
+  it("hash correto nao decifra nem consulta candidatos", async () => {
+    mocks.owner.mockResolvedValueOnce([candidate]);
+    expect((await handlePluggyWebhook(request(updated("hash-ok", "private-item")), secret, fallbackDeps)).status).toBe(202);
+    expect(mocks.owner).toHaveBeenCalledTimes(1);
+    expect(mocks.owner).toHaveBeenCalledWith(1);
+    expect(mocks.decrypt).not.toHaveBeenCalled();
+    expect(mocks.update).not.toHaveBeenCalled();
+  });
+  it.each([false, true])("encontra envelope e tenta corrigir hash mesmo com falha de update=%s", async failRepair => {
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      mocks.owner.mockResolvedValueOnce([]).mockResolvedValueOnce([candidate]);
+      mocks.decrypt.mockReturnValueOnce("private-item");
+      if (failRepair) mocks.repair.mockRejectedValueOnce(new Error("private-repair-error"));
+      const body = { event: "item/updated", eventId: `fallback-${failRepair}`, itemId: "private-item" };
+      expect((await handlePluggyWebhook(request(body), secret, fallbackDeps)).status).toBe(202);
+      expect(mocks.owner).toHaveBeenNthCalledWith(2, 50);
+      expect(mocks.where.mock.calls[1][0]).toBeUndefined();
+      expect(mocks.decrypt).toHaveBeenCalledWith(candidate.itemIdEnvelope, candidate.userId, "itemId");
+      expect(mocks.repair).toHaveBeenCalledWith({ itemIdHash: "hash:private-item" }, expect.anything());
+      const { PgDialect } = await import("drizzle-orm/pg-core");
+      expect(new PgDialect().sqlToQuery(mocks.repair.mock.calls[0][1]).params).toEqual([candidate.id, candidate.userId]);
+      expect(log).toHaveBeenCalledWith("[pluggy-webhook]", { status: "item_matched_by_envelope" });
+      const logs = JSON.stringify([...log.mock.calls, ...warn.mock.calls]);
+      for (const value of [candidate.id, candidate.userId, candidate.itemIdEnvelope, "private-item", "hash:private-item", "private-repair-error"]) expect(logs).not.toContain(value);
+    } finally { log.mockRestore(); warn.mockRestore(); }
+  });
+  it("ignora envelope invalido e compara os seguintes, filtrando por usuario", async () => {
+    mocks.owner.mockResolvedValueOnce([]).mockResolvedValueOnce([{ ...candidate, itemIdEnvelope: "invalid" }, candidate]);
+    mocks.decrypt.mockImplementationOnce(() => { throw new Error("invalid-envelope-secret"); }).mockReturnValueOnce("private-item");
+    expect((await handlePluggyWebhook(request(updated("invalid-then-match", "private-item", candidate.userId)), secret, fallbackDeps)).status).toBe(202);
+    expect(mocks.decrypt).toHaveBeenCalledTimes(2);
+    const { PgDialect } = await import("drizzle-orm/pg-core");
+    expect(new PgDialect().sqlToQuery(mocks.where.mock.calls[1][0]).params).toEqual([candidate.userId]);
+  });
+  it("sem correspondencia mantem item_unknown sem vazar envelope ou ids", async () => {
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      mocks.owner.mockResolvedValueOnce([]).mockResolvedValueOnce([candidate, candidate]).mockResolvedValueOnce([]);
+      mocks.decrypt.mockReturnValueOnce("different-item").mockImplementationOnce(() => { throw new Error("private-invalid-envelope"); });
+      const response = await handlePluggyWebhook(request({ event: "item/updated", itemId: "private-item" }), secret, fallbackDeps);
+      expect(await response.json()).toMatchObject({ ignored: true });
+      expect(log).toHaveBeenCalledWith("[pluggy-webhook]", { event: "item/updated", status: "item_unknown", fallbackTried: true, itemHashKnown: false, clientUserIdPresent: false });
+      expect(mocks.update).not.toHaveBeenCalled();
+      const logs = JSON.stringify(log.mock.calls);
+      for (const value of [candidate.id, candidate.userId, candidate.itemIdEnvelope, "private-item", "different-item", "private-invalid-envelope"]) expect(logs).not.toContain(value);
     } finally { log.mockRestore(); }
   });
 });
