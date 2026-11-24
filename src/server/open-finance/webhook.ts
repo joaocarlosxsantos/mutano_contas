@@ -117,8 +117,16 @@ export async function handlePluggyWebhook(
 ) {
   const deps: PluggyWebhookDependencies = { ...dependencies, ...overrides };
   const headers = { "Cache-Control": "no-store" };
-  if (!secret) return Response.json({ error: "unavailable" }, { status: 503, headers });
+  if (!secret) {
+    console.warn("[pluggy-webhook]", { status: "unavailable", httpStatus: 503 });
+    return Response.json({ error: "unavailable" }, { status: 503, headers });
+  }
   if (!validPluggyWebhookSecret(presentedPluggyWebhookSecret(request), secret)) {
+    console.warn("[pluggy-webhook]", {
+      status: "unauthorized",
+      headerSecretPresent: request.headers.has("x-webhook-secret"),
+      querySecretPresent: new URL(request.url).searchParams.has("secret"),
+    });
     return Response.json({ error: "unauthorized" }, { status: 401, headers });
   }
 
@@ -128,19 +136,30 @@ export async function handlePluggyWebhook(
     rawBody = await boundedBody(request);
     raw = JSON.parse(rawBody);
   } catch (error) {
-    return Response.json({ error: "invalid_request" }, { status: error instanceof RangeError ? 413 : 400, headers });
+    const httpStatus = error instanceof RangeError ? 413 : 400;
+    console.warn("[pluggy-webhook]", { status: "invalid_request", httpStatus });
+    return Response.json({ error: "invalid_request" }, { status: httpStatus, headers });
   }
   const parsed = payloadSchema.safeParse(raw);
-  if (!parsed.success) return Response.json({ error: "invalid_request" }, { status: 400, headers });
+  if (!parsed.success) {
+    console.warn("[pluggy-webhook]", { status: "invalid_request", httpStatus: 400 });
+    return Response.json({ error: "invalid_request" }, { status: 400, headers });
+  }
+  console.info("[pluggy-webhook]", { status: "received", event: parsed.data.event, eventId: parsed.data.eventId?.slice(0, 12) });
 
   if (!SYNC_EVENTS.has(parsed.data.event)) {
+    console.info("[pluggy-webhook]", { status: "ignored", event: parsed.data.event });
     return Response.json({ ok: true, ignored: true }, { status: 200, headers });
   }
-  if (!parsed.data.itemId) return Response.json({ error: "invalid_request" }, { status: 400, headers });
+  if (!parsed.data.itemId) {
+    console.warn("[pluggy-webhook]", { status: "invalid_request", httpStatus: 400 });
+    return Response.json({ error: "invalid_request" }, { status: 400, headers });
+  }
 
   const now = Date.now();
   const eventKey = webhookEventKey(parsed.data.event, parsed.data.itemId, parsed.data.eventId, rawBody);
   if (alreadyProcessed(eventKey, now)) {
+    console.info("[pluggy-webhook]", { status: "duplicate", event: parsed.data.event });
     return Response.json({ ok: true, duplicate: true }, { status: 200, headers });
   }
 

@@ -190,3 +190,41 @@ describe("webhook Pluggy: segredo na URL, eventos e dedupe estável", () => {
     } finally { log.mockRestore(); }
   });
 });
+
+ describe("logs seguros dos desfechos", () => {
+  it("registra rejeicoes, recebimento e eventos ignorados sem dados sensiveis", async () => {
+    const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const privateItem = "private-item-not-for-logs";
+    const privateBody = "private-body-not-for-logs";
+    const wrongSecret = "wrong-secret-not-for-logs";
+    const makeRequest = (body: string, headers: Record<string, string>, query = "") => new Request(`https://app.test/api/open-finance/webhook${query}`, { method: "POST", headers, body });
+    try {
+      await handlePluggyWebhook(request(updated("log-unavailable")), undefined, deps);
+      expect(warn).toHaveBeenCalledWith("[pluggy-webhook]", { status: "unavailable", httpStatus: 503 });
+      for (const [headerSecretPresent, querySecretPresent] of [[true, false], [false, true], [true, true], [false, false]]) {
+        const headers: Record<string, string> = headerSecretPresent ? { "x-webhook-secret": wrongSecret } : {};
+        const query = querySecretPresent ? `?secret=${wrongSecret}` : "";
+        const response = await handlePluggyWebhook(makeRequest(privateBody, headers, query), secret, deps);
+        expect(response.status).toBe(401);
+        expect(warn).toHaveBeenLastCalledWith("[pluggy-webhook]", { status: "unauthorized", headerSecretPresent, querySecretPresent });
+      }
+      const auth = { "x-webhook-secret": secret };
+      for (const body of [privateBody, JSON.stringify({ event: 42, itemId: privateItem }), JSON.stringify({ event: "item/updated" })]) {
+        expect((await handlePluggyWebhook(makeRequest(body, auth), secret, deps)).status).toBe(400);
+        expect(warn).toHaveBeenLastCalledWith("[pluggy-webhook]", { status: "invalid_request", httpStatus: 400 });
+      }
+      expect((await handlePluggyWebhook(makeRequest(privateBody, { ...auth, "content-length": "20000" }), secret, deps)).status).toBe(413);
+      expect(warn).toHaveBeenLastCalledWith("[pluggy-webhook]", { status: "invalid_request", httpStatus: 413 });
+      await handlePluggyWebhook(request({ event: "item/error", eventId: "123456789012-private-tail", itemId: privateItem, extra: privateBody }), secret, deps);
+      expect(info).toHaveBeenCalledWith("[pluggy-webhook]", { status: "received", event: "item/error", eventId: "123456789012" });
+      expect(info).toHaveBeenCalledWith("[pluggy-webhook]", { status: "ignored", event: "item/error" });
+      mocks.findConnection.mockResolvedValue(null);
+      await handlePluggyWebhook(request(updated("received-ok-event", privateItem)), secret, deps);
+      expect(info).toHaveBeenCalledWith("[pluggy-webhook]", { status: "received", event: "item/updated", eventId: "received-ok-" });
+      const logs = JSON.stringify([...info.mock.calls, ...warn.mock.calls, ...error.mock.calls]);
+      for (const value of [secret, wrongSecret, privateItem, privateBody, "private-tail"]) expect(logs).not.toContain(value);
+    } finally { info.mockRestore(); warn.mockRestore(); error.mockRestore(); }
+  });
+});
