@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ sync: vi.fn(), findConnection: vi.fn(), dispatch: vi.fn() }));
-vi.mock("@/db", () => ({ db: {} }));
+const mocks = vi.hoisted(() => ({ sync: vi.fn(), findConnection: vi.fn(), dispatch: vi.fn(), owner: vi.fn().mockResolvedValue([]), select: vi.fn(), where: vi.fn() }));
+vi.mock("@/db", () => ({ db: { select: (...args: unknown[]) => {
+  mocks.select(...args);
+  return { from: () => ({ where: (predicate: unknown) => { mocks.where(predicate); return { limit: mocks.owner }; } }) };
+} } }));
 vi.mock("./crypto", () => ({ secretFingerprint: (value: string) => `hash:${value}` }));
 vi.mock("./sync", () => ({ syncOpenFinanceForUser: mocks.sync }));
 vi.mock("@/server/notifications/dispatcher", () => ({ notificationDispatcher: { dispatch: mocks.dispatch } }));
@@ -226,5 +229,42 @@ describe("webhook Pluggy: segredo na URL, eventos e dedupe estável", () => {
       const logs = JSON.stringify([...info.mock.calls, ...warn.mock.calls, ...error.mock.calls]);
       for (const value of [secret, wrongSecret, privateItem, privateBody, "private-tail"]) expect(logs).not.toContain(value);
     } finally { info.mockRestore(); warn.mockRestore(); error.mockRestore(); }
+  });
+});
+
+ describe("diagnostico item_unknown", () => {
+  it.each([
+    { owner: null, clientUserId: null, expected: { itemHashKnown: false, clientUserIdPresent: false } },
+    { owner: "private-owner", clientUserId: "private-other", expected: { itemHashKnown: true, clientUserIdPresent: true, clientUserIdMatchesOwner: false } },
+    { owner: "private-owner", clientUserId: "private-owner", expected: { itemHashKnown: true, clientUserIdPresent: true, clientUserIdMatchesOwner: true } },
+    { owner: "private-owner", clientUserId: null, expected: { itemHashKnown: true, clientUserIdPresent: false, clientUserIdMatchesOwner: false } },
+  ])("loga apenas booleanos: $expected", async ({ owner, clientUserId, expected }) => {
+    const log = vi.spyOn(console, "info").mockImplementation(() => {});
+    try {
+      mocks.findConnection.mockResolvedValue(null);
+      mocks.owner.mockResolvedValueOnce(owner ? [{ userId: owner }] : []);
+      const response = await handlePluggyWebhook(request({ event: "item/updated", itemId: "private-item", clientUserId }), secret, deps);
+      expect(response.status).toBe(200);
+      expect(log).toHaveBeenCalledWith("[pluggy-webhook]", { event: "item/updated", status: "item_unknown", ...expected });
+      expect(mocks.select).toHaveBeenCalledTimes(1);
+      expect(mocks.owner).toHaveBeenCalledWith(1);
+      const logs = JSON.stringify(log.mock.calls);
+      for (const value of ["private-item", "private-owner", "private-other", "hash:private-item", secret]) expect(logs).not.toContain(value);
+    } finally { log.mockRestore(); }
+  });
+  it("nao consulta dono por hash no caminho feliz", async () => {
+    mocks.findConnection.mockResolvedValue({ id: "conn-happy", userId: "owner" });
+    expect((await handlePluggyWebhook(request(updated("happy-no-diagnostic")), secret, deps)).status).toBe(202);
+    expect(mocks.select).not.toHaveBeenCalled();
+  });
+  it("falha na consulta extra responde 500 sem logar erro sensivel", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      mocks.findConnection.mockResolvedValue(null);
+      mocks.owner.mockRejectedValueOnce(new Error("private-hash"));
+      expect((await handlePluggyWebhook(request(updated("diagnostic-error")), secret, deps)).status).toBe(500);
+      expect(log).toHaveBeenCalledWith("[pluggy-webhook]", { event: "item/updated", status: "lookup_failed" });
+      expect(JSON.stringify(log.mock.calls)).not.toContain("private-hash");
+    } finally { log.mockRestore(); }
   });
 });

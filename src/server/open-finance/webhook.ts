@@ -171,7 +171,22 @@ export async function handlePluggyWebhook(
     return Response.json({ error: "unavailable" }, { status: 500, headers });
   }
   if (!connection) {
-    console.info("[pluggy-webhook]", { event: parsed.data.event, status: "item_unknown" });
+    let owner: { userId: string } | undefined;
+    try {
+      [owner] = await db.select({ userId: openFinanceConnections.userId })
+        .from(openFinanceConnections)
+        .where(eq(openFinanceConnections.itemIdHash, secretFingerprint(parsed.data.itemId)))
+        .limit(1);
+    } catch {
+      console.error("[pluggy-webhook]", { event: parsed.data.event, status: "lookup_failed" });
+      return Response.json({ error: "unavailable" }, { status: 500, headers });
+    }
+    console.info("[pluggy-webhook]", {
+      event: parsed.data.event, status: "item_unknown",
+      itemHashKnown: Boolean(owner),
+      clientUserIdPresent: Boolean(parsed.data.clientUserId),
+      ...(owner ? { clientUserIdMatchesOwner: parsed.data.clientUserId === owner.userId } : {}),
+    });
     return Response.json({ ok: true, ignored: true }, { status: 200, headers });
   }
 
