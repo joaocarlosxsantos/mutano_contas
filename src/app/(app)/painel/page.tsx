@@ -31,7 +31,9 @@ import {
 } from "@/lib/finance";
 import { forecastCalendar } from "@/lib/dashboard-forecast";
 import { getDashboardForecast } from "@/server/dashboard-forecast";
-import { calculateDailyBudget } from "@/lib/daily-budget";
+import { loadSpendingForecast } from "@/server/telegram/spending-forecast";
+import { AtypicalSpendingBanner } from "@/components/atypical-spending-banner";
+import { getAtypicalSpendingToday } from "@/server/queries";
 import { buildBudgetAlerts, buildGoalAlerts } from "@/lib/alerts";
 import { PageHeader } from "@/components/page-header";
 import { MonthSwitcher } from "@/components/month-switcher";
@@ -126,8 +128,6 @@ export default async function DashboardPage({
   const now = new Date();
   const calendar = forecastCalendar(ref, now);
   const isCurrentMonth = calendar.period === "current";
-  const daysInMonth = calendar.daysInMonth;
-  const dayOfMonth = calendar.elapsedDays;
 
   const forecast = await getDashboardForecast(userId, ref, {
     now,
@@ -135,12 +135,10 @@ export default async function DashboardPage({
     pendingRules: canUseCapability(user.usageProfile, "manual-entry") ? recurring.pending : [],
   });
 
-  const dailyBudget = calculateDailyBudget({
-    incomeCents: user.monthlyIncomeCents || summary.incomeCents,
-    expenseSoFarCents: summary.expenseCents,
-    dayOfMonth,
-    daysInMonth,
-  });
+  const [dailyAnalysis, atypicalSpending] = await Promise.all([
+    isCurrentMonth ? loadSpendingForecast(userId, undefined, now) : null,
+    isCurrentMonth ? getAtypicalSpendingToday(userId, now) : [],
+  ]);
 
   return (
     <>
@@ -150,6 +148,8 @@ export default async function DashboardPage({
         description="Resumo do mês: entradas, saídas e saldo."
         action={<MonthSwitcher value={ref} />}
       />
+
+      <AtypicalSpendingBanner items={atypicalSpending} userId={userId} />
 
       {/* 1. Hero mês: 'Sobrou' grande + linha Entrou/Saiu/Fixo menores */}
       <section
@@ -231,7 +231,7 @@ export default async function DashboardPage({
       </section>
 
         <section className={`mt-4 space-y-3 ${isCurrentMonth && hasData ? "lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0" : ""}`} aria-label="Ritmo e previsões">
-          {isCurrentMonth && hasData && <DailyBudgetCard dailyBudget={dailyBudget} />}
+          {hasData && (user.monthlyIncomeCents > 0 || summary.incomeCents > 0) && dailyAnalysis && <DailyBudgetCard dailyBudget={dailyAnalysis.daily} spentTodayCents={dailyAnalysis.spentTodayCents} historyDays={dailyAnalysis.historyDays} />}
           <ForecastCard forecast={forecast} monthName={monthLabel(ref)} />
         </section>
 

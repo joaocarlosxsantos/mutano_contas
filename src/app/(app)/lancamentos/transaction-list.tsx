@@ -293,7 +293,7 @@ function Row({
   </>;
 
   return (
-    <li className={cn("flex min-h-14 flex-wrap items-center gap-2 px-4 py-3 transition-opacity", pending && "opacity-50")}>
+    <li id={`transaction-${tx.id}`} className={cn("flex min-h-14 scroll-mt-24 flex-wrap items-center gap-2 px-4 py-3 transition-opacity target:bg-[var(--surface-2)]", pending && "opacity-50")}>
       <span
         className="hidden size-2 shrink-0 rounded-full md:block"
         style={{ background: tx.categoryColor ?? "var(--text-muted)" }}

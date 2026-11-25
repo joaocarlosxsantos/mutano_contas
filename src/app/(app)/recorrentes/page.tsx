@@ -13,6 +13,7 @@ import { PendingPanel } from "./pending-panel";
 import { RuleList } from "./rule-list";
 import { RuleComposer } from "./rule-composer";
 import { SubscriptionsPanel } from "./subscriptions-panel";
+import { SubscriptionAnnualSummary } from "@/components/subscription-annual-summary";
 
 export const metadata = { title: "Recorrentes" };
 
@@ -43,6 +44,8 @@ export default async function RecurringPage({
         description="Compromissos e receitas que se repetem todo mês."
         action={<MonthSwitcher value={ref} />}
       />
+
+      <SubscriptionAnnualSummary subscriptions={detectedSubscriptions} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">

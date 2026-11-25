@@ -2,6 +2,8 @@ import { TrendingUp, AlertTriangle, Sparkles, CheckCircle } from "lucide-react";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Money } from "@/components/ui/money";
 import type { DetectedSubscription } from "@/lib/subscriptions";
+import { annualSubscriptionCents } from "@/lib/insight-metrics";
+import { formatCents } from "@/lib/money";
 
 interface SubscriptionsPanelProps {
   subscriptions: DetectedSubscription[];
@@ -48,7 +50,7 @@ export function SubscriptionsPanel({ subscriptions }: SubscriptionsPanelProps) {
                 {sub.hasPriceIncrease && (
                   <span className="inline-flex items-center gap-0.5 rounded-md border border-[var(--color-money-out)]/30 bg-[var(--color-money-out)]/10 px-1.5 py-0.5 text-[0.6875rem] font-semibold text-[var(--color-money-out)]">
                     <TrendingUp className="h-3 w-3" />
-                    +{sub.priceIncreasePct}%
+                    +{sub.priceIncreasePct}% · +{formatCents(annualSubscriptionCents(sub.priceIncreaseCents ?? 0, sub.cadence))}/ano
                   </span>
                 )}
                 {!sub.isRegistered ? (
@@ -71,6 +73,7 @@ export function SubscriptionsPanel({ subscriptions }: SubscriptionsPanelProps) {
             </div>
 
             <div className="flex items-baseline justify-between sm:flex-col sm:items-end">
+              <span className="muted text-xs">{sub.cadence === "annual" ? "Por ano" : "Por mês"}</span>
               <Money
                 cents={sub.currentAmountCents}
                 tone="out"

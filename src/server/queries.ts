@@ -28,6 +28,8 @@ import { accountBalance, netWorth } from "@/lib/balances";
 import { detectSubscriptions } from "@/lib/subscriptions";
 import { calculateCategorySuggestion, getCategoryHistoryWindow } from "@/lib/budget-suggestions";
 import { transactionDateOrder, transactionsInInvoice } from "./transaction-dates";
+import { endOfCutoffDay, isAtypicalCategorySpending } from "@/lib/insight-metrics";
+import { todayRef } from "@/lib/dates";
 
 /**
  * O usuário da sessão.
@@ -187,6 +189,37 @@ export type SeriesPoint = {
   fixo: number;
   variavel: number;
 };
+
+/** Same ledger filters as the monthly summary, with an inclusive civil cutoff. */
+export function getMonthSummaryThroughDay(userId: string, ref: MonthRef, day: number,
+  opts?: { cardMode?: CardMode; connection?: Pick<typeof db, "select"> }) {
+  return getMonthSummary(userId, ref, { ...opts, endExclusive: endOfCutoffDay(ref, day) });
+}
+
+export async function getAtypicalSpendingToday(userId: string, now = new Date(), connection: Pick<typeof db, "select"> = db) {
+  const day = todayRef(now);
+  const start = new Date(`${day}T00:00:00Z`);
+  const tomorrow = new Date(start.getTime() + 86_400_000);
+  const history = new Date(start.getTime() - 30 * 86_400_000);
+  const rows = await connection.select({
+    id: txTable.categoryId, name: categoriesTable.name,
+    todayCents: sql<number>`coalesce(sum(${txTable.amountCents}) filter (where ${txTable.date} >= ${start.toISOString()}::timestamptz), 0)`,
+    historyCents: sql<number>`coalesce(sum(${txTable.amountCents}) filter (where ${txTable.date} < ${start.toISOString()}::timestamptz), 0)`,
+    historyCount: sql<number>`count(*) filter (where ${txTable.date} < ${start.toISOString()}::timestamptz)`,
+    historyDays: sql<number>`count(distinct (${txTable.date} at time zone 'UTC')::date) filter (where ${txTable.date} < ${start.toISOString()}::timestamptz)`,
+    transactionId: sql<string | null>`(array_agg(${txTable.id} order by ${txTable.amountCents} desc, ${txTable.id}) filter (where ${txTable.date} >= ${start.toISOString()}::timestamptz))[1]`,
+  }).from(txTable)
+    .leftJoin(categoriesTable, and(eq(categoriesTable.id, txTable.categoryId), eq(categoriesTable.userId, userId)))
+    .where(and(eq(txTable.userId, userId), eq(txTable.kind, "EXPENSE"), eq(txTable.isTransfer, false),
+      eq(txTable.isCardPayment, false), or(isNull(txTable.externalStatus), eq(txTable.externalStatus, "POSTED")),
+      gte(txTable.date, history), lt(txTable.date, tomorrow)))
+    .groupBy(txTable.categoryId, categoriesTable.name);
+  return rows.map(row => ({ ...row, name: row.name ?? "Sem categoria", day,
+    todayCents: Number(row.todayCents), historyCents: Number(row.historyCents),
+    historyCount: Number(row.historyCount), historyDays: Number(row.historyDays),
+  })).filter(row => row.transactionId && isAtypicalCategorySpending(row))
+    .sort((a, b) => b.todayCents - a.todayCents).slice(0, 3);
+}
 
 export async function getMonthlySeries(
   userId: string,

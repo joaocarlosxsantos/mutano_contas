@@ -6,6 +6,9 @@ import {
   getMonthlySeries,
   getTopExpenses,
   getBalances,
+  getMonthSummaryThroughDay,
+  getAtypicalSpendingToday,
+  getDetectedSubscriptions,
 } from "@/server/queries";
 import { InvestmentSummary } from "@/components/investment-summary";
 import { currentMonthRef, formatDayMonth, monthRefFromParam, monthLabel, shiftMonth, todayRef } from "@/lib/dates";
@@ -17,6 +20,11 @@ import { Card, CardHeader } from "@/components/ui/card";
 import { Hint } from "@/components/ui/hint";
 import { EmptyState } from "@/components/ui/empty";
 import { FixedVariableChart } from "@/components/charts/monthly-flow";
+import { endOfCutoffDay } from "@/lib/insight-metrics";
+import { loadSpendingForecast } from "@/server/telegram/spending-forecast";
+import { DailyBudgetCard } from "../painel/daily-budget-card";
+import { AtypicalSpendingBanner } from "@/components/atypical-spending-banner";
+import { SubscriptionAnnualSummary } from "@/components/subscription-annual-summary";
 
 export const metadata = { title: "Insights" };
 
@@ -31,15 +39,23 @@ export default async function InsightsPage({
   const prevRef = shiftMonth(ref, -1);
   const today = currentMonthRef();
   const isCurrentMonth = ref.year === today.year && ref.month === today.month;
+  const cutoffDay = Math.min(Number(todayRef().slice(8, 10)), new Date(Date.UTC(prevRef.year, prevRef.month, 0)).getUTCDate());
+  const currentEnd = isCurrentMonth ? endOfCutoffDay(ref, cutoffDay) : undefined;
+  const previousEnd = isCurrentMonth ? endOfCutoffDay(prevRef, cutoffDay) : undefined;
 
-  const [summary, prevSummary, breakdown, prevBreakdown, topExpenses, series, balances] = await Promise.all([
+  const [summary, prevSummary, breakdown, prevBreakdown, topExpenses, series, balances, comparisonSummary, comparisonPrevious, dailyAnalysis, atypicalSpending, subscriptions] = await Promise.all([
     getMonthSummary(userId, ref, { cardMode: "cash" }),
     getMonthSummary(userId, prevRef, { cardMode: "cash" }),
-    getCategoryBreakdown(userId, ref, { cardMode: "cash" }),
-    getCategoryBreakdown(userId, prevRef, { cardMode: "cash" }),
+    getCategoryBreakdown(userId, ref, { cardMode: "cash", endExclusive: currentEnd }),
+    getCategoryBreakdown(userId, prevRef, { cardMode: "cash", endExclusive: previousEnd }),
     getTopExpenses(userId, ref, 6),
     getMonthlySeries(userId, 6, ref, { cardMode: "cash" }),
     getBalances(userId),
+    isCurrentMonth ? getMonthSummaryThroughDay(userId, ref, cutoffDay, { cardMode: "cash" }) : null,
+    isCurrentMonth ? getMonthSummaryThroughDay(userId, prevRef, cutoffDay, { cardMode: "cash" }) : null,
+    isCurrentMonth ? loadSpendingForecast(userId) : null,
+    isCurrentMonth ? getAtypicalSpendingToday(userId) : [],
+    getDetectedSubscriptions(userId),
   ]);
 
   const hasData = summary.expenseCents > 0 || summary.incomeCents > 0 || prevSummary.expenseCents > 0;
@@ -48,9 +64,11 @@ export default async function InsightsPage({
     .filter((d) => d.totalCents > 0 || d.previousCents > 0)
     .slice(0, 6);
 
+  const currentExpense = comparisonSummary?.expenseCents ?? summary.expenseCents;
+  const previousExpense = comparisonPrevious?.expenseCents ?? prevSummary.expenseCents;
   const expenseChangePct =
-    prevSummary.expenseCents > 0
-      ? Math.round(((summary.expenseCents - prevSummary.expenseCents) / prevSummary.expenseCents) * 1000) / 10
+    previousExpense > 0
+      ? Math.round(((currentExpense - previousExpense) / previousExpense) * 1000) / 10
       : null;
 
   let pace: ReturnType<typeof spendingPace> | null = null;
@@ -84,6 +102,8 @@ export default async function InsightsPage({
         action={<MonthSwitcher value={ref} />}
       />
 
+      <AtypicalSpendingBanner items={atypicalSpending} userId={userId} />
+      <SubscriptionAnnualSummary subscriptions={subscriptions} />
       <InvestmentSummary balance={balances} />
 
       {!hasData ? (
@@ -96,6 +116,7 @@ export default async function InsightsPage({
         </Card>
       ) : (
         <>
+          {dailyAnalysis && <DailyBudgetCard className="mb-4" dailyBudget={dailyAnalysis.daily} spentTodayCents={dailyAnalysis.spentTodayCents} historyDays={dailyAnalysis.historyDays} />}
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Card className="min-w-0 lg:col-span-2">
               <CardHeader
@@ -108,15 +129,16 @@ export default async function InsightsPage({
               />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <p className="muted text-[0.8125rem]">Gasto até agora</p>
-                  <p className="tnum text-xl font-semibold tracking-tight">{formatCents(summary.expenseCents)}</p>
+                  <p className="muted text-[0.8125rem]">{isCurrentMonth ? `Gasto até o dia ${cutoffDay}` : "Gasto do mês"}</p>
+                  <p className="tnum text-xl font-semibold tracking-tight">{formatCents(currentExpense)}</p>
+                  {isCurrentMonth && <p className="muted mt-1 text-xs">{monthLabel(prevRef)} até o dia {cutoffDay}: {formatCents(previousExpense)}</p>}
                   {isCurrentMonth && pace ? (
-                    <p className="muted mt-1 text-xs">Média de {formatCents(pace.dailyAvgCents)}/dia</p>
+                    <p className="muted mt-1 text-xs">Média do mês até o dia {dayOfMonth}: {formatCents(pace.dailyAvgCents)}/dia</p>
                   ) : null}
                 </div>
                 <div>
                   <p className="muted text-[0.8125rem]">
-                    {isCurrentMonth ? "Projeção de fechamento" : `Gasto em ${monthLabel(prevRef)}`}
+                    {isCurrentMonth ? `Projeção de fechamento (gastos até o dia ${dayOfMonth})` : `Gasto em ${monthLabel(prevRef)}`}
                   </p>
                   <p className="tnum text-xl font-semibold tracking-tight">
                     {formatCents(isCurrentMonth && pace ? pace.projectedCents : prevSummary.expenseCents)}
@@ -139,7 +161,7 @@ export default async function InsightsPage({
                         <Minus className="size-3.5" />
                       )}
                       {Math.abs(expenseChangePct)}% {expenseChangePct > 0 ? "a mais" : expenseChangePct < 0 ? "a menos" : "igual"} que{" "}
-                      {monthLabel(prevRef)}
+                      {monthLabel(prevRef)}{isCurrentMonth ? `, até o dia ${cutoffDay} nos dois meses` : ""}
                     </p>
                   ) : null}
                 </div>
@@ -152,10 +174,10 @@ export default async function InsightsPage({
                 >
                   No ritmo atual, você deve fechar {monthLabel(ref)} gastando cerca de{" "}
                   <strong>{formatCents(pace.projectedCents)}</strong>
-                  {expenseChangePct !== null ? (
+                  {prevSummary.expenseCents > 0 ? (
                     <>
                       {" "}
-                      — {expenseChangePct > 0 ? "mais" : "menos"} que os {formatCents(prevSummary.expenseCents)} de{" "}
+                      — {pace.projectedCents > prevSummary.expenseCents ? "mais" : pace.projectedCents < prevSummary.expenseCents ? "menos" : "o mesmo"} que os {formatCents(prevSummary.expenseCents)} do mês completo de{" "}
                       {monthLabel(prevRef)}.
                     </>
                   ) : (
@@ -184,7 +206,7 @@ export default async function InsightsPage({
             <Card className="min-w-0 lg:col-span-3">
               <CardHeader
                 title="Comparativo por categoria"
-                subtitle={`O que mudou entre ${monthLabel(prevRef)} e ${monthLabel(ref)}, categoria a categoria.`}
+                subtitle={`O que mudou entre ${monthLabel(prevRef)} e ${monthLabel(ref)}, categoria a categoria.${isCurrentMonth ? ` Até o dia ${cutoffDay} nos dois meses.` : ""}`}
               />
               {deltas.length ? (
                 <ul className="divide-y">
