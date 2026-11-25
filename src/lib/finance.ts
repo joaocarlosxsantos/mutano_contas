@@ -128,16 +128,6 @@ export type ProjectionPoint = {
   balanceCents: number;
 };
 
-export type ProjectionScenario = {
-  key: string;
-  name: string;
-  description: string;
-  monthlyContributionCents: number;
-  annualReturnPct: number;
-  points: ProjectionPoint[];
-  finalCents: number;
-};
-
 /**
  * Projeção de juros compostos com aportes mensais.
  * saldo(n) = saldo(n-1) * (1 + i) + aporte

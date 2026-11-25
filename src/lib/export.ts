@@ -33,7 +33,7 @@ export type ExportRow = {
 };
 
 /**
- * Uma linha por lançamento, pronta para virar CSV, XLSX ou qualquer outra
+ * Uma linha por lançamento, pronta para virar CSV ou qualquer outra
  * tabela — nada aqui sabe o formato final, só a forma dos dados. O valor sai
  * como número (reais, não centavos) com sinal — positivo entrada, negativo
  * saída — porque é isso que faz uma planilha somar direto, sem gambiarra.

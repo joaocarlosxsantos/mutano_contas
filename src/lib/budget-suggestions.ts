@@ -117,17 +117,4 @@ export function aggregateMonthlyExpensesByCategory(
   return result;
 }
 
-/**
- * Constrói as sugestões para uma lista de categorias a partir de gastos mensais por categoria.
- */
-export function buildCategorySuggestions(
-  categoryIds: readonly string[],
-  monthlyTotalsByCategory: ReadonlyMap<string, readonly number[]>,
-): Map<string, CategorySuggestion> {
-  const map = new Map<string, CategorySuggestion>();
-  for (const catId of categoryIds) {
-    const history = monthlyTotalsByCategory.get(catId) ?? [];
-    map.set(catId, calculateCategorySuggestion(history));
-  }
-  return map;
-}
+

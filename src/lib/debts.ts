@@ -52,11 +52,6 @@ export function monthlyInterestCents(balanceCents: number, monthlyRateBps: numbe
   return Math.round((balanceCents * monthlyRateBps) / 10_000);
 }
 
-/** Custo mensal de juros do conjunto — o "aluguel" que a dívida cobra por mês. */
-export function totalMonthlyInterest(debts: DebtInput[]): number {
-  return debts.reduce((acc, d) => acc + monthlyInterestCents(d.balanceCents, d.monthlyRateBps), 0);
-}
-
 type Tracked = { input: DebtInput; balance: number; interest: number };
 
 function pickTarget(debts: Tracked[], strategy: Strategy) {

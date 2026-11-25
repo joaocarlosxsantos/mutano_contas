@@ -2,13 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Download, FileSpreadsheet, FileText, ChevronDown } from "lucide-react";
-import { monthRefFromParam, monthRefToParam } from "@/lib/dates";
+import { Download, FileText, ChevronDown } from "lucide-react";
 
 /**
- * CSV e Excel levam os filtros ativos da tela (mês ou período, categoria,
- * tipo, busca...) — o que está na lista é o que sai no arquivo. O PDF é o
- * relatório do mês (não do filtro), então só leva o mês atual.
+ * CSV leva os filtros ativos da tela (mês ou período, categoria,
+ * tipo, busca...) — o que está na lista é o que sai no arquivo.
  */
 export function ExportMenu() {
   const [open, setOpen] = useState(false);
@@ -26,10 +24,6 @@ export function ExportMenu() {
 
   const dataParams = new URLSearchParams(params.toString());
   const csvHref = `/api/exportar/lancamentos?${dataParams.toString()}${dataParams.toString() ? "&" : ""}format=csv`;
-  const xlsxHref = `/api/exportar/lancamentos?${dataParams.toString()}${dataParams.toString() ? "&" : ""}format=xlsx`;
-
-  const ref = monthRefFromParam(params.get("m"));
-  const pdfHref = `/api/exportar/relatorio?m=${monthRefToParam(ref)}`;
 
   return (
     <div className="relative" ref={boxRef}>
@@ -54,28 +48,6 @@ export function ExportMenu() {
             <span>
               CSV
               <span className="muted block text-xs">Lançamentos filtrados</span>
-            </span>
-          </a>
-          <a
-            href={xlsxHref}
-            className="flex items-center gap-2.5 rounded-[var(--radius-xs)] px-2.5 py-2 text-[0.8125rem] hover:bg-[var(--surface-2)]"
-            onClick={() => setOpen(false)}
-          >
-            <FileSpreadsheet className="muted size-4" />
-            <span>
-              Excel (.xlsx)
-              <span className="muted block text-xs">Lançamentos filtrados</span>
-            </span>
-          </a>
-          <a
-            href={pdfHref}
-            className="flex items-center gap-2.5 rounded-[var(--radius-xs)] px-2.5 py-2 text-[0.8125rem] hover:bg-[var(--surface-2)]"
-            onClick={() => setOpen(false)}
-          >
-            <FileText className="muted size-4" />
-            <span>
-              Relatório em PDF
-              <span className="muted block text-xs">Resumo do mês, não do filtro</span>
             </span>
           </a>
         </div>
