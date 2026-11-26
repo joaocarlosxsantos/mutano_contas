@@ -4,9 +4,10 @@
  * quando todos os valores da série são 0.
  */
 
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n/config";
 import { formatCents } from "@/lib/money";
 
-export const chartMoney = (value: number) => formatCents(value).replace("-", "−");
+export const chartMoney = (value: number, locale: Locale = DEFAULT_LOCALE) => formatCents(value, locale).replace("-", "−");
 
 export type FlowPointLike = {
   entrou?: number;

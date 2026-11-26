@@ -1,3 +1,8 @@
+"use client";
+
+import { useLocale } from "@/lib/i18n/context";
+import { getComponentsTranslator } from "@/lib/i18n/dictionaries/components";
+
 import type { ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
@@ -91,8 +96,11 @@ type LoadingLayout = "overview" | "dashboard" | "transactions" | "debts" | "goal
 
 /** Server-rendered placeholders: no timers or hydration needed for the loading UI. */
 export function LoadingSkeleton({ layout = "overview" }: { layout?: LoadingLayout }) {
+  const locale = useLocale();
+  const t = getComponentsTranslator(locale);
+
   return <section role="status" aria-busy="true" className="min-w-0 space-y-5">
-    <span className="sr-only">Carregando seus dados…</span>
+    <span className="sr-only">{t("Carregando seus dados…")}</span>
     <div aria-hidden="true" className="min-w-0 space-y-5">
       <Header />
       {layout === "transactions" ? <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">

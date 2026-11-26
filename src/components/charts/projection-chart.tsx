@@ -1,4 +1,9 @@
-﻿"use client";
+"use client";
+
+import { useLocale } from "@/lib/i18n/context";
+import { getComponentsTranslator } from "@/lib/i18n/dictionaries/components";
+
+
 
 import { useId } from "react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -10,13 +15,16 @@ import { getMoneyScale, isProjectionDataEmpty } from "./chart-utils";
 
 export type ProjectionRow = ChartRow;
 
-export function ProjectionChart({ data, series, title = "Projeção de patrimônio por cenário", area = true, loading = false }: {
+export function ProjectionChart({ data, series, title, area = true, loading = false }: {
   data: ProjectionRow[];
   series: ChartSeries[];
   title?: string;
   area?: boolean;
   loading?: boolean;
 }) {
+  const locale = useLocale();
+  const t = getComponentsTranslator(locale);
+
   const id = `projection-${useId()}`;
   const touch = useChartTouch(data.length);
   const inks = series.map((item, index) => ({ ...item, dash: item.dash ?? [undefined, "4 4", "1 4"][index % 3] }));
@@ -27,7 +35,7 @@ export function ProjectionChart({ data, series, title = "Projeção de patrimôn
   const tick = { fontSize: 12, fill: VIZ.axis, fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" };
 
   return (
-    <ChartFrame title={title} data={data} series={inks} empty={empty} loading={loading} interaction={touch}>
+    <ChartFrame title={title ?? t("Projeção de patrimônio por cenário")} data={data} series={inks} empty={empty} loading={loading} interaction={touch}>
       <ResponsiveContainer width="100%" height="100%" minWidth={0}>
         <AreaChart data={data} margin={{ top: 8, right: 8, bottom: 0, left: 0 }} accessibilityLayer>
           <defs>
@@ -40,7 +48,7 @@ export function ProjectionChart({ data, series, title = "Projeção de patrimôn
           </defs>
           <CartesianGrid stroke={VIZ.grid} strokeWidth={1} strokeDasharray="3 3" vertical={false} />
           <XAxis dataKey="label" tickLine={false} axisLine={false} ticks={tickLabels} interval="preserveStartEnd" minTickGap={8} tick={tick} />
-          <YAxis domain={scale.domain} ticks={scale.ticks} tickFormatter={(value) => formatAxisCents(Number(value)).replace("-", "−")} tickLine={false} axisLine={false} width={76} tick={tick} />
+          <YAxis domain={scale.domain} ticks={scale.ticks} tickFormatter={(value) => formatAxisCents(Number(value), locale).replace("-", "−")} tickLine={false} axisLine={false} width={76} tick={tick} />
           <Tooltip active={touch.active === undefined ? undefined : false} position={{ x: 0, y: 0 }} content={<MoneyTooltip />} isAnimationActive={false} wrapperStyle={{ maxWidth: "100%" }} cursor={{ stroke: VIZ.axis, strokeWidth: 1 }} />
           {inks.map((item, index) => (
             <Area key={item.key} type="monotone" dataKey={item.key} name={item.name}

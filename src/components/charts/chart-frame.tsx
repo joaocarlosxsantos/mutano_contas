@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale } from "@/lib/i18n/context";
+import { getComponentsTranslator } from "@/lib/i18n/dictionaries/components";
+
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode, type PointerEvent } from "react";
 import { chartMoney } from "./chart-utils";
 import { MoneyTooltip } from "./tooltip";
@@ -59,11 +62,14 @@ export function ChartFrame({ title, data, series, empty, loading = false, childr
   children: ReactNode;
   interaction?: ReturnType<typeof useChartTouch>;
 }) {
+  const locale = useLocale();
+  const t = getComponentsTranslator(locale);
+
   const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
   const last = data.at(-1);
   const summary = last
-    ? `${last.label}: ${series.map((item) => `${item.name} ${chartMoney(Number(last[item.key] ?? 0))}`).join("; ")}.`
-    : "Sem dados no período.";
+    ? `${last.label}: ${series.map((item) => `${item.name} ${chartMoney(Number(last[item.key] ?? 0), locale)}`).join("; ")}.`
+    : t("Sem dados no período.");
   const busy = loading || !hydrated;
   const selected = interaction?.selection && data[interaction.selection.index];
 
@@ -71,7 +77,7 @@ export function ChartFrame({ title, data, series, empty, loading = false, childr
     <figure className="min-w-0 w-full max-w-full">
       {!busy && !empty && last && (
         <figcaption className="sr-only sm:not-sr-only sm:mb-3 text-xs text-[var(--text-muted)]">
-          <p className="mb-2 hidden sm:block">{last.label} · valores em reais</p>
+          <p className="mb-2 hidden sm:block">{last.label}  {t("· valores em reais")}</p>
           <ul className="flex flex-wrap gap-x-4 gap-y-2">
             {series.map((item, index) => (
               <li key={item.key} className="min-w-0 max-w-full">
@@ -79,17 +85,17 @@ export function ChartFrame({ title, data, series, empty, loading = false, childr
                   <svg aria-hidden="true" width="20" height="8"><path d="M0 4H20" stroke={item.color} strokeWidth={1.75} strokeDasharray={item.dash ?? (index ? "4 4" : undefined)} /></svg>
                   {item.name}
                 </span>{" "}
-                <span className="tnum sr-only text-[var(--text)] sm:not-sr-only sm:inline-block">{chartMoney(Number(last[item.key] ?? 0))}</span>
+                <span className="tnum sr-only text-[var(--text)] sm:not-sr-only sm:inline-block">{chartMoney(Number(last[item.key] ?? 0), locale)}</span>
               </li>
             ))}
           </ul>
         </figcaption>
       )}
-      <div role="img" aria-label={`${title}. ${busy ? "Carregando gráfico." : empty ? "Sem dados no período." : summary}`} aria-busy={busy}
+      <div role="img" aria-label={`${title}. ${busy ? t("Carregando gráfico.") : empty ? t("Sem dados no período.") : summary}`} aria-busy={busy}
         className="relative h-40 [@media(max-height:700px)]:h-36 min-w-0 w-full max-w-full overflow-hidden focus-within:ring-2 focus-within:ring-inset focus-within:ring-[var(--acento)] md:h-72" {...interaction?.handlers}>
         {busy || empty ? (
           <p role="status" className="flex h-full items-center justify-center rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 text-center text-sm text-[var(--text-muted)]">
-            {busy ? "Carregando gráfico…" : "Sem dados no período"}
+            {busy ? t("Carregando gráfico…") : t("Sem dados no período")}
           </p>
         ) : children}
         {!busy && !empty && interaction?.active && selected && <>
@@ -102,12 +108,12 @@ export function ChartFrame({ title, data, series, empty, loading = false, childr
       </div>
       {!busy && !empty && (
         <details className="text-xs sm:mt-2">
-          <summary className="flex min-h-11 cursor-pointer items-center text-[var(--text-muted)]">Ver valores do gráfico</summary>
+          <summary className="flex min-h-11 cursor-pointer items-center text-[var(--text-muted)]">{t("Ver valores do gráfico")}</summary>
           <dl className="max-h-64 space-y-3 overflow-y-auto rounded-xl border bg-[var(--surface)] p-3">
             {data.map((row, index) => <div key={index}>
-              <dt className="mb-1 font-medium">{row.label || `Período ${index + 1}`}</dt>
+              <dt className="mb-1 font-medium">{row.label || t("Período {number}", { number: index + 1 })}</dt>
               {series.map((item) => <dd key={item.key} className="flex flex-wrap justify-between gap-x-3 gap-y-1">
-                <span>{item.name}</span><span className="tnum">{chartMoney(Number(row[item.key] ?? 0))}</span>
+                <span>{item.name}</span><span className="tnum">{chartMoney(Number(row[item.key] ?? 0), locale)}</span>
               </dd>)}
             </div>)}
           </dl>

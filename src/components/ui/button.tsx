@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale } from "@/lib/i18n/context";
+import { getComponentsTranslator } from "@/lib/i18n/dictionaries/components";
+
 import { cn } from "@/lib/cn";
 import type { ButtonHTMLAttributes } from "react";
 import { useFormStatus } from "react-dom";
@@ -49,17 +52,20 @@ export function Button({
 /** Botão de submit que se desabilita sozinho enquanto a action roda. */
 export function SubmitButton({
   children,
-  pendingLabel = "Salvando...",
+  pendingLabel,
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: Variant;
   size?: Size;
   pendingLabel?: string;
 }) {
+  const locale = useLocale();
+  const t = getComponentsTranslator(locale);
+
   const { pending } = useFormStatus();
   return (
     <Button type="submit" disabled={pending} {...props}>
-      {pending ? pendingLabel : children}
+      {pending ? pendingLabel ?? t("Salvando...") : children}
     </Button>
   );
 }

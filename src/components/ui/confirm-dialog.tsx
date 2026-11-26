@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale } from "@/lib/i18n/context";
+import { getComponentsTranslator } from "@/lib/i18n/dictionaries/components";
+
 import {
   createContext,
   useCallback,
@@ -82,6 +85,9 @@ function Dialog({
   closing: boolean;
   onSettle: (result: boolean) => void;
 }) {
+  const locale = useLocale();
+  const t = getComponentsTranslator(locale);
+
   const descId = useId();
   const danger = state.tone === "danger";
   return (
@@ -110,7 +116,7 @@ function Dialog({
             onClick={() => onSettle(false)}
             className="inline-flex h-12 w-full cursor-pointer items-center justify-center rounded-xl border border-[var(--line-strong)] bg-[var(--surface-2)] px-4 text-sm font-medium text-[var(--text)] motion-reduce:transition-none transition-colors hover:bg-[var(--surface-3)] focus-visible:ring-2 focus-visible:ring-[var(--acento)] focus-visible:ring-offset-2 focus-visible:outline-none sm:h-10 sm:w-auto"
           >
-            {state.cancelLabel ?? "Cancelar"}
+            {state.cancelLabel ?? t("Cancelar")}
           </button>
           <button
             type="button"
@@ -122,7 +128,7 @@ function Dialog({
                 : "bg-[var(--acento)] text-[var(--on-acento)] hover:opacity-90 focus-visible:ring-[var(--acento)]",
             )}
           >
-            {state.confirmLabel ?? "Confirmar"}
+            {state.confirmLabel ?? t("Confirmar")}
           </button>
         </div>
       </div>

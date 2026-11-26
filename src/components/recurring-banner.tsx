@@ -1,12 +1,15 @@
 "use client";
 
+import { useLocale } from "@/lib/i18n/context";
+import { getComponentsTranslator } from "@/lib/i18n/dictionaries/components";
+
 import Link from "next/link";
 import { useState, useTransition } from "react";
 import { CalendarClock } from "lucide-react";
 import { generateRecurring } from "@/server/actions/recurring";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/money";
-import { monthRefToParam, type MonthRef } from "@/lib/dates";
+import { monthLabel, monthRefToParam, type MonthRef } from "@/lib/dates";
 
 /**
  * Aviso de recorrências que ainda não viraram lançamento no mês.
@@ -14,7 +17,6 @@ import { monthRefToParam, type MonthRef } from "@/lib/dates";
  */
 export function RecurringBanner({
   monthRef,
-  monthName,
   count,
   incomeCents,
   expenseCents,
@@ -25,6 +27,9 @@ export function RecurringBanner({
   incomeCents: number;
   expenseCents: number;
 }) {
+  const locale = useLocale();
+  const t = getComponentsTranslator(locale);
+
   const [busy, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
@@ -38,11 +43,10 @@ export function RecurringBanner({
 
       <div className="min-w-0 flex-1">
         <p className="text-[0.875rem] font-medium">
-          {count} recorrência{count > 1 ? "s" : ""} ainda não lançada{count > 1 ? "s" : ""} em{" "}
-          <span className="first-letter:uppercase">{monthName}</span>
+          {t(count === 1 ? "{count} recorrência ainda não lançada em {month}" : "{count} recorrências ainda não lançadas em {month}", { count, month: monthLabel(monthRef, locale) })}
         </p>
         <p className="muted mt-0.5 text-[0.8125rem]">
-          {formatCents(incomeCents)} a entrar · {formatCents(expenseCents)} a sair
+          {t("{income} a entrar · {expense} a sair", { income: formatCents(incomeCents, locale), expense: formatCents(expenseCents, locale) })}
           {message ? ` — ${message}` : ""}
         </p>
       </div>
@@ -52,19 +56,18 @@ export function RecurringBanner({
           href={`/recorrentes?m=${monthRefToParam(monthRef)}`}
           className="rounded-xl px-3 py-2 text-[0.8125rem] font-medium hover:bg-[var(--surface-2)]"
         >
-          Ver quais
-        </Link>
+          {t("Ver quais")}</Link>
         <Button
           size="sm"
           disabled={busy}
           onClick={() =>
             start(async () => {
               const { created, error } = await generateRecurring(monthRef);
-              setMessage(error ?? `${created} lançamento(s) criado(s).`);
+              setMessage(error ? t(error) : t("{count} lançamento(s) criado(s).", { count: created }));
             })
           }
         >
-          {busy ? "Lançando..." : "Lançar todas"}
+          {busy ? t("Lançando...") : t("Lançar todas")}
         </Button>
       </div>
     </div>

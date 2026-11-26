@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale } from "@/lib/i18n/context";
+import { getComponentsTranslator } from "@/lib/i18n/dictionaries/components";
+
 import { useState } from "react";
 
 export function OnboardingMediaSlot({
@@ -13,18 +16,21 @@ export function OnboardingMediaSlot({
   caption: string;
   type?: "image" | "video";
 }) {
+  const locale = useLocale();
+  const t = getComponentsTranslator(locale);
+
   const [failed, setFailed] = useState(false);
   return (
     <figure className="overflow-hidden rounded-xl border border-dashed border-[var(--line-strong)] bg-[var(--surface-2)]">
       {failed ? (
         <div className="p-4" role="note">
-          <p className="text-sm font-medium text-[var(--text)]">Imagem ou vídeo demonstrativo ainda não disponível</p>
+          <p className="text-sm font-medium text-[var(--text)]">{t("Imagem ou vídeo demonstrativo ainda não disponível")}</p>
           <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">{alt}</p>
         </div>
       ) : type === "video" ? (
         <video className="max-h-64 w-full bg-black" controls preload="none" aria-label={alt} onError={() => setFailed(true)}>
           <source src={src} />
-          Seu navegador não consegue reproduzir este vídeo. {alt}
+          {t("Seu navegador não consegue reproduzir este vídeo.")}{alt}
         </video>
       ) : (
         // eslint-disable-next-line @next/next/no-img-element -- media slots intentionally use public assets supplied by the product owner.

@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale } from "@/lib/i18n/context";
+import { getComponentsTranslator } from "@/lib/i18n/dictionaries/components";
+
 import { useEffect, useRef, useState } from "react";
 import { X, Share, Download } from "lucide-react";
 
@@ -55,6 +58,9 @@ function computeInitialState(): InstallState {
 }
 
 export function PwaInstallBanner() {
+  const locale = useLocale();
+  const t = getComponentsTranslator(locale);
+
   // Lazy initialization: computeInitialState() roda apenas no cliente, uma vez.
   const [state, setState] = useState<InstallState>(computeInitialState);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -97,7 +103,8 @@ export function PwaInstallBanner() {
   return (
     <div
       role="complementary"
-      aria-label="Instalar aplicativo"
+      data-pwa-install-banner
+      aria-label={t("Instalar aplicativo")}
       className="fixed bottom-[calc(env(safe-area-inset-bottom)+5rem)] left-1/2 z-40 w-[calc(100%-2rem)] max-w-sm -translate-x-1/2 rounded-2xl border border-[var(--line-strong)] bg-[var(--surface)] p-4 shadow-lg lg:bottom-6 lg:left-auto lg:right-6 lg:translate-x-0"
     >
       <div className="flex items-start gap-3">
@@ -114,29 +121,27 @@ export function PwaInstallBanner() {
 
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold leading-tight text-[var(--text)]">
-            Instalar Mutano Contas
-          </p>
+            {t("Instalar Mutano Contas")}</p>
 
           {state === "ios" ? (
             <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
-              Toque em{" "}
+              {t("Toque em")}{" "}
               <Share
                 className="inline size-3.5 align-text-bottom"
-                aria-label="Compartilhar"
+                aria-label={t("Compartilhar")}
               />{" "}
-              e depois em <strong>Adicionar à Tela de Início</strong>.
+              {t("e depois em")}<strong>{t("Adicionar à Tela de Início")}</strong>.
             </p>
           ) : (
             <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
-              Acesse offline e tenha atalho na tela inicial.
-            </p>
+              {t("Acesse offline e tenha atalho na tela inicial.")}</p>
           )}
         </div>
 
         <button
           type="button"
           onClick={handleDismiss}
-          aria-label="Fechar sugestão de instalação"
+          aria-label={t("Fechar sugestão de instalação")}
           className="shrink-0 cursor-pointer rounded-lg p-1 text-[var(--text-muted)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]"
         >
           <X className="size-4" aria-hidden="true" />
@@ -150,8 +155,7 @@ export function PwaInstallBanner() {
           className="mt-3 flex min-h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[var(--acento)] px-4 text-sm font-semibold text-[var(--on-acento)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]"
         >
           <Download className="size-4" aria-hidden="true" />
-          Instalar app
-        </button>
+          {t("Instalar app")}</button>
       )}
     </div>
   );

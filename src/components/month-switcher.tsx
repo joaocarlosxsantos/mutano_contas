@@ -1,10 +1,16 @@
 "use client";
 
+import { useLocale } from "@/lib/i18n/context";
+import { getComponentsTranslator } from "@/lib/i18n/dictionaries/components";
+
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { monthLabel, monthRefToParam, shiftMonth, type MonthRef } from "@/lib/dates";
 
 export function MonthSwitcher({ value: current }: { value: MonthRef }) {
+  const locale = useLocale();
+  const t = getComponentsTranslator(locale);
+
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -21,18 +27,18 @@ export function MonthSwitcher({ value: current }: { value: MonthRef }) {
       <button
         type="button"
         onClick={() => go(-1)}
-        aria-label="Mês anterior"
+        aria-label={t("Mês anterior")}
         className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-[var(--surface-2)]"
       >
         <ChevronLeft className="size-4" />
       </button>
       <span className="tnum min-w-0 flex-1 px-2 text-center text-[0.8125rem] font-medium first-letter:uppercase truncate">
-        {monthLabel(current)}
+        {monthLabel(current, locale)}
       </span>
       <button
         type="button"
         onClick={() => go(1)}
-        aria-label="Próximo mês"
+        aria-label={t("Próximo mês")}
         className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-lg hover:bg-[var(--surface-2)]"
       >
         <ChevronRight className="size-4" />
