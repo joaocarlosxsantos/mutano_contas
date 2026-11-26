@@ -1,4 +1,9 @@
-﻿"use client";
+"use client";
+
+import { LanguageToggle } from "@/components/language-toggle";
+import { useLocale } from "@/lib/i18n/context";
+import { useTranslation } from "@/lib/i18n/use-translation";
+
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,11 +24,14 @@ export function Sidebar({ userName, accounts, categories }: {
   userName: string;
   accounts: PlainAccount[]; categories: PlainCategory[];
 }) {
+  const t = useTranslation();
+  const locale = useLocale();
+
   const pathname = usePathname();
   const profile = useUsageProfile();
   const manualEntry = canUseCapability(profile, "manual-entry");
   const [newOpen, setNewOpen] = useState(false);
-  const brand = <Link href="/painel" className="flex min-h-11 min-w-0 items-center" aria-label="Mutano Contas — ir para o painel">
+  const brand = <Link href="/painel" className="flex min-h-11 min-w-0 items-center" aria-label={t("Mutano Contas — ir para o painel")}>
     <Logo compacto className="gap-2 lg:gap-1 lg:[&_svg]:h-4" />
   </Link>;
   return <>
@@ -31,16 +39,15 @@ export function Sidebar({ userName, accounts, categories }: {
       {brand}
       <div className="flex shrink-0 items-center gap-1">
         <NotificationBell mobileOnly />
-        <ThemeToggle />
+        <span className="lg:hidden"><LanguageToggle /></span><ThemeToggle />
       </div>
     </header>
     <aside className="sticky top-0 hidden h-dvh w-[232px] shrink-0 flex-col border-r border-[var(--line)] bg-[var(--bg)] p-4 pt-[84px] lg:flex">
       {manualEntry && <button type="button" onClick={() => setNewOpen(true)} aria-haspopup="dialog"
         className="mb-5 flex min-h-11 cursor-pointer items-center justify-center gap-2 rounded-xl bg-[var(--acento)] px-3 text-sm font-medium text-[var(--on-acento)]">
-        <Plus aria-hidden="true" className="size-5" />Novo lançamento
-      </button>}
-      <nav aria-label="Navegação principal desktop" className="min-h-0 flex-1 space-y-1 overflow-y-auto">
-        <NavigationSections sections={getNavigationSections(profile, "desktop")} pathname={pathname} surface="desktop" />
+        <Plus aria-hidden="true" className="size-5" />{t("Novo lançamento")}</button>}
+      <nav aria-label={t("Navegação principal desktop")} className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+        <NavigationSections sections={getNavigationSections(profile, "desktop", locale)} pathname={pathname} surface="desktop" />
       </nav>
       <UserMenuFooter userName={userName} pathname={pathname} />
     </aside>

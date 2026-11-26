@@ -1,3 +1,6 @@
+"use client";
+
+import { useLocale } from "@/lib/i18n/context";
 import { cn } from "@/lib/cn";
 import { formatCents, formatCentsParts } from "@/lib/money";
 
@@ -16,7 +19,8 @@ const SIZE_VARIANTS = {
 };
 
 export function Money({ cents, tone, size = "md", className }: MoneyProps) {
-  const parts = formatCentsParts(cents);
+  const locale = useLocale();
+  const parts = formatCentsParts(cents, locale);
   const isZero = (cents ?? 0) === 0 || Object.is(cents, -0);
   const isNegative = !isZero && (parts.negative || tone === "out");
 
@@ -38,7 +42,7 @@ export function Money({ cents, tone, size = "md", className }: MoneyProps) {
       )}
     >
       <span className="sr-only">
-        {isNegative ? `Menos ${formatCents(Math.abs(cents))}` : formatCents(cents)}
+        {isNegative ? `${locale === "en" ? "Minus" : "Menos"} ${formatCents(Math.abs(cents), locale)}` : formatCents(cents, locale)}
       </span>
       <span aria-hidden="true" className="inline-flex max-w-full flex-wrap items-baseline"
         style={size === "hero" ? { fontSize: `min(var(--text-hero), calc(100cqw / ${parts.integer.length * 0.6 + 1.75 + (isNegative ? 0.65 : 0)}))` } : undefined}>

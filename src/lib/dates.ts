@@ -6,7 +6,8 @@ import {
   startOfMonth,
   subMonths,
 } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import type { Locale } from "./i18n/config";
+import { ptBR, enUS } from "date-fns/locale";
 
 export type MonthRef = { year: number; month: number }; // month: 1-12
 
@@ -62,12 +63,12 @@ export function shiftMonth(ref: MonthRef, delta: number): MonthRef {
   return { year: d.getFullYear(), month: d.getMonth() + 1 };
 }
 
-export function monthLabel({ year, month }: MonthRef): string {
-  return format(new Date(year, month - 1, 1), "MMMM 'de' yyyy", { locale: ptBR });
+export function monthLabel({ year, month }: MonthRef, locale: Locale = "pt-BR"): string {
+  return format(new Date(year, month - 1, 1), locale === "en" ? "MMMM yyyy" : "MMMM 'de' yyyy", { locale: locale === "en" ? enUS : ptBR });
 }
 
-export function monthShortLabel({ year, month }: MonthRef): string {
-  return format(new Date(year, month - 1, 1), "MMM/yy", { locale: ptBR });
+export function monthShortLabel({ year, month }: MonthRef, locale: Locale = "pt-BR"): string {
+  return format(new Date(year, month - 1, 1), "MMM/yy", { locale: locale === "en" ? enUS : ptBR });
 }
 
 export function lastNMonths(n: number, from = currentMonthRef()): MonthRef[] {
@@ -94,17 +95,17 @@ function toUtcDateObject(date: Date | string): Date {
   return typeof date === "string" ? new Date(date) : date;
 }
 
-export function formatDate(date: Date | string): string {
+export function formatDate(date: Date | string, locale: Locale = "pt-BR"): string {
   const d = toUtcDateObject(date);
   const day = String(d.getUTCDate()).padStart(2, "0");
   const month = String(d.getUTCMonth() + 1).padStart(2, "0");
-  return `${day}/${month}/${d.getUTCFullYear()}`;
+  return locale === "en" ? `${month}/${day}/${d.getUTCFullYear()}` : `${day}/${month}/${d.getUTCFullYear()}`;
 }
 
-export function formatDayMonth(date: Date | string): string {
+export function formatDayMonth(date: Date | string, locale: Locale = "pt-BR"): string {
   const d = toUtcDateObject(date);
   const day = String(d.getUTCDate()).padStart(2, "0");
-  return `${day} ${MONTHS_PT_SHORT[d.getUTCMonth()]}`;
+  return locale === "en" ? `${day} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][d.getUTCMonth()]}` : `${day} ${MONTHS_PT_SHORT[d.getUTCMonth()]}`;
 }
 
 /** Meio-dia UTC do mesmo dia civil (ano/mês/dia) de um `Date` local. */

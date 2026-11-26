@@ -1,3 +1,4 @@
+import { getIntlLocale, type Locale } from "./i18n/config";
 /**
  * Dinheiro no sistema inteiro é Int em CENTAVOS.
  * Nunca use float para somar dinheiro.
@@ -5,17 +6,19 @@
 
 export const MAX_CENTS = 2_000_000_000;
 
-const BRL = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-});
-
-const BRL_COMPACT = new Intl.NumberFormat("pt-BR", {
-  style: "currency",
-  currency: "BRL",
-  notation: "compact",
-  maximumFractionDigits: 1,
-});
+const formatters = new Map<string, Intl.NumberFormat>();
+function brl(locale: Locale, compact = false) {
+  const key = locale + (compact ? "-compact" : "");
+  let formatter = formatters.get(key);
+  if (!formatter) {
+    formatter = new Intl.NumberFormat(getIntlLocale(locale), {
+      style: "currency", currency: "BRL",
+      ...(compact ? { notation: "compact" as const, maximumFractionDigits: 1 } : {}),
+    });
+    formatters.set(key, formatter);
+  }
+  return formatter;
+}
 
 /**
  * `Intl.NumberFormat` mostra sinal de menos em `-0` ("-R$ 0,00") mesmo sendo
@@ -27,8 +30,8 @@ function noNegativeZero(v: number): number {
   return v || 0;
 }
 
-export function formatCents(cents: number): string {
-  return BRL.format(noNegativeZero((cents ?? 0) / 100));
+export function formatCents(cents: number, locale: Locale = "pt-BR"): string {
+  return brl(locale).format(noNegativeZero((cents ?? 0) / 100));
 }
 
 export interface MoneyParts {
@@ -39,15 +42,15 @@ export interface MoneyParts {
   fraction: string;
 }
 
-export function formatCentsParts(cents: number): MoneyParts {
+export function formatCentsParts(cents: number, locale: Locale = "pt-BR"): MoneyParts {
   const safe = noNegativeZero(cents ?? 0);
   const negative = safe < 0;
   const absValue = Math.abs(safe) / 100;
-  const parts = BRL.formatToParts(absValue);
+  const parts = brl(locale).formatToParts(absValue);
 
   let currency = "R$";
   let integer = "";
-  let decimal = ",";
+  let decimal = locale === "en" ? "." : ",";
   let fraction = "00";
 
   for (const p of parts) {
@@ -66,19 +69,20 @@ export function formatCentsParts(cents: number): MoneyParts {
   };
 }
 
-export function formatCentsCompact(cents: number): string {
+export function formatCentsCompact(cents: number, locale: Locale = "pt-BR"): string {
   const v = noNegativeZero((cents ?? 0) / 100);
-  return Math.abs(v) >= 10000 ? BRL_COMPACT.format(v) : BRL.format(v);
+  return Math.abs(v) >= 10000 ? brl(locale, true).format(v) : brl(locale).format(v);
 }
 
 /** Rótulo curto para eixos de gráfico: "R$ 8 mil", "R$ 1,2 mi". */
-export function formatAxisCents(cents: number): string {
+export function formatAxisCents(cents: number, locale: Locale = "pt-BR"): string {
   const v = noNegativeZero((cents ?? 0) / 100);
-  return Math.abs(v) >= 1000 ? BRL_COMPACT.format(v) : BRL.format(v);
+  return Math.abs(v) >= 1000 ? brl(locale, true).format(v) : brl(locale).format(v);
 }
 
-export function formatCentsPlain(cents: number): string {
-  return ((cents ?? 0) / 100).toFixed(2).replace(".", ",");
+export function formatCentsPlain(cents: number, locale: Locale = "pt-BR"): string {
+  const value = (noNegativeZero(cents ?? 0) / 100).toFixed(2);
+  return locale === "en" ? value : value.replace(".", ",");
 }
 
 /**

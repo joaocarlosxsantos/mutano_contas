@@ -1,9 +1,14 @@
 "use client";
 
+import { useTranslation } from "@/lib/i18n/use-translation";
+
+
 import { Moon, Sun } from "lucide-react";
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {
+  const t = useTranslation();
+
   const [dark, setDark] = useState(false);
 
   useEffect(() => {
@@ -24,8 +29,8 @@ export function ThemeToggle() {
     <button
       type="button"
       onClick={toggle}
-      aria-label={dark ? "Usar tema claro" : "Usar tema escuro"}
-      className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border transition-colors hover:bg-[var(--surface-2)]"
+      aria-label={dark ? t("Usar tema claro") : t("Usar tema escuro")}
+      className="inline-flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl border transition-colors hover:bg-[var(--surface-2)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]"
     >
       {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
     </button>

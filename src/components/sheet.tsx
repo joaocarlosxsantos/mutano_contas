@@ -11,6 +11,7 @@ import {
 } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useLocale } from "@/lib/i18n/context";
 
 const SheetCloseContext = createContext<() => void>(() => {});
 export const useSheetClose = () => useContext(SheetCloseContext);
@@ -52,6 +53,7 @@ export function Sheet({
   describedBy?: string;
   maxWidth?: SheetMaxWidth;
 }) {
+  const locale = useLocale();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const panelRef = useRef<HTMLElement>(null);
   const closeRef = useRef(onClose);
@@ -280,7 +282,7 @@ export function Sheet({
             </h2>
             <button
               type="button"
-              aria-label={`Fechar ${title}`}
+              aria-label={`${locale === "en" ? "Close" : "Fechar"} ${title}`}
               disabled={closeDisabled}
               onClick={() => requestCloseRef.current()}
               className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl text-[var(--text-muted)] transition-colors hover:bg-[var(--surface-2)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-[var(--acento)] disabled:opacity-50"

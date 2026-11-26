@@ -1,3 +1,6 @@
+import { getLocale } from "@/lib/i18n/server";
+import { getTranslator } from "@/lib/i18n/dictionaries";
+import { I18nProvider } from "@/lib/i18n/context";
 import type { Metadata, Viewport } from "next";
 import { Hanken_Grotesk, IBM_Plex_Mono } from "next/font/google";
 import { headers } from "next/headers";
@@ -18,14 +21,16 @@ const mono = IBM_Plex_Mono({
   display: "swap",
 });
 
-const description = "Seu livro-caixa pessoal: gastos fixos e variáveis, reserva de emergência, metas e extratos.";
-
-export const metadata: Metadata = {
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getLocale();
+  const t = getTranslator(locale);
+  const description = t("Seu livro-caixa pessoal: gastos fixos e variáveis, reserva de emergência, metas e extratos.");
+  return {
   title: { default: "Mutano Contas", template: "%s — Mutano Contas" },
   description,
   applicationName: "Mutano Contas",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "https://mutanocontas.vercel.app"),
-  openGraph: { type: "website", locale: "pt_BR", siteName: "Mutano Contas", title: "Mutano Contas", description },
+  openGraph: { type: "website", locale: locale === "en" ? "en_US" : "pt_BR", siteName: "Mutano Contas", title: "Mutano Contas", description },
   twitter: { card: "summary_large_image", title: "Mutano Contas", description },
   // PWA — apple-touch-icon para iOS e referência explícita ao manifesto.
   appleWebApp: {
@@ -37,6 +42,8 @@ export const metadata: Metadata = {
     apple: [{ url: "/icon-192.png", sizes: "192x192", type: "image/png" }],
   },
 };
+
+}
 
 export const viewport: Viewport = {
   themeColor: [
@@ -54,10 +61,11 @@ try {
 `;
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale();
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <html
-      lang="pt-BR"
+      lang={locale}
       suppressHydrationWarning
       className={`${sans.variable} ${mono.variable}`}
     >
@@ -65,9 +73,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body className="min-h-dvh antialiased">
+        <I18nProvider locale={locale}>
         <ServiceWorkerRegistrar />
         {children}
         <PwaInstallBanner />
+        </I18nProvider>
       </body>
     </html>
   );

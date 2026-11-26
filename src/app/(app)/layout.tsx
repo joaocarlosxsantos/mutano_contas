@@ -1,3 +1,5 @@
+import { getLocale } from "@/lib/i18n/server";
+import { getTranslator } from "@/lib/i18n/dictionaries";
 import { UsageProfileProvider } from "@/components/usage-profile";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
@@ -15,6 +17,8 @@ import type { Viewport } from "next";
 export const viewport: Viewport = { viewportFit: "cover", interactiveWidget: "resizes-content" };
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const t = getTranslator(await getLocale());
+
   const session = await auth();
   const userId = (session?.user as { id?: string } | undefined)?.id;
   if (!userId) redirect("/login");
@@ -35,8 +39,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <UsageProfileProvider profile={user.usageProfile}><ConfirmProvider>
       <div className="flex min-h-screen flex-col lg:flex-row">
         <a href="#conteudo" className="skip-link">
-          Pular para o conteúdo
-        </a>
+          {t("Pular para o conteúdo")}</a>
         <Sidebar userName={user.name}
           accounts={accounts.filter((account) => account.financeMode === "manual").map(({ id, name }) => ({ id, name }))}
           categories={categories.map(({ id, name, kind, nature, color }) => ({ id, name, kind, nature, color }))} />

@@ -1,8 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { getNavigationSections, isDestinationActive, primaryDestinations } from "./navigation-model";
+import { getNavigationSections, getPrimaryDestinations, isDestinationActive, primaryDestinations } from "./navigation-model";
 import { USAGE_PROFILES } from "@/lib/usage-profile";
 
 describe("grouped navigation", () => {
+  it("translates labels without changing routes or profile restrictions", () => {
+    for (const profile of USAGE_PROFILES) {
+      for (const surface of ["desktop", "more"] as const) {
+        const pt = getNavigationSections(profile, surface);
+        const en = getNavigationSections(profile, surface, "en");
+        expect(en.map(section => section.id)).toEqual(pt.map(section => section.id));
+        expect(en.flatMap(section => section.items.map(item => item.href))).toEqual(pt.flatMap(section => section.items.map(item => item.href)));
+        expect(en.every(section => section.label && section.items.every(item => item.label))).toBe(true);
+      }
+    }
+    expect(getNavigationSections("hibrido", "desktop", "en")[0].label).toBe("Overview");
+    expect(getPrimaryDestinations("en").map(item => item.label)).toEqual(["Dashboard", "Transactions", "Accounts"]);
+    expect(getPrimaryDestinations().map(item => item.label)).toEqual(primaryDestinations.map(item => item.label));
+  });
   it.each(USAGE_PROFILES)("%s has no empty sections, duplicate routes or orphan destinations", (profile) => {
     const desktop = getNavigationSections(profile, "desktop");
     const more = getNavigationSections(profile, "more");
