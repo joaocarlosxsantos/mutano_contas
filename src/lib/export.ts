@@ -1,5 +1,7 @@
 import { formatDate } from "./dates";
 import { investmentMovementLabel } from "./investments";
+import type { Locale } from "./i18n/config";
+import { translateServer } from "./i18n/dictionaries/server";
 
 export type ExportTransactionInput = {
   date: Date;
@@ -38,18 +40,18 @@ export type ExportRow = {
  * como número (reais, não centavos) com sinal — positivo entrada, negativo
  * saída — porque é isso que faz uma planilha somar direto, sem gambiarra.
  */
-export function buildExportRows(transactions: ExportTransactionInput[]): ExportRow[] {
+export function buildExportRows(transactions: ExportTransactionInput[], locale: Locale = "pt-BR"): ExportRow[] {
   return transactions.map((t) => ({
-    Data: formatDate(t.date),
+    Data: formatDate(t.date, locale),
     Descrição: t.description,
-    Categoria: t.categoryName ?? "Sem categoria",
-    Tipo: investmentMovementLabel(t) ?? (t.kind === "INCOME" ? "Entrada" : "Saída"),
-    Natureza: t.nature === "FIXED" ? "Fixo" : "Variável",
+    Categoria: t.categoryName ?? translateServer(locale, "Sem categoria"),
+    Tipo: translateServer(locale, investmentMovementLabel(t) ?? (t.kind === "INCOME" ? "Entrada" : "Saída")),
+    Natureza: translateServer(locale, t.nature === "FIXED" ? "Fixo" : "Variável"),
     Conta: t.accountName,
     "Valor (R$)": Number(((t.kind === "INCOME" ? t.amountCents : -t.amountCents) / 100).toFixed(2)),
     Parcela: t.installmentNumber && t.installmentTotal ? `${t.installmentNumber}/${t.installmentTotal}` : "",
-    Recorrente: t.recurringRuleId ? "Sim" : "Não",
-    Transferência: t.isTransfer ? "Sim" : "Não",
+    Recorrente: translateServer(locale, t.recurringRuleId ? "Sim" : "Não"),
+    Transferência: translateServer(locale, t.isTransfer ? "Sim" : "Não"),
     Observação: t.notes ?? "",
   }));
 }
@@ -95,8 +97,8 @@ function csvField(value: string | number): string {
  * sem passar por um assistente de importação (o separador "," entra tudo
  * numa coluna só quando o Windows está configurado em pt-BR).
  */
-export function rowsToCsv(rows: ExportRow[]): string {
-  const lines = [CSV_HEADERS.join(";")];
+export function rowsToCsv(rows: ExportRow[], locale: Locale = "pt-BR"): string {
+  const lines = [CSV_HEADERS.map(header => csvField(translateServer(locale, header))).join(";")];
   for (const row of rows) {
     lines.push(CSV_HEADERS.map((h) => csvField(row[h])).join(";"));
   }

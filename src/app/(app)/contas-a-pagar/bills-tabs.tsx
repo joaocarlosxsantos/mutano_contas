@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import Link from "next/link";
 
 export type BillsTabType = "contas" | "compartilhadas";
@@ -15,6 +17,7 @@ export function BillsTabs({
   individualCount: number;
   sharedCount: number;
 }) {
+  const locale = useLocale();
   function getTabHref(tab: BillsTabType) {
     const params = new URLSearchParams();
     if (monthParam) params.set("m", monthParam);
@@ -25,7 +28,7 @@ export function BillsTabs({
   return (
     <div
       role="tablist"
-      aria-label="Visualização de contas a pagar"
+      aria-label={translatePlanning(locale, "Visualização de contas a pagar")}
       className="grid w-full grid-cols-2 gap-1 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-1"
     >
       <Link
@@ -40,7 +43,7 @@ export function BillsTabs({
             : "font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
         }`].filter(Boolean).join(" ")}
       >
-        <span>Contas</span>
+        <span>{translatePlanning(locale, "Contas")}</span>
         <span
           className={`rounded-full px-1.5 py-0.5 text-xs ${
             activeTab === "contas"
@@ -64,7 +67,7 @@ export function BillsTabs({
             : "font-medium text-[var(--text-muted)] hover:text-[var(--text)]"
         }`].filter(Boolean).join(" ")}
       >
-        <span>Compartilhadas</span>
+        <span>{translatePlanning(locale, "Compartilhadas")}</span>
         <span
           className={`rounded-full px-1.5 py-0.5 text-xs ${
             activeTab === "compartilhadas"

@@ -1,5 +1,8 @@
 "use client";
 
+import type { Locale } from "@/lib/i18n/config";
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { ArchiveRestore, Pencil, Plus, Trash2, Wallet } from "lucide-react";
 import {
@@ -17,13 +20,14 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 
 const initial: ActionState = {};
 
-const TYPE_LABEL: Record<string, string> = {
-  CHECKING: "Conta corrente",
-  SAVINGS: "Poupança",
-  CREDIT_CARD: "Cartão de crédito",
-  CASH: "Dinheiro",
-  INVESTMENT: "Investimento",
-};
+function localizedTYPE_LABEL(locale: Locale): Record<string, string> { return {
+  CHECKING: translatePlanning(locale, "Conta corrente"),
+  SAVINGS: translatePlanning(locale, "Poupança"),
+  CREDIT_CARD: translatePlanning(locale, "Cartão de crédito"),
+  CASH: translatePlanning(locale, "Dinheiro"),
+  INVESTMENT: translatePlanning(locale, "Investimento"),
+}; }
+
 
 type Account = {
   id: string;
@@ -39,6 +43,7 @@ type Account = {
 };
 
 export function AccountsPanel({ accounts }: { accounts: Account[] }) {
+  const locale = useLocale();
   const [state, formAction] = useActionState(createAccount, initial);
   const [open, setOpen] = useState(false);
   const [newType, setNewType] = useState("CHECKING");
@@ -62,9 +67,9 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
 
   async function archive(a: Account) {
     const ok = await confirm({
-      title: `Arquivar a conta "${a.name}"?`,
-      description: "Os lançamentos continuam salvos. A conta some das telas de lançar e importar, mas fica listada aqui.",
-      confirmLabel: "Arquivar",
+      title: translatePlanning(locale, "Arquivar a conta \"{0}\"?", a.name),
+      description: translatePlanning(locale, "Os lançamentos continuam salvos. A conta some das telas de lançar e importar, mas fica listada aqui."),
+      confirmLabel: translatePlanning(locale, "Arquivar"),
       tone: "danger",
     });
     if (!ok) return;
@@ -73,17 +78,17 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
 
   async function removeForever(a: Account) {
     const pieces = [
-      a.transactionCount > 0 ? `${a.transactionCount} lançamento(s)` : null,
-      a.recurringCount > 0 ? `${a.recurringCount} recorrência(s)` : null,
+      a.transactionCount > 0 ? translatePlanning(locale, "{0} lançamento(s)", a.transactionCount) : null,
+      a.recurringCount > 0 ? translatePlanning(locale, "{0} recorrência(s)", a.recurringCount) : null,
     ].filter(Boolean);
     const description =
       pieces.length > 0
-        ? `Isso apaga a conta e ${pieces.join(" e ")} dela para sempre. Não tem como desfazer.`
-        : "Essa conta não tem lançamentos. A exclusão não tem como ser desfeita.";
+        ? translatePlanning(locale, "Isso apaga a conta e {0} dela para sempre. Não tem como desfazer.", pieces.join(" e "))
+        : translatePlanning(locale, "Essa conta não tem lançamentos. A exclusão não tem como ser desfeita.");
     const ok = await confirm({
-      title: `Excluir "${a.name}" definitivamente?`,
+      title: translatePlanning(locale, "Excluir \"{0}\" definitivamente?", a.name),
       description,
-      confirmLabel: "Excluir para sempre",
+      confirmLabel: translatePlanning(locale, "Excluir para sempre"),
       tone: "danger",
     });
     if (!ok) return;
@@ -100,16 +105,16 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-[0.875rem] font-medium">{a.name}</p>
                 <p className="muted truncate text-xs">
-                  {TYPE_LABEL[a.type] ?? a.type}
+                  {localizedTYPE_LABEL(locale)[a.type] ?? a.type}
                   {a.institution ? ` · ${a.institution}` : ""}
                   {a.type === "CREDIT_CARD" && a.closingDay && a.dueDay
-                    ? ` · Fecha dia ${a.closingDay}, vence dia ${a.dueDay}`
+                    ? translatePlanning(locale, " · Fecha dia {0}, vence dia {1}", a.closingDay, a.dueDay)
                     : ""}
                 </p>
               </div>
               <button
                 type="button"
-                aria-label={`Editar ${a.name}`}
+                aria-label={translatePlanning(locale, "Editar {0}", a.name)}
                 onClick={() => toggleEdit(a.id)}
                 className="inline-flex items-center justify-center min-h-11 min-w-11 muted cursor-pointer rounded-lg p-2.5 hover:bg-[var(--surface-2)] hover:text-[var(--text-brand)]"
               >
@@ -117,7 +122,7 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
               </button>
               <button
                 type="button"
-                aria-label={`Arquivar ${a.name}`}
+                aria-label={translatePlanning(locale, "Arquivar {0}", a.name)}
                 onClick={() => void archive(a)}
                 className="inline-flex items-center justify-center min-h-11 min-w-11 muted cursor-pointer rounded-lg p-2.5 hover:bg-[var(--color-money-out-soft)] hover:text-[var(--text-out)]"
               >
@@ -133,8 +138,8 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
           <li>
             <EmptyState
               icon={Wallet}
-              title="Nenhuma conta cadastrada"
-              description="Toda movimentação precisa estar em uma conta. Crie a primeira abaixo — pode ser sua conta corrente, um cartão ou até dinheiro em espécie."
+              title={translatePlanning(locale, "Nenhuma conta cadastrada")}
+              description={translatePlanning(locale, "Toda movimentação precisa estar em uma conta. Crie a primeira abaixo — pode ser sua conta corrente, um cartão ou até dinheiro em espécie.")}
             />
           </li>
         ) : null}
@@ -143,8 +148,7 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
       {archived.length ? (
         <div>
           <h3 className="muted mb-2 text-xs font-semibold tracking-wide uppercase">
-            Arquivadas
-          </h3>
+            {translatePlanning(locale, "Arquivadas")} </h3>
           <ul className="divide-y rounded-xl border border-dashed bg-[var(--surface-2)]">
             {archived.map((a) => (
               <li key={a.id} className="px-4 py-2.5 opacity-70">
@@ -153,20 +157,20 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[0.875rem] font-medium">
                       {a.name}
-                      <span className="muted ml-2 text-xs font-normal">arquivada</span>
+                      <span className="muted ml-2 text-xs font-normal">{translatePlanning(locale, "arquivada")}</span>
                     </p>
                     <p className="muted truncate text-xs">
-                      {TYPE_LABEL[a.type] ?? a.type}
+                      {localizedTYPE_LABEL(locale)[a.type] ?? a.type}
                       {a.institution ? ` · ${a.institution}` : ""}
                       {a.type === "CREDIT_CARD" && a.closingDay && a.dueDay
-                        ? ` · Fecha dia ${a.closingDay}, vence dia ${a.dueDay}`
+                        ? translatePlanning(locale, " · Fecha dia {0}, vence dia {1}", a.closingDay, a.dueDay)
                         : ""}
-                      {` · ${a.transactionCount} lançamento(s)`}
+                      {translatePlanning(locale, " · {0} lançamento(s)", a.transactionCount)}
                     </p>
                   </div>
                   <button
                     type="button"
-                    aria-label={`Editar ${a.name}`}
+                    aria-label={translatePlanning(locale, "Editar {0}", a.name)}
                     onClick={() => toggleEdit(a.id)}
                     className="inline-flex items-center justify-center min-h-11 min-w-11 muted cursor-pointer rounded-lg p-2.5 hover:bg-[var(--surface)] hover:text-[var(--text-brand)]"
                   >
@@ -174,7 +178,7 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
                   </button>
                   <button
                     type="button"
-                    aria-label={`Reativar ${a.name}`}
+                    aria-label={translatePlanning(locale, "Reativar {0}", a.name)}
                     onClick={() => start(async () => void (await restoreAccount(a.id)))}
                     className="inline-flex items-center justify-center min-h-11 min-w-11 muted cursor-pointer rounded-lg p-2.5 hover:bg-[var(--color-money-in-soft)] hover:text-[var(--text-in)]"
                   >
@@ -182,7 +186,7 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
                   </button>
                   <button
                     type="button"
-                    aria-label={`Excluir ${a.name} definitivamente`}
+                    aria-label={translatePlanning(locale, "Excluir {0} definitivamente", a.name)}
                     onClick={() => void removeForever(a)}
                     className="inline-flex items-center justify-center min-h-11 min-w-11 muted cursor-pointer rounded-lg p-2.5 hover:bg-[var(--color-money-out-soft)] hover:text-[var(--text-out)]"
                   >
@@ -200,52 +204,51 @@ export function AccountsPanel({ accounts }: { accounts: Account[] }) {
 
       {open ? (
         <form ref={ref} action={formAction} className="space-y-3 rounded-xl border bg-[var(--surface-2)] p-4">
-          <Field label="Nome">
-            <Input className="min-h-12 min-w-0 max-w-full text-base!" name="name" required placeholder="Ex.: Nubank" />
+          <Field label={translatePlanning(locale, "Nome")}>
+            <Input className="min-h-12 min-w-0 max-w-full text-base!" name="name" required placeholder={translatePlanning(locale, "Ex.: Nubank")} />
           </Field>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Tipo">
+            <Field label={translatePlanning(locale, "Tipo")}>
               <Select className="min-h-12 min-w-0 max-w-full text-base!" name="type" defaultValue="CHECKING" onChange={(e) => setNewType(e.target.value)}>
-                <option value="CHECKING">Conta corrente</option>
-                <option value="SAVINGS">Poupança</option>
-                <option value="CREDIT_CARD">Cartão de crédito</option>
-                <option value="CASH">Dinheiro</option>
-                <option value="INVESTMENT">Investimento</option>
+                <option value="CHECKING">{translatePlanning(locale, "Conta corrente")}</option>
+                <option value="SAVINGS">{translatePlanning(locale, "Poupança")}</option>
+                <option value="CREDIT_CARD">{translatePlanning(locale, "Cartão de crédito")}</option>
+                <option value="CASH">{translatePlanning(locale, "Dinheiro")}</option>
+                <option value="INVESTMENT">{translatePlanning(locale, "Investimento")}</option>
               </Select>
             </Field>
-            <Field label="Instituição (opcional)">
-              <Input className="min-h-12 min-w-0 max-w-full text-base!" name="institution" placeholder="Ex.: Banco Inter" />
+            <Field label={translatePlanning(locale, "Instituição (opcional)")}>
+              <Input className="min-h-12 min-w-0 max-w-full text-base!" name="institution" placeholder={translatePlanning(locale, "Ex.: Banco Inter")} />
             </Field>
           </div>
           {newType === "CREDIT_CARD" && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field label="Dia de fechamento">
-                <Input className="min-h-12 min-w-0 max-w-full text-base!" name="closingDay" type="number" min={1} max={31} placeholder="Ex.: 25" />
+              <Field label={translatePlanning(locale, "Dia de fechamento")}>
+                <Input className="min-h-12 min-w-0 max-w-full text-base!" name="closingDay" type="number" min={1} max={31} placeholder={translatePlanning(locale, "Ex.: 25")} />
               </Field>
-              <Field label="Dia de vencimento">
-                <Input className="min-h-12 min-w-0 max-w-full text-base!" name="dueDay" type="number" min={1} max={31} placeholder="Ex.: 5" />
+              <Field label={translatePlanning(locale, "Dia de vencimento")}>
+                <Input className="min-h-12 min-w-0 max-w-full text-base!" name="dueDay" type="number" min={1} max={31} placeholder={translatePlanning(locale, "Ex.: 5")} />
               </Field>
             </div>
           )}
           {state.error ? <p className="text-[0.8125rem] text-[var(--text-out)]">{state.error}</p> : null}
           <div className="flex gap-2">
-            <SubmitButton className="min-h-11 min-w-11" size="sm">Adicionar conta</SubmitButton>
+            <SubmitButton className="min-h-11 min-w-11" size="sm">{translatePlanning(locale, "Adicionar conta")}</SubmitButton>
             <Button className="min-h-11 min-w-11" type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
+              {translatePlanning(locale, "Cancelar")} </Button>
           </div>
         </form>
       ) : (
         <Button className="min-h-11 min-w-11" variant="outline" size="sm" onClick={() => setOpen(true)}>
           <Plus className="size-4" />
-          Nova conta
-        </Button>
+          {translatePlanning(locale, "Nova conta")} </Button>
       )}
     </div>
   );
 }
 
 function EditForm({ account, onDone }: { account: Account; onDone: () => void }) {
+  const locale = useLocale();
   const [state, formAction] = useActionState(updateAccount, initial);
   const [type, setType] = useState(account.type);
   const doneRef = useRef(onDone);
@@ -259,56 +262,55 @@ function EditForm({ account, onDone }: { account: Account; onDone: () => void })
   return (
     <form action={formAction} className="mt-3 space-y-3 rounded-xl border bg-[var(--surface-2)] p-3">
       <input type="hidden" name="id" value={account.id} />
-      <Field label="Nome">
+      <Field label={translatePlanning(locale, "Nome")}>
         <Input className="min-h-12 min-w-0 max-w-full text-base!" name="name" required defaultValue={account.name} />
       </Field>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Tipo">
+        <Field label={translatePlanning(locale, "Tipo")}>
           <Select className="min-h-12 min-w-0 max-w-full text-base!" name="type" defaultValue={account.type} onChange={(e) => setType(e.target.value)}>
-            <option value="CHECKING">Conta corrente</option>
-            <option value="SAVINGS">Poupança</option>
-            <option value="CREDIT_CARD">Cartão de crédito</option>
-            <option value="CASH">Dinheiro</option>
-            <option value="INVESTMENT">Investimento</option>
+            <option value="CHECKING">{translatePlanning(locale, "Conta corrente")}</option>
+            <option value="SAVINGS">{translatePlanning(locale, "Poupança")}</option>
+            <option value="CREDIT_CARD">{translatePlanning(locale, "Cartão de crédito")}</option>
+            <option value="CASH">{translatePlanning(locale, "Dinheiro")}</option>
+            <option value="INVESTMENT">{translatePlanning(locale, "Investimento")}</option>
           </Select>
         </Field>
-        <Field label="Instituição (opcional)">
-          <Input className="min-h-12 min-w-0 max-w-full text-base!" name="institution" defaultValue={account.institution ?? ""} placeholder="Ex.: Banco Inter" />
+        <Field label={translatePlanning(locale, "Instituição (opcional)")}>
+          <Input className="min-h-12 min-w-0 max-w-full text-base!" name="institution" defaultValue={account.institution ?? ""} placeholder={translatePlanning(locale, "Ex.: Banco Inter")} />
         </Field>
       </div>
       {type === "CREDIT_CARD" && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Dia de fechamento">
+          <Field label={translatePlanning(locale, "Dia de fechamento")}>
             <Input className="min-h-12 min-w-0 max-w-full text-base!"
               name="closingDay"
               type="number"
               min={1}
               max={31}
               defaultValue={account.closingDay ?? ""}
-              placeholder="Ex.: 25"
+              placeholder={translatePlanning(locale, "Ex.: 25")}
             />
           </Field>
-          <Field label="Dia de vencimento">
+          <Field label={translatePlanning(locale, "Dia de vencimento")}>
             <Input className="min-h-12 min-w-0 max-w-full text-base!"
               name="dueDay"
               type="number"
               min={1}
               max={31}
               defaultValue={account.dueDay ?? ""}
-              placeholder="Ex.: 5"
+              placeholder={translatePlanning(locale, "Ex.: 5")}
             />
           </Field>
         </div>
       )}
-      <Field label="Cor">
+      <Field label={translatePlanning(locale, "Cor")}>
         <Input name="color" type="color" defaultValue={account.color} className="h-11 w-24 p-1" />
       </Field>
       {state.error ? <p className="text-[0.8125rem] text-[var(--text-out)]">{state.error}</p> : null}
       <div className="flex gap-2">
-        <SubmitButton className="min-h-11 min-w-11" size="sm">Salvar</SubmitButton>
+        <SubmitButton className="min-h-11 min-w-11" size="sm">{translatePlanning(locale, "Salvar")}</SubmitButton>
         <Button className="min-h-11 min-w-11" type="button" size="sm" variant="ghost" onClick={onDone}>
-          Cancelar
-        </Button>
+          {translatePlanning(locale, "Cancelar")} </Button>
       </div>
     </form>
   );

@@ -1,5 +1,8 @@
 "use client";
 
+import type { Locale } from "@/lib/i18n/config";
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { contributeToGoal, deleteGoal } from "@/server/actions/goals";
@@ -14,14 +17,15 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Hint } from "@/components/ui/hint";
 import { GoalRecurringControl, type PlainGoalRecurringRule } from "./goal-recurring-control";
 
-const KIND_LABEL: Record<string, string> = {
-  EMERGENCY_FUND: "Reserva",
-  PURCHASE: "Compra",
-  TRIP: "Viagem",
-  DEBT_PAYOFF: "Quitar dívida",
-  INVESTMENT: "Investimento",
-  CUSTOM: "Meta",
-};
+function localizedKIND_LABEL(locale: Locale): Record<string, string> { return {
+  EMERGENCY_FUND: translatePlanning(locale, "Reserva"),
+  PURCHASE: translatePlanning(locale, "Compra"),
+  TRIP: translatePlanning(locale, "Viagem"),
+  DEBT_PAYOFF: translatePlanning(locale, "Quitar dívida"),
+  INVESTMENT: translatePlanning(locale, "Investimento"),
+  CUSTOM: translatePlanning(locale, "Meta"),
+}; }
+
 
 export type PlainGoal = {
   id: string;
@@ -43,6 +47,7 @@ export function GoalCard({
   monthsAtCurrentPace: number | null;
   recurringRule?: PlainGoalRecurringRule | null;
 }) {
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -59,23 +64,22 @@ export function GoalCard({
           <div className="flex flex-wrap items-center gap-2">
             <h3 title={goal.name} className="min-w-0 break-words text-[0.9375rem] font-semibold [overflow-wrap:anywhere]">{goal.name}</h3>
             <span className="muted rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-xs font-medium ring-1 ring-[var(--border)] ring-inset">
-              {KIND_LABEL[goal.kind] ?? "Meta"}
+              {localizedKIND_LABEL(locale)[goal.kind] ?? translatePlanning(locale, "Meta")}
             </span>
             {done ? (
               <span className="rounded-md bg-[var(--color-money-in-soft)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-in)]">
-                concluída
-              </span>
+                {translatePlanning(locale, "concluída")} </span>
             ) : null}
           </div>
           {goal.note ? <p className="muted mt-1 text-[0.8125rem] leading-snug">{goal.note}</p> : null}
         </div>
         <button
           type="button"
-          aria-label={`Excluir meta ${goal.name}`}
+          aria-label={translatePlanning(locale, "Excluir meta {0}", goal.name)}
           onClick={async () => {
             const ok = await confirm({
-              title: `Excluir a meta "${goal.name}"?`,
-              confirmLabel: "Excluir",
+              title: translatePlanning(locale, "Excluir a meta \"{0}\"?", goal.name),
+              confirmLabel: translatePlanning(locale, "Excluir"),
               tone: "danger",
             });
             if (!ok) return;
@@ -101,36 +105,35 @@ export function GoalCard({
               onClick={() => setError(null)}
               className="min-h-11 min-w-11 ml-auto text-[0.75rem] font-medium hover:underline"
             >
-              Fechar
-            </button>
+              {translatePlanning(locale, "Fechar")} </button>
           </Hint>
         </div>
       )}
 
       <div className="mb-1.5 flex flex-wrap items-baseline justify-between gap-3">
-        <span className="tnum break-all text-lg font-semibold">{formatCents(goal.savedCents)}</span>
+        <span className="tnum break-all text-lg font-semibold">{formatCents(goal.savedCents, locale)}</span>
         <span className="muted tnum text-[0.8125rem]">
-          {pct(goal.savedCents, goal.targetCents)}% de {formatCents(goal.targetCents)}
+          {pct(goal.savedCents, goal.targetCents)}{translatePlanning(locale, "% de")} {formatCents(goal.targetCents, locale)}
         </span>
       </div>
-      <Progress value={progress} color={done ? "var(--text-in)" : "var(--text-info)"} label={`Progresso da meta ${goal.name}`} />
+      <Progress value={progress} color={done ? "var(--text-in)" : "var(--text-info)"} label={translatePlanning(locale, "Progresso da meta {0}", goal.name)} />
 
       {savingsNeeded !== null && savingsNeeded > 0 ? (
         <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--surface-2)] px-2.5 py-1.5 text-xs">
           <div className="flex items-center gap-1.5">
-            <span className="font-medium text-[var(--text-brand)]">Quanto guardar por mês:</span>
-            <strong className="tnum font-semibold text-[var(--text-primary)]">{formatCents(savingsNeeded)}/mês</strong>
+            <span className="font-medium text-[var(--text-brand)]">{translatePlanning(locale, "Quanto guardar por mês:")}</span>
+            <strong className="tnum font-semibold text-[var(--text-primary)]">{formatCents(savingsNeeded, locale)}{translatePlanning(locale, "/mês")}</strong>
           </div>
-          {goal.targetDate ? <span className="muted">para atingir até {formatDate(goal.targetDate)}</span> : null}
+          {goal.targetDate ? <span className="muted">{translatePlanning(locale, "para atingir até")} {formatDate(goal.targetDate, locale)}</span> : null}
         </div>
       ) : null}
 
       <div className="muted mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
-        <span>Falta {formatCents(Math.max(0, goal.targetCents - goal.savedCents))}</span>
-        {goal.targetDate ? <span>Prazo: {formatDate(goal.targetDate)}</span> : null}
+        <span>{translatePlanning(locale, "Falta")} {formatCents(Math.max(0, goal.targetCents - goal.savedCents), locale)}</span>
+        {goal.targetDate ? <span>{translatePlanning(locale, "Prazo:")} {formatDate(goal.targetDate, locale)}</span> : null}
         {!done && monthsAtCurrentPace !== null ? (
           <span>
-            No ritmo atual: ~{monthsAtCurrentPace} {monthsAtCurrentPace === 1 ? "mês" : "meses"}
+            {translatePlanning(locale, "No ritmo atual: ~")}{monthsAtCurrentPace} {monthsAtCurrentPace === 1 ? translatePlanning(locale, "mês") : translatePlanning(locale, "meses")}
           </span>
         ) : null}
         <button
@@ -138,7 +141,7 @@ export function GoalCard({
           onClick={() => setOpen((v) => !v)}
           className="min-h-11 min-w-11 ml-auto cursor-pointer font-medium text-[var(--text-brand)] hover:underline"
         >
-          {open ? "Fechar" : "Registrar aporte"}
+          {open ? translatePlanning(locale, "Fechar") : translatePlanning(locale, "Registrar aporte")}
         </button>
       </div>
 
@@ -151,15 +154,13 @@ export function GoalCard({
           }}
         >
           <div className="min-w-36 flex-1">
-            <label className="mb-1.5 block text-xs font-medium">Valor</label>
-            <MoneyInput className="min-h-12 min-w-0 max-w-full text-base!" name="amount" inputMode="decimal" placeholder="0,00" required />
+            <label className="mb-1.5 block text-xs font-medium">{translatePlanning(locale, "Valor")}</label>
+            <MoneyInput className="min-h-12 min-w-0 max-w-full text-base!" name="amount" inputMode="decimal" placeholder={translatePlanning(locale, "0,00")} required />
           </div>
           <Button className="min-h-11 min-w-11" type="submit" name="mode" value="add" size="sm">
-            Guardar
-          </Button>
+            {translatePlanning(locale, "Guardar")} </Button>
           <Button className="min-h-11 min-w-11" type="submit" name="mode" value="withdraw" variant="outline" size="sm">
-            Resgatar
-          </Button>
+            {translatePlanning(locale, "Resgatar")} </Button>
         </form>
       ) : null}
 

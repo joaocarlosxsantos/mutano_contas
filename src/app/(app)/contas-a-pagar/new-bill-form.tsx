@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { createBill, type ActionState } from "@/server/actions/bills";
@@ -22,6 +24,7 @@ export type PlainGrouping = { id: string; name: string; color: string };
  * trocar pra divisão manual depois, editando a conta já criada).
  */
 export function NewBillForm({ groupings, monthRef }: { groupings: PlainGrouping[]; monthRef: MonthRef }) {
+  const locale = useLocale();
   const [state, formAction] = useActionState(createBill, initial);
   const [recurring, setRecurring] = useState(true);
   const [type, setType] = useState<"INDIVIDUAL" | "GROUP">("INDIVIDUAL");
@@ -49,50 +52,49 @@ export function NewBillForm({ groupings, monthRef }: { groupings: PlainGrouping[
       <input type="hidden" name="year" value={monthRef.year} />
       <input type="hidden" name="month" value={monthRef.month} />
 
-      <Field label="Nome">
-        <Input className="min-h-12 min-w-0 max-w-full text-base!" name="name" required placeholder="Ex.: Conta de luz" />
+      <Field label={translatePlanning(locale, "Nome")}>
+        <Input className="min-h-12 min-w-0 max-w-full text-base!" name="name" required placeholder={translatePlanning(locale, "Ex.: Conta de luz")} />
       </Field>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Repetição">
+        <Field label={translatePlanning(locale, "Repetição")}>
           <Select className="min-h-12 min-w-0 max-w-full text-base!" value={recurring ? "1" : "0"} onChange={(e) => setRecurring(e.target.value === "1")}>
-            <option value="1">Repete todo mês</option>
-            <option value="0">Única deste mês ({monthRefToParam(monthRef)})</option>
+            <option value="1">{translatePlanning(locale, "Repete todo mês")}</option>
+            <option value="0">{translatePlanning(locale, "Única deste mês (")}{monthRefToParam(monthRef)})</option>
           </Select>
         </Field>
-        <Field label="Tipo">
+        <Field label={translatePlanning(locale, "Tipo")}>
           <Select className="min-h-12 min-w-0 max-w-full text-base!" name="type" value={type} onChange={(e) => setType(e.target.value as "INDIVIDUAL" | "GROUP")}>
-            <option value="INDIVIDUAL">Individual</option>
-            <option value="GROUP">Em grupo (dividir)</option>
+            <option value="INDIVIDUAL">{translatePlanning(locale, "Individual")}</option>
+            <option value="GROUP">{translatePlanning(locale, "Em grupo (dividir)")}</option>
           </Select>
         </Field>
       </div>
 
       {!recurring ? (
         <Field
-          label="Valor total"
+          label={translatePlanning(locale, "Valor total")}
           hint={
             type === "GROUP"
-              ? "Opcional — se preencher, começa dividido igualmente entre as pessoas abaixo."
-              : "Opcional — preencha agora ou depois na lista."
+              ? translatePlanning(locale, "Opcional — se preencher, começa dividido igualmente entre as pessoas abaixo.")
+              : translatePlanning(locale, "Opcional — preencha agora ou depois na lista.")
           }
         >
-          <Input className="min-h-12 min-w-0 max-w-full text-base!" name="total" inputMode="decimal" placeholder="0,00" />
+          <Input className="min-h-12 min-w-0 max-w-full text-base!" name="total" inputMode="decimal" placeholder={translatePlanning(locale, "0,00")} />
         </Field>
       ) : (
         <p className="muted -mt-1 text-xs leading-relaxed">
-          Conta recorrente não tem valor fixo inicial — após ser gerada no mês, preencha o valor na lista.
-        </p>
+          {translatePlanning(locale, "Conta recorrente não tem valor fixo inicial — após ser gerada no mês, preencha o valor na lista.")} </p>
       )}
 
-      <Field label="Dia de vencimento" hint="Opcional — dia do mês em que a conta vence (1 a 31).">
-        <Input className="min-h-12 min-w-0 max-w-full text-base!" name="dueDay" type="number" min={1} max={31} placeholder="Ex.: 10" />
+      <Field label={translatePlanning(locale, "Dia de vencimento")} hint={translatePlanning(locale, "Opcional — dia do mês em que a conta vence (1 a 31).")}>
+        <Input className="min-h-12 min-w-0 max-w-full text-base!" name="dueDay" type="number" min={1} max={31} placeholder={translatePlanning(locale, "Ex.: 10")} />
       </Field>
 
       {groupings.length ? (
-        <Field label="Agrupamento" hint="Opcional — só para organizar.">
+        <Field label={translatePlanning(locale, "Agrupamento")} hint={translatePlanning(locale, "Opcional — só para organizar.")}>
           <Select className="min-h-12 min-w-0 max-w-full text-base!" name="groupingId" defaultValue="">
-            <option value="">Sem agrupamento</option>
+            <option value="">{translatePlanning(locale, "Sem agrupamento")}</option>
             {groupings.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
@@ -104,15 +106,15 @@ export function NewBillForm({ groupings, monthRef }: { groupings: PlainGrouping[
 
       {type === "GROUP" ? (
         <div className="space-y-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-3">
-          <p className="text-[0.8125rem] font-medium">Quem divide essa conta</p>
+          <p className="text-[0.8125rem] font-medium">{translatePlanning(locale, "Quem divide essa conta")}</p>
           {rows.map((key, i) => (
             <div key={key} className="flex items-center gap-2">
-              <Input name="participantName" placeholder="Nome" required className="min-h-12 min-w-0 max-w-full text-base! min-w-0 flex-1" />
-              <Input name="participantPhone" placeholder="Telefone (opcional)" className="min-h-12 min-w-0 max-w-full text-base! w-28 sm:w-36" />
+              <Input name="participantName" placeholder={translatePlanning(locale, "Nome")} required className="min-h-12 min-w-0 max-w-full text-base! min-w-0 flex-1" />
+              <Input name="participantPhone" placeholder={translatePlanning(locale, "Telefone (opcional)")} className="min-h-12 min-w-0 max-w-full text-base! w-28 sm:w-36" />
               {rows.length > 1 ? (
                 <button
                   type="button"
-                  aria-label="Remover pessoa"
+                  aria-label={translatePlanning(locale, "Remover pessoa")}
                   onClick={() => setRows((r) => r.filter((_, idx) => idx !== i))}
                   className="inline-flex items-center justify-center min-h-11 min-w-11 muted shrink-0 cursor-pointer rounded-lg p-2 hover:bg-[var(--color-money-out-soft)] hover:text-[var(--text-out)]"
                 >
@@ -127,15 +129,13 @@ export function NewBillForm({ groupings, monthRef }: { groupings: PlainGrouping[
             className="min-h-11 min-w-11 inline-flex cursor-pointer items-center gap-1.5 text-[0.8125rem] font-medium text-[var(--text-brand)] hover:underline"
           >
             <Plus className="size-3.5" />
-            Adicionar pessoa
-          </button>
+            {translatePlanning(locale, "Adicionar pessoa")} </button>
         </div>
       ) : null}
 
       {state.error ? <p className="text-[0.8125rem] text-[var(--text-out)]">{state.error}</p> : null}
-      <SubmitButton size="sm" className="min-h-11 min-w-11 w-full" pendingLabel="Criando...">
-        Criar conta
-      </SubmitButton>
+      <SubmitButton size="sm" className="min-h-11 min-w-11 w-full" pendingLabel={translatePlanning(locale, "Criando...")}>
+        {translatePlanning(locale, "Criar conta")} </SubmitButton>
     </form>
   );
 }

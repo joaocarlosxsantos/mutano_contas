@@ -1,5 +1,8 @@
 "use client";
 
+import type { Locale } from "@/lib/i18n/config";
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useMemo, useState } from "react";
 import { MobileDisclosure } from "@/components/ui/mobile-disclosure";
 import { Card, CardHeader } from "@/components/ui/card";
@@ -9,11 +12,12 @@ import { ProjectionChart, type ProjectionRow } from "@/components/charts/project
 import { formatCents, parseMoneyToCents } from "@/lib/money";
 import { projectBalance } from "@/lib/finance";
 
-const SCENARIOS = [
-  { key: "conservador", name: "Conservador", rate: 6, color: "var(--text-brand)", desc: "Renda fixa pós-fixada em ano de juro baixo" },
-  { key: "realista", name: "Realista", rate: 10, color: "var(--color-money-in)", desc: "Carteira equilibrada ao longo do tempo" },
-  { key: "otimista", name: "Otimista", rate: 14, color: "var(--color-variable)", desc: "Cenário favorável, com mais risco envolvido" },
-] as const;
+function localizedSCENARIOS(locale: Locale) { return [
+  { key: "conservador", name: translatePlanning(locale, "Conservador"), rate: 6, color: "var(--text-brand)", desc: translatePlanning(locale, "Renda fixa pós-fixada em ano de juro baixo") },
+  { key: "realista", name: translatePlanning(locale, "Realista"), rate: 10, color: "var(--color-money-in)", desc: translatePlanning(locale, "Carteira equilibrada ao longo do tempo") },
+  { key: "otimista", name: translatePlanning(locale, "Otimista"), rate: 14, color: "var(--color-variable)", desc: translatePlanning(locale, "Cenário favorável, com mais risco envolvido") },
+] as const; }
+
 
 const HORIZONS = [1, 3, 5, 10, 20];
 
@@ -24,8 +28,9 @@ export function ProjectionStudio({
   startCents: number;
   suggestedMonthlyCents: number;
 }) {
-  const [start, setStart] = useState(centsToInput(startCents));
-  const [monthly, setMonthly] = useState(centsToInput(suggestedMonthlyCents));
+  const locale = useLocale();
+  const [start, setStart] = useState(centsToInput(startCents, locale));
+  const [monthly, setMonthly] = useState(centsToInput(suggestedMonthlyCents, locale));
   const [years, setYears] = useState(10);
 
   const startC = parseMoneyToCents(start);
@@ -33,15 +38,15 @@ export function ProjectionStudio({
   const months = years * 12;
 
   const { rows, finals } = useMemo(() => {
-    const label = (i: number) => (i === 0 ? "hoje" : i % 12 === 0 ? `${i / 12}a` : `${i}m`);
-    const series = SCENARIOS.map((s) => ({
+    const label = (i: number) => (i === 0 ? translatePlanning(locale, "hoje") : i % 12 === 0 ? `${i / 12}${locale === "en" ? "y" : "a"}` : `${i}m`);
+    const series = localizedSCENARIOS(locale).map((s) => ({
       ...s,
       points: projectBalance(startC, monthlyC, s.rate, months, label),
     }));
 
     const rows: ProjectionRow[] = [];
     for (let i = 0; i <= months; i++) {
-      const row: ProjectionRow = { label: i % 12 === 0 ? `${i / 12} ano${i / 12 === 1 ? "" : "s"}` : "" };
+      const row: ProjectionRow = { label: i % 12 === 0 ? `${i / 12} ${translatePlanning(locale, i / 12 === 1 ? "ano" : "anos")}` : "" };
       for (const s of series) row[s.key] = s.points[i].balanceCents;
       rows.push(row);
     }
@@ -56,7 +61,7 @@ export function ProjectionStudio({
     }));
 
     return { rows, finals };
-  }, [startC, monthlyC, months]);
+  }, [startC, monthlyC, months, locale]);
 
   const invested = startC + monthlyC * months;
   const realistic = finals[1].finalCents;
@@ -66,15 +71,15 @@ export function ProjectionStudio({
     <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
       <div className="order-2 min-w-0 space-y-4 lg:order-1">
         <Card className="min-w-0">
-          <CardHeader title="Seus números" subtitle="Preenchemos com o que já sabemos sobre você." />
-          <MobileDisclosure label="Ajustar valores e horizonte"><div className="space-y-4">
-            <Field label="Quanto você já tem guardado">
+          <CardHeader title={translatePlanning(locale, "Seus números")} subtitle={translatePlanning(locale, "Preenchemos com o que já sabemos sobre você.")} />
+          <MobileDisclosure label={translatePlanning(locale, "Ajustar valores e horizonte")}><div className="space-y-4">
+            <Field label={translatePlanning(locale, "Quanto você já tem guardado")}>
               <MoneyInput className="min-h-12 min-w-0 max-w-full text-base!" value={start} onChange={(e) => setStart(e.target.value)} inputMode="decimal" />
             </Field>
-            <Field label="Quanto vai guardar por mês" hint="Sugerimos a sobra do seu mês atual.">
+            <Field label={translatePlanning(locale, "Quanto vai guardar por mês")} hint={translatePlanning(locale, "Sugerimos a sobra do seu mês atual.")}>
               <MoneyInput className="min-h-12 min-w-0 max-w-full text-base!" value={monthly} onChange={(e) => setMonthly(e.target.value)} inputMode="decimal" />
             </Field>
-            <Field label="Horizonte">
+            <Field label={translatePlanning(locale, "Horizonte")}>
               <div className="flex flex-wrap gap-1.5">
                 {HORIZONS.map((y) => (
                   <button
@@ -85,7 +90,7 @@ export function ProjectionStudio({
                         ? "h-9 cursor-pointer rounded-[var(--radius-button)] border border-[var(--acento)] bg-[var(--color-save-soft)] px-3 text-[0.8125rem] font-medium text-[var(--text-brand)]"
                         : "h-9 cursor-pointer rounded-[var(--radius-button)] border border-[var(--border)] px-3 text-[0.8125rem] font-medium text-[var(--text)] hover:bg-[var(--surface-2)]"].filter(Boolean).join(" ")}
                   >
-                    {y} ano{y === 1 ? "" : "s"}
+                    {y} {translatePlanning(locale, "ano")}{y === 1 ? "" : "s"}
                   </button>
                 ))}
               </div>
@@ -93,23 +98,20 @@ export function ProjectionStudio({
           </div></MobileDisclosure>
         </Card>
 
-        <Hint tone="tip" title="O que move o gráfico">
-          Nos primeiros anos, quem manda é <strong>o quanto você aporta</strong>. Depois de uns 10
-          anos, o juro sobre o juro passa a pesar mais que o aporte. Por isso começar cedo importa
-          mais do que acertar o investimento perfeito.
-        </Hint>
+        <Hint tone="tip" title={translatePlanning(locale, "O que move o gráfico")}>
+          {translatePlanning(locale, "Nos primeiros anos, quem manda é")} <strong>{translatePlanning(locale, "o quanto você aporta")}</strong>{translatePlanning(locale, ". Depois de uns 10 anos, o juro sobre o juro passa a pesar mais que o aporte. Por isso começar cedo importa mais do que acertar o investimento perfeito.")} </Hint>
       </div>
 
       <div className="order-1 min-w-0 space-y-4 lg:order-2">
         <Card className="min-w-0">
           <CardHeader
-            title={`Patrimônio projetado em ${years} ano${years === 1 ? "" : "s"}`}
-            mobileTitle={`Patrimônio em ${years} anos`}
-            subtitle="Três cenários de rentabilidade anual sobre os mesmos aportes."
+            title={translatePlanning(locale, "Patrimônio projetado em {0} ano{1}", years, years === 1 ? "" : "s")}
+            mobileTitle={translatePlanning(locale, "Patrimônio em {0} anos", years)}
+            subtitle={translatePlanning(locale, "Três cenários de rentabilidade anual sobre os mesmos aportes.")}
           />
           <ProjectionChart
             data={rows}
-            series={SCENARIOS.map((s) => ({ key: s.key, name: `${s.name} (${s.rate}% a.a.)`, color: s.color }))}
+            series={localizedSCENARIOS(locale).map((s) => ({ key: s.key, name: `${s.name} (${s.rate}${translatePlanning(locale, "% a.a.")})`, color: s.color }))}
           />
         </Card>
 
@@ -119,28 +121,26 @@ export function ProjectionStudio({
               <div className="mb-2 flex items-center gap-2">
                 <span className="size-2.5 rounded-[3px]" style={{ background: f.color }} />
                 <p className="text-[0.8125rem] font-medium">{f.name}</p>
-                <span className="muted ml-auto text-xs">{f.rate}% a.a.</span>
+                <span className="muted ml-auto text-xs">{f.rate}{translatePlanning(locale, "% a.a.")}</span>
               </div>
-              <p className="tnum break-all text-[clamp(1rem,2vw,1.25rem)] font-semibold tracking-tight">{formatCents(f.finalCents)}</p>
+              <p className="tnum break-all text-[clamp(1rem,2vw,1.25rem)] font-semibold tracking-tight">{formatCents(f.finalCents, locale)}</p>
               <p className="muted mt-1 text-xs leading-snug">{f.desc}</p>
             </Card>
           ))}
         </div>
 
         <Card className="min-w-0 max-sm:border-0 max-sm:bg-transparent max-sm:p-0 max-sm:shadow-none">
-          <CardHeader title="Decompondo o cenário realista" subtitle="Quanto veio de você e quanto veio do juro." />
+          <CardHeader title={translatePlanning(locale, "Decompondo o cenário realista")} subtitle={translatePlanning(locale, "Quanto veio de você e quanto veio do juro.")} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <Metric label="Você depositou" value={formatCents(invested)} />
-            <Metric label="Juros acumulados" value={formatCents(Math.max(0, earnings))} />
+            <Metric label={translatePlanning(locale, "Você depositou")} value={formatCents(invested, locale)} />
+            <Metric label={translatePlanning(locale, "Juros acumulados")} value={formatCents(Math.max(0, earnings), locale)} />
             <Metric
-              label="Parte do total que é juro"
+              label={translatePlanning(locale, "Parte do total que é juro")}
               value={realistic > 0 ? `${Math.round((Math.max(0, earnings) / realistic) * 100)}%` : "—"}
             />
           </div>
           <p className="muted mt-4 text-xs leading-relaxed">
-            Projeção nominal, sem considerar inflação nem imposto de renda. Serve para comparar
-            cenários e entender ordem de grandeza — não é promessa de rentabilidade.
-          </p>
+            {translatePlanning(locale, "Projeção nominal, sem considerar inflação nem imposto de renda. Serve para comparar cenários e entender ordem de grandeza — não é promessa de rentabilidade.")} </p>
         </Card>
       </div>
     </div>
@@ -156,6 +156,6 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function centsToInput(cents: number): string {
-  return (cents / 100).toFixed(2).replace(".", ",");
+function centsToInput(cents: number, locale: Locale = "pt-BR"): string {
+  return (cents / 100).toFixed(2).replace(".", locale === "en" ? "." : ",");
 }

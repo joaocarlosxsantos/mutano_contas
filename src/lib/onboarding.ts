@@ -1,3 +1,5 @@
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { z } from "zod";
 import { getNavigationSections } from "@/components/navigation-model";
 import { canUseCapability, USAGE_PROFILES, type UsageProfile } from "./usage-profile";
@@ -12,7 +14,8 @@ export type TourStopId = typeof TOUR_STOP_IDS[number];
 export type TourStatus = "not_started" | "active" | "paused" | "completed" | "dismissed";
 export type IntegrationProgress = "not_started" | "needs_accounts" | "pending" | "syncing" | "error" | "partial" | "complete";
 
-export const PLUGGY_ACCESS_GUIDANCE = "Use o caminho correspondente à sua aplicação: seus próprios dados via Meu Pluggy ou uma aplicação habilitada para dados de terceiros. Confira a modalidade e as permissões com a Pluggy. Essa orientação não altera sua conta nem sua licença.";
+function localizedPLUGGY_ACCESS_GUIDANCE(locale: Locale) { return translateServer(locale, "Use o caminho correspondente à sua aplicação: seus próprios dados via Meu Pluggy ou uma aplicação habilitada para dados de terceiros. Confira a modalidade e as permissões com a Pluggy. Essa orientação não altera sua conta nem sua licença."); }
+export const PLUGGY_ACCESS_GUIDANCE = localizedPLUGGY_ACCESS_GUIDANCE("pt-BR");
 
 export type OnboardingFacts = {
   registered: boolean;
@@ -66,25 +69,25 @@ export function writeOnboardingLocalState(storage: { setItem(key: string, value:
   try { storage.setItem(onboardingStorageKey(userId), JSON.stringify(parseOnboardingLocalState(state))); return true; } catch { return false; }
 }
 
-export function getOnboardingTour(profile: UsageProfile) {
-  const sections = getNavigationSections(profile, "desktop");
+export function getOnboardingTour(profile: UsageProfile, locale: Locale = "pt-BR") {
+  const sections = getNavigationSections(profile, "desktop", locale);
   return [
     ...sections.map(section => ({ id: section.id as TourStopId, title: section.label, href: section.items[0]!.href,
       routes: section.items.map(item => ({ href: item.href, label: item.label })) })),
-    { id: "notifications" as const, title: "Notificações, Telegram e chat", href: "/notificacoes", routes: [{ href: "/notificacoes", label: "Escolher avisos" }] },
+    { id: "notifications" as const, title: translateServer(locale, "Notificações, Telegram e chat"), href: "/notificacoes", routes: [{ href: "/notificacoes", label: translateServer(locale, "Escolher avisos") }] },
   ];
 }
 
 export type OnboardingLocalEvent = { type: "skip" | "resume-step"; stepId: OnboardingStepId }
   | { type: "tour-start" | "tour-resume" | "tour-pause" | "tour-complete" | "tour-dismiss" }
   | { type: "tour-go"; stopId: TourStopId };
-export function transitionOnboardingLocalState(input: OnboardingLocalState, event: OnboardingLocalEvent, profile: UsageProfile): OnboardingLocalState {
+export function transitionOnboardingLocalState(input: OnboardingLocalState, event: OnboardingLocalEvent, profile: UsageProfile, locale: Locale = "pt-BR"): OnboardingLocalState {
   const state = parseOnboardingLocalState(input);
   if (event.type === "skip" || event.type === "resume-step") {
     if (!skippable.includes(event.stepId)) return state;
     return { ...state, skippedSteps: event.type === "skip" ? [...new Set([...state.skippedSteps, event.stepId])] : state.skippedSteps.filter(id => id !== event.stepId) };
   }
-  const stops = getOnboardingTour(profile);
+  const stops = getOnboardingTour(profile, locale);
   const current = stops.find(stop => stop.id === state.tour.stopId)?.id ?? stops[0]!.id;
   if (event.type === "tour-dismiss" || event.type === "tour-complete") return { ...state, tour: { status: event.type === "tour-dismiss" ? "dismissed" : "completed", stopId: null } };
   if (event.type === "tour-pause") return { ...state, tour: { status: "paused", stopId: current } };
@@ -93,18 +96,18 @@ export function transitionOnboardingLocalState(input: OnboardingLocalState, even
   return { ...state, tour: { status: "active", stopId: event.type === "tour-start" ? stops[0]!.id : current } };
 }
 
-export function deriveOnboardingJourney(facts: OnboardingFacts, local?: OnboardingLocalState) {
+export function deriveOnboardingJourney(facts: OnboardingFacts, local?: OnboardingLocalState, locale: Locale = "pt-BR") {
   const integrating = canUseCapability(facts.profile, "integration");
   const skipped = parseOnboardingLocalState(local).skippedSteps;
   const firstData = integrating ? facts.integration.status === "complete" : facts.hasManualTransaction;
   const defs: { id: OnboardingStepId; title: string; status: OnboardingStepStatus; href: string | null; actionLabel: string; evidence: string }[] = [
-    { id: "registration", title: "Cadastro", status: facts.registered ? "concluido" : "pendente", href: "/onboarding", actionLabel: "Continuar configuração", evidence: "authenticated_account" },
-    { id: "mode", title: "Escolher modo", status: facts.modeChosen ? "concluido" : "pendente", href: "/onboarding", actionLabel: "Salvar meu modo", evidence: "onboarded_at" },
-    { id: "pluggy", title: "Preparar Pluggy", status: !integrating ? "nao_aplicavel" : facts.credentialConfigured ? "concluido" : "pendente", href: integrating ? "/configuracoes/integracao" : null, actionLabel: "Configurar minha conexão", evidence: "saved_credentials_only" },
-    { id: "first-data", title: "Primeiros dados", status: firstData ? "concluido" : (integrating ? facts.integration.connections > 0 : facts.hasAccount) ? "em_andamento" : "pendente", href: integrating ? "/configuracoes/integracao" : "/lancamentos", actionLabel: integrating ? "Conectar e sincronizar" : "Adicionar primeiro lançamento", evidence: integrating ? facts.integration.status : "manual_or_imported_transaction" },
-    { id: "planning", title: "Categorias e orçamento", status: facts.hasBudget ? "concluido" : "pendente", href: "/orcamento", actionLabel: "Revisar meu orçamento", evidence: "budget_created_category_review_not_tracked" },
-    { id: "notifications", title: "Notificações, Telegram e chat", status: facts.notifications.decided ? "concluido" : facts.notifications.telegramLinked || facts.notifications.pushRegisteredOnAnyDevice ? "em_andamento" : "pendente", href: "/notificacoes", actionLabel: "Escolher meus avisos", evidence: "saved_preferences_not_delivery" },
-    { id: "summary", title: "Primeiro resumo", status: facts.hasReadSummary ? "concluido" : facts.modeChosen ? "em_andamento" : "pendente", href: "/painel", actionLabel: "Ver meu primeiro resumo", evidence: facts.hasReadSummary ? "read_summary_receipt" : "dashboard_visit_not_tracked" },
+    { id: "registration", title: translateServer(locale, "Cadastro"), status: facts.registered ? "concluido" : "pendente", href: "/onboarding", actionLabel: translateServer(locale, "Continuar configuração"), evidence: "authenticated_account" },
+    { id: "mode", title: translateServer(locale, "Escolher modo"), status: facts.modeChosen ? "concluido" : "pendente", href: "/onboarding", actionLabel: translateServer(locale, "Salvar meu modo"), evidence: "onboarded_at" },
+    { id: "pluggy", title: translateServer(locale, "Preparar Pluggy"), status: !integrating ? "nao_aplicavel" : facts.credentialConfigured ? "concluido" : "pendente", href: integrating ? "/configuracoes/integracao" : null, actionLabel: translateServer(locale, "Configurar minha conexão"), evidence: "saved_credentials_only" },
+    { id: "first-data", title: translateServer(locale, "Primeiros dados"), status: firstData ? "concluido" : (integrating ? facts.integration.connections > 0 : facts.hasAccount) ? "em_andamento" : "pendente", href: integrating ? "/configuracoes/integracao" : "/lancamentos", actionLabel: integrating ? translateServer(locale, "Conectar e sincronizar") : translateServer(locale, "Adicionar primeiro lançamento"), evidence: integrating ? facts.integration.status : "manual_or_imported_transaction" },
+    { id: "planning", title: translateServer(locale, "Categorias e orçamento"), status: facts.hasBudget ? "concluido" : "pendente", href: "/orcamento", actionLabel: translateServer(locale, "Revisar meu orçamento"), evidence: "budget_created_category_review_not_tracked" },
+    { id: "notifications", title: translateServer(locale, "Notificações, Telegram e chat"), status: facts.notifications.decided ? "concluido" : facts.notifications.telegramLinked || facts.notifications.pushRegisteredOnAnyDevice ? "em_andamento" : "pendente", href: "/notificacoes", actionLabel: translateServer(locale, "Escolher meus avisos"), evidence: "saved_preferences_not_delivery" },
+    { id: "summary", title: translateServer(locale, "Primeiro resumo"), status: facts.hasReadSummary ? "concluido" : facts.modeChosen ? "em_andamento" : "pendente", href: "/painel", actionLabel: translateServer(locale, "Ver meu primeiro resumo"), evidence: facts.hasReadSummary ? "read_summary_receipt" : "dashboard_visit_not_tracked" },
   ];
   const steps = defs.map(step => ({ ...step, canSkip: skippable.includes(step.id),
     status: step.status !== "concluido" && step.status !== "nao_aplicavel" && skipped.includes(step.id) ? "pulado" as const : step.status,
@@ -122,14 +125,17 @@ export function deriveOnboardingJourney(facts: OnboardingFacts, local?: Onboardi
 }
 export type OnboardingJourney = ReturnType<typeof deriveOnboardingJourney>;
 
-export const onboardingCalibrationSchema = z.object({
+function localizedonboardingCalibrationSchema(locale: Locale) { return z.object({
   usageProfile: z.enum(USAGE_PROFILES),
-  income: z.string().trim().min(1, "Informe sua renda ou escolha adiar.").max(40)
-    .regex(/^(?:R\$\s*)?(?:(?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?|\d+\.\d{1,2})$/, "Informe uma renda válida e positiva.")
-    .transform(parseMoneyToCents).refine(v => Number.isSafeInteger(v) && v > 0 && v <= MAX_CENTS, "Informe uma renda válida dentro do limite."),
+  income: z.string().trim().min(1, translateServer(locale, "Informe sua renda ou escolha adiar.")).max(40)
+    .regex(/^(?:R\$\s*)?(?:(?:\d{1,3}(?:\.\d{3})+|\d+)(?:,\d{1,2})?|\d+\.\d{1,2})$/, translateServer(locale, "Informe uma renda válida e positiva."))
+    .transform(parseMoneyToCents).refine(v => Number.isSafeInteger(v) && v > 0 && v <= MAX_CENTS, translateServer(locale, "Informe uma renda válida dentro do limite.")),
   emergencyMonths: z.coerce.number().int().min(1).max(24).default(6),
   savingsTargetPct: z.coerce.number().int().min(0).max(90).default(20),
-});
+}); }
+export const onboardingCalibrationSchema = localizedonboardingCalibrationSchema("pt-BR");
+export function getOnboardingCalibrationSchema(locale: Locale = "pt-BR") { return localizedonboardingCalibrationSchema(locale); }
+export function getPluggyAccessGuidance(locale: Locale = "pt-BR") { return localizedPLUGGY_ACCESS_GUIDANCE(locale); }
 
 /** Never treat widget authorization, a skipped attempt or zero imported rows as proof by themselves. */
 export function summarizeInitialOnboardingSync(result: unknown) {

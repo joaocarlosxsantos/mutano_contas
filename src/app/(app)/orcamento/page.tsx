@@ -1,3 +1,6 @@
+import type { Locale } from "@/lib/i18n/config";
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { getLocale } from "@/lib/i18n/server";
 import { MobileDisclosure } from "@/components/ui/mobile-disclosure";
 import Link from "next/link";
 import { requireUserId } from "@/lib/auth";
@@ -13,13 +16,15 @@ import { Money } from "@/components/ui/money";
 import { BudgetList } from "./budget-list";
 import { BudgetStarters } from "./budget-starters";
 
-export const metadata = { title: "Orçamento" };
+function localizedmetadata(locale: Locale) { return { title: translatePlanning(locale, "Orçamento") }; }
+export async function generateMetadata() { return localizedmetadata(await getLocale()); }
 
 export default async function BudgetPage({
   searchParams,
 }: {
   searchParams: Promise<{ m?: string }>;
 }) {
+  const locale = await getLocale().catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const { m } = await searchParams;
   const ref = monthRefFromParam(m);
@@ -40,8 +45,8 @@ export default async function BudgetPage({
   return (
     <>
       <PageHeader
-        title="Orçamento"
-        description="Limites e consumo por categoria."
+        title={translatePlanning(locale, "Orçamento")}
+        description={translatePlanning(locale, "Limites e consumo por categoria.")}
         action={<MonthSwitcher value={ref} />}
       />
 
@@ -50,10 +55,10 @@ export default async function BudgetPage({
           {!hasBudgets ? (
             <Card className="min-w-0">
               <CardHeader
-                title={`Nenhum limite definido em ${monthLabel(ref)}`}
-                subtitle="Comece por um dos dois caminhos — depois é só ajustar o que não fizer sentido."
+                title={translatePlanning(locale, "Nenhum limite definido em {0}", monthLabel(ref, locale))}
+                subtitle={translatePlanning(locale, "Comece por um dos dois caminhos — depois é só ajustar o que não fizer sentido.")}
               />
-              <MobileDisclosure label="Sugerir ou copiar limites"><BudgetStarters
+              <MobileDisclosure label={translatePlanning(locale, "Sugerir ou copiar limites")}><BudgetStarters
                 monthRef={ref}
                 canCopyPrevious={overview.previousMonthHasBudgets}
               /></MobileDisclosure>
@@ -64,11 +69,10 @@ export default async function BudgetPage({
             <div className="flex flex-wrap items-start justify-between gap-3 border-b px-5 py-4">
               <div>
                 <h2 className="text-[0.9375rem] font-semibold tracking-tight">
-                  Limites de {monthLabel(ref)}
+                  {translatePlanning(locale, "Limites de")} {monthLabel(ref, locale)}
                 </h2>
                 <p className="muted mt-0.5 text-[0.8125rem]">
-                  Clique no valor para editar. Zerar o campo remove o limite.
-                </p>
+                  {translatePlanning(locale, "Clique no valor para editar. Zerar o campo remove o limite.")} </p>
               </div>
               {hasBudgets ? (
                 <BudgetStarters
@@ -84,39 +88,34 @@ export default async function BudgetPage({
 
           {overview.uncategorizedSpentCents > 0 ? (
             <Hint tone="warn">
-              <strong>{formatCents(overview.uncategorizedSpentCents)}</strong> em lançamentos sem
-              categoria neste mês. Enquanto ficarem assim, esse gasto não entra em nenhum limite —{" "}
+              <strong>{formatCents(overview.uncategorizedSpentCents, locale)}</strong> {translatePlanning(locale, "em lançamentos sem categoria neste mês. Enquanto ficarem assim, esse gasto não entra em nenhum limite —")}{" "}
               <Link href="/lancamentos" className="inline-flex min-h-11 items-center font-semibold underline">
-                classifique na tela de lançamentos
-              </Link>
+                {translatePlanning(locale, "classifique na tela de lançamentos")} </Link>
               .
             </Hint>
           ) : null}
 
           {semLimite.length ? (
             <Hint tone="info">
-              {semLimite.length} categoria(s) gastaram neste mês sem limite definido, somando{" "}
-              <strong>{formatCents(overview.unbudgetedSpentCents)}</strong>. Defina um teto para elas
-              e o orçamento passa a cobrir o mês inteiro.
-            </Hint>
+              {semLimite.length} {translatePlanning(locale, "categoria(s) gastaram neste mês sem limite definido, somando")}{" "}
+              <strong>{formatCents(overview.unbudgetedSpentCents, locale)}</strong>{translatePlanning(locale, ". Defina um teto para elas e o orçamento passa a cobrir o mês inteiro.")} </Hint>
           ) : null}
         </div>
 
         <div className="min-w-0 space-y-4 lg:sticky lg:top-6 lg:self-start">
           <Card className="min-w-0">
             <CardHeader
-              title="Resumo do mês"
-              subtitle="Considera só o gasto das categorias que têm limite."
+              title={translatePlanning(locale, "Resumo do mês")}
+              subtitle={translatePlanning(locale, "Considera só o gasto das categorias que têm limite.")}
             />
 
             <div className="mb-2 flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
               <Money cents={overview.budgetedSpentCents} size="hero" />
               <span className="muted tnum text-[0.8125rem]">
-                de {formatCents(overview.totalLimitCents)} orçados
-              </span>
+                {translatePlanning(locale, "de")} {formatCents(overview.totalLimitCents, locale)} {translatePlanning(locale, "orçados")} </span>
             </div>
             <Progress
-              label="Quanto do orçamento do mês já foi consumido"
+              label={translatePlanning(locale, "Quanto do orçamento do mês já foi consumido")}
               value={usoDoOrcamento}
               color={
                 usoDoOrcamento > 100
@@ -129,20 +128,20 @@ export default async function BudgetPage({
             />
 
             <ul className="mt-5 space-y-3 text-[0.8125rem]">
-              <Line label="Estouraram o limite" value={String(estourou.length)} tone={estourou.length ? "bad" : "good"} />
-              <Line label="Perto do limite" value={String(atencao.length)} tone={atencao.length ? "warn" : "good"} />
+              <Line label={translatePlanning(locale, "Estouraram o limite")} value={String(estourou.length)} tone={estourou.length ? "bad" : "good"} />
+              <Line label={translatePlanning(locale, "Perto do limite")} value={String(atencao.length)} tone={atencao.length ? "warn" : "good"} />
               <Line
-                label="Gastaram sem limite"
+                label={translatePlanning(locale, "Gastaram sem limite")}
                 value={String(semLimite.length)}
                 tone={semLimite.length ? "warn" : "good"}
               />
               <Line
-                label="Comprometido da renda"
+                label={translatePlanning(locale, "Comprometido da renda")}
                 value={income ? `${pct(overview.totalLimitCents, income)}%` : "—"}
               />
               <Line
-                label={sobraOrcada >= 0 ? "Sobraria no orçamento" : "Orçamento acima da renda"}
-                value={formatCents(Math.abs(sobraOrcada))}
+                label={sobraOrcada >= 0 ? translatePlanning(locale, "Sobraria no orçamento") : translatePlanning(locale, "Orçamento acima da renda")}
+                value={formatCents(Math.abs(sobraOrcada), locale)}
                 tone={sobraOrcada >= 0 ? "good" : "bad"}
               />
             </ul>
@@ -152,40 +151,33 @@ export default async function BudgetPage({
             <Hint tone={sobraOrcada >= 0 ? "good" : "warn"}>
               {sobraOrcada >= 0 ? (
                 <>
-                  Seus limites somam <strong>{pct(overview.totalLimitCents, income)}%</strong> da
-                  renda. O que sobrar do orçamento é o que vai para a reserva e para as metas.
-                </>
+                  {translatePlanning(locale, "Seus limites somam")} <strong>{pct(overview.totalLimitCents, income)}%</strong> {translatePlanning(locale, "da renda. O que sobrar do orçamento é o que vai para a reserva e para as metas.")} </>
               ) : (
                 <>
-                  A soma dos limites passa da sua renda em{" "}
-                  <strong>{formatCents(Math.abs(sobraOrcada))}</strong>. Mesmo cumprindo tudo à risca
-                  o mês fecharia no vermelho — vale rever os tetos maiores.
-                </>
+                  {translatePlanning(locale, "A soma dos limites passa da sua renda em")}{" "}
+                  <strong>{formatCents(Math.abs(sobraOrcada), locale)}</strong>{translatePlanning(locale, ". Mesmo cumprindo tudo à risca o mês fecharia no vermelho — vale rever os tetos maiores.")} </>
               )}
             </Hint>
           ) : null}
 
           <Card className="min-w-0">
             <CardHeader
-              title="Como o alerta funciona"
-              subtitle="Três estados, para você agir antes do estouro."
+              title={translatePlanning(locale, "Como o alerta funciona")}
+              subtitle={translatePlanning(locale, "Três estados, para você agir antes do estouro.")}
             />
             <ul className="space-y-2.5 text-[0.8125rem]">
-              <Legend color="var(--color-money-in)" label="Até 79% do limite" desc="No ritmo" />
-              <Legend color="var(--color-variable)" label="De 80% a 100%" desc="Pise no freio" />
-              <Legend color="var(--color-money-out)" label="Acima de 100%" desc="Estourou" />
+              <Legend color="var(--color-money-in)" label={translatePlanning(locale, "Até 79% do limite")} desc={translatePlanning(locale, "No ritmo")} />
+              <Legend color="var(--color-variable)" label={translatePlanning(locale, "De 80% a 100%")} desc={translatePlanning(locale, "Pise no freio")} />
+              <Legend color="var(--color-money-out)" label={translatePlanning(locale, "Acima de 100%")} desc={translatePlanning(locale, "Estourou")} />
             </ul>
             <p className="muted mt-4 text-xs leading-relaxed">
-              A projeção ao lado de cada categoria estima o fechamento do mês mantendo o ritmo atual
-              de gasto. Serve para perceber o estouro no dia 10, não no dia 30.
-            </p>
+              {translatePlanning(locale, "A projeção ao lado de cada categoria estima o fechamento do mês mantendo o ritmo atual de gasto. Serve para perceber o estouro no dia 10, não no dia 30.")} </p>
             <div className="mt-4">
               <Link
                 href="/lancamentos"
                 className="inline-flex min-h-11 items-center text-[0.8125rem] font-medium text-[var(--text-brand)] hover:underline"
               >
-                Ver os lançamentos do mês →
-              </Link>
+                {translatePlanning(locale, "Ver os lançamentos do mês →")} </Link>
             </div>
           </Card>
         </div>

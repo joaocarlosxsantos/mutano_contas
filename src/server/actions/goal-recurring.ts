@@ -1,5 +1,7 @@
 "use server";
 
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { and, eq, sql } from "drizzle-orm";
@@ -19,22 +21,24 @@ function refresh() {
   revalidatePath("/projecoes");
 }
 
-const ruleSchema = z.object({
-  goalId: z.string().min(1, "Escolha a meta."),
-  amount: z.string().min(1, "Informe o valor."),
+function localizedruleSchema(locale: Locale) { return z.object({
+  goalId: z.string().min(1, translateServer(locale, "Escolha a meta.")),
+  amount: z.string().min(1, translateServer(locale, "Informe o valor.")),
   dayOfMonth: z.coerce.number().int().min(1).max(31),
   note: safeNotesSchema(2000),
-  startMonth: z.string().regex(/^\d{4}-\d{2}$/, "Informe o mês de início."),
+  startMonth: z.string().regex(/^\d{4}-\d{2}$/, translateServer(locale, "Informe o mês de início.")),
   endMonth: z.string().optional(),
-});
+}); }
+
 
 export async function createGoalRecurringRule(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
-  const parsed = ruleSchema.safeParse({
+  const parsed = localizedruleSchema(locale).safeParse({
     goalId: formData.get("goalId"),
     amount: formData.get("amount"),
     dayOfMonth: formData.get("dayOfMonth"),
@@ -42,25 +46,25 @@ export async function createGoalRecurringRule(
     startMonth: formData.get("startMonth"),
     endMonth: formData.get("endMonth") || undefined,
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const d = parsed.data;
   const amountCents = Math.abs(parseMoneyToCents(d.amount));
-  if (amountCents > MAX_CENTS) return { error: "Valor muito alto." };
-  if (amountCents <= 0) return { error: "O valor precisa ser maior que zero." };
+  if (amountCents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
+  if (amountCents <= 0) return { error: translateServer(locale, "O valor precisa ser maior que zero.") };
 
   const [goal] = await db
     .select({ id: goals.id })
     .from(goals)
     .where(and(eq(goals.id, d.goalId), eq(goals.userId, userId)))
     .limit(1);
-  if (!goal) return { error: "Meta não encontrada." };
+  if (!goal) return { error: translateServer(locale, "Meta não encontrada.") };
 
   const [startYear, startMonth] = d.startMonth.split("-").map(Number);
   const end = d.endMonth && /^\d{4}-\d{2}$/.test(d.endMonth) ? d.endMonth.split("-").map(Number) : null;
 
   if (end && end[0] * 12 + end[1] < startYear * 12 + startMonth) {
-    return { error: "O mês final não pode ser anterior ao inicial." };
+    return { error: translateServer(locale, "O mês final não pode ser anterior ao inicial.") };
   }
 
   await db.insert(goalRecurringRules).values({
@@ -103,13 +107,14 @@ export async function generateGoalRecurring(
   ref: MonthRef,
   ruleId?: string,
 ): Promise<{ created: number; error?: string }> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const { getGoalRecurringStatus } = await import("@/server/queries");
 
   const status = await getGoalRecurringStatus(userId, ref);
   const target = ruleId ? status.pending.filter((r) => r.id === ruleId) : status.pending;
 
-  if (!target.length) return { created: 0, error: "Nada pendente para gerar neste mês." };
+  if (!target.length) return { created: 0, error: translateServer(locale, "Nada pendente para gerar neste mês.") };
 
   let created = 0;
   await db.transaction(async (tx) => {
@@ -120,7 +125,7 @@ export async function generateGoalRecurring(
           goalId: rule.goalId,
           deltaCents: rule.amountCents,
           date: dateForMonth(ref, rule.dayOfMonth),
-          note: rule.note ?? "Aporte automático",
+          note: rule.note ?? translateServer(locale, "Aporte automático"),
           recurringRuleId: rule.id,
         })
         // Uma geração por regra por dia (índice único) — clicar duas vezes

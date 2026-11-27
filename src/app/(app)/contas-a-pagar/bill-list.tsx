@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useState } from "react";
 import { Check, ChevronDown, ChevronUp, MessageCircle, User, Users, Wallet } from "lucide-react";
 import { BillItem, type PlainBillParticipant, type PlainBillRow, type PlainGroupingOption } from "./bill-item";
@@ -47,6 +49,7 @@ export function BillList({
   groupings: PlainGroupingOption[];
   activeTab?: BillsTabType;
 }) {
+  const locale = useLocale();
   const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
   const [collapsedPeople, setCollapsedPeople] = useState<Record<string, boolean>>({});
 
@@ -68,8 +71,8 @@ export function BillList({
       return (
         <EmptyState
           icon={Wallet}
-          title="Nenhuma conta individual"
-          description="Crie uma conta individual no formulário ao lado para começar a controlar."
+          title={translatePlanning(locale, "Nenhuma conta individual")}
+          description={translatePlanning(locale, "Crie uma conta individual no formulário ao lado para começar a controlar.")}
         />
       );
     }
@@ -79,7 +82,7 @@ export function BillList({
       const key = b.groupingId ?? "__none__";
       const foundGrouping = groupings.find((g) => g.id === b.groupingId);
       const entry = groupMap.get(key) ?? {
-        name: b.groupingName ?? foundGrouping?.name ?? "Sem agrupamento",
+        name: b.groupingName ?? foundGrouping?.name ?? translatePlanning(locale, "Sem agrupamento"),
         color: foundGrouping?.color,
         items: [],
       };
@@ -121,7 +124,7 @@ export function BillList({
 
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="tnum font-mono text-xs font-semibold text-[var(--text)]">
-                    {formatCents(groupTotalCents)}
+                    {formatCents(groupTotalCents, locale)}
                   </span>
                   {isGroupCollapsed ? (
                     <ChevronDown className="size-4 text-[var(--text-muted)]" />
@@ -160,8 +163,8 @@ export function BillList({
     return (
       <EmptyState
         icon={Users}
-        title="Nenhuma conta compartilhada"
-        description="Crie uma conta em grupo (dividir) no formulário ao lado para ratear despesas."
+        title={translatePlanning(locale, "Nenhuma conta compartilhada")}
+        description={translatePlanning(locale, "Crie uma conta em grupo (dividir) no formulário ao lado para ratear despesas.")}
       />
     );
   }
@@ -185,7 +188,7 @@ export function BillList({
     const key = b.groupingId ?? "__none__";
     const foundGrouping = groupings.find((g) => g.id === b.groupingId);
     const entry = groupMap.get(key) ?? {
-      name: b.groupingName ?? foundGrouping?.name ?? "Sem agrupamento",
+      name: b.groupingName ?? foundGrouping?.name ?? translatePlanning(locale, "Sem agrupamento"),
       color: foundGrouping?.color,
       items: [],
     };
@@ -199,18 +202,16 @@ export function BillList({
       <div className="grid grid-cols-2 gap-3 border-b border-[var(--border)] bg-[var(--surface-2)] p-3 sm:p-4">
         <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3">
           <p className="text-xs font-semibold tracking-normal text-[var(--text-muted)]">
-            A Receber (Pendente)
-          </p>
+            {translatePlanning(locale, "A Receber (Pendente)")} </p>
           <p className="tnum mt-1 font-mono text-base font-bold text-[var(--text-out)] sm:text-lg">
-            {formatCents(totalSharedPending)}
+            {formatCents(totalSharedPending, locale)}
           </p>
         </div>
         <div className="rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3">
           <p className="text-xs font-semibold tracking-normal text-[var(--text-muted)]">
-            Já Recebido
-          </p>
+            {translatePlanning(locale, "Já Recebido")} </p>
           <p className="tnum mt-1 font-mono text-base font-bold text-[var(--text-in)] sm:text-lg">
-            {formatCents(totalSharedReceived)}
+            {formatCents(totalSharedReceived, locale)}
           </p>
         </div>
       </div>
@@ -286,7 +287,7 @@ export function BillList({
 
                 <div className="flex shrink-0 items-center gap-2">
                   <span className="tnum font-mono text-xs font-semibold text-[var(--text)]">
-                    {formatCents(groupTotalCents)}
+                    {formatCents(groupTotalCents, locale)}
                   </span>
                   {isGroupCollapsed ? (
                     <ChevronDown className="size-4 text-[var(--text-muted)]" />
@@ -313,9 +314,9 @@ export function BillList({
                     const message = buildBillShareMessage({
                       participantName: person.displayName,
                       monthLabel,
-                      groupingName: group.name === "Sem agrupamento" ? null : group.name,
+                      groupingName: group.name === translatePlanning(locale, "Sem agrupamento") ? null : group.name,
                       entries,
-                    });
+                    }, locale);
 
                     const whatsAppLink = buildWhatsAppLink(person.phone, message);
 
@@ -346,37 +347,32 @@ export function BillList({
                                   {/* Mobile: empilhado para economizar espaço em 360px */}
                                   <div className="flex flex-col items-end sm:hidden">
                                     <span className="tnum font-mono text-xs font-semibold text-[var(--text-out)]">
-                                      {formatCents(person.pendingCents)}
+                                      {formatCents(person.pendingCents, locale)}
                                     </span>
                                     <span className="text-xs font-medium text-[var(--text-out)]">
-                                      pendente
-                                    </span>
+                                      {translatePlanning(locale, "pendente")} </span>
                                   </div>
                                   {/* Desktop: em linha */}
                                   <span className="hidden tnum font-mono text-xs font-semibold text-[var(--text-out)] sm:inline sm:text-[0.875rem]">
-                                    {formatCents(person.pendingCents)} pendente
-                                  </span>
+                                    {formatCents(person.pendingCents, locale)} {translatePlanning(locale, "pendente")} </span>
                                 </>
                               ) : (
                                 <span className="tnum font-mono text-xs font-semibold text-[var(--text-in)] sm:text-[0.875rem]">
-                                  Tudo pago
-                                </span>
+                                  {translatePlanning(locale, "Tudo pago")} </span>
                               )}
                               {person.receivedCents > 0 && person.pendingCents > 0 ? (
                                 <>
                                   {/* Mobile: empilhado para economizar espaço em 360px */}
                                   <div className="flex flex-col items-end sm:hidden">
                                     <span className="tnum font-mono text-xs text-[var(--text-muted)]">
-                                      {formatCents(person.receivedCents)}
+                                      {formatCents(person.receivedCents, locale)}
                                     </span>
                                     <span className="text-xs text-[var(--text-muted)]">
-                                      pago
-                                    </span>
+                                      {translatePlanning(locale, "pago")} </span>
                                   </div>
                                   {/* Desktop: em linha */}
                                   <span className="hidden tnum font-mono text-xs text-[var(--text-muted)] sm:inline">
-                                    {formatCents(person.receivedCents)} pago
-                                  </span>
+                                    {formatCents(person.receivedCents, locale)} {translatePlanning(locale, "pago")} </span>
                                 </>
                               ) : null}
                             </div>
@@ -388,8 +384,8 @@ export function BillList({
                                   href={whatsAppLink}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  aria-label={`Enviar cobrança no WhatsApp para ${person.displayName}`}
-                                  title={`Cobrar ${formatCents(person.pendingCents)} pendente de ${person.displayName} no WhatsApp`}
+                                  aria-label={translatePlanning(locale, "Enviar cobrança no WhatsApp para {0}", person.displayName)}
+                                  title={translatePlanning(locale, "Cobrar {0} pendente de {1} no WhatsApp", formatCents(person.pendingCents, locale), person.displayName)}
                                   className="inline-flex min-h-[44px] shrink-0 items-center gap-1 rounded-[var(--radius-button)] bg-[var(--color-money-in-soft)] px-2.5 py-1 text-xs font-medium text-[var(--text-in)] transition-opacity hover:opacity-85 focus-visible:ring-2 focus-visible:ring-[var(--acento)]"
                                 >
                                   <MessageCircle className="size-3.5" />
@@ -399,8 +395,8 @@ export function BillList({
                                 <button
                                   type="button"
                                   disabled
-                                  aria-label={`Sem telefone para WhatsApp de ${person.displayName}`}
-                                  title="Cadastre um telefone em uma das contas para habilitar o WhatsApp"
+                                  aria-label={translatePlanning(locale, "Sem telefone para WhatsApp de {0}", person.displayName)}
+                                  title={translatePlanning(locale, "Cadastre um telefone em uma das contas para habilitar o WhatsApp")}
                                   className="min-h-11 min-w-11 inline-flex min-h-[44px] shrink-0 items-center gap-1 rounded-[var(--radius-button)] bg-[var(--surface-2)] px-2.5 py-1 text-xs font-medium text-[var(--text-muted)] opacity-50 cursor-not-allowed"
                                 >
                                   <MessageCircle className="size-3.5" />
@@ -409,11 +405,11 @@ export function BillList({
                               )
                             ) : (
                               <span
-                                title="Todas as contas deste participante estão pagas"
+                                title={translatePlanning(locale, "Todas as contas deste participante estão pagas")}
                                 className="inline-flex min-h-[44px] shrink-0 items-center gap-1 rounded-[var(--radius-button)] bg-[var(--color-money-in-soft)] px-2.5 py-1 text-xs font-medium text-[var(--text-in)] opacity-80"
                               >
                                 <Check className="size-3.5" />
-                                <span className="hidden sm:inline">Pago</span>
+                                <span className="hidden sm:inline">{translatePlanning(locale, "Pago")}</span>
                               </span>
                             )}
 
@@ -422,8 +418,8 @@ export function BillList({
                               aria-expanded={!isPersonCollapsed}
                               aria-label={
                                 isPersonCollapsed
-                                  ? `Expandir contas de ${person.displayName}`
-                                  : `Recolher contas de ${person.displayName}`
+                                  ? translatePlanning(locale, "Expandir contas de {0}", person.displayName)
+                                  : translatePlanning(locale, "Recolher contas de {0}", person.displayName)
                               }
                               onClick={() => togglePerson(pCompositeKey)}
                               className="min-h-11 min-w-11 flex min-h-[44px] min-w-[44px] cursor-pointer items-center justify-center rounded-md p-1 text-[var(--text-muted)] hover:text-[var(--text)] focus-visible:ring-2 focus-visible:ring-[var(--acento)]"
@@ -463,8 +459,7 @@ export function BillList({
                   {unassignedSharedBills.length > 0 ? (
                     <div className="p-3">
                       <p className="mb-2 text-xs font-medium text-[var(--text-muted)]">
-                        Contas sem participantes cadastrados:
-                      </p>
+                        {translatePlanning(locale, "Contas sem participantes cadastrados:")} </p>
                       <ul className="divide-y divide-[var(--border)]">
                         {sortBills(unassignedSharedBills).map((bill) => (
                           <BillItem

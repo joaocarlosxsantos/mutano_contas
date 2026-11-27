@@ -1,5 +1,6 @@
 "use server";
 
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { revalidatePath } from "next/cache";
 import { and, eq, gte, inArray, isNotNull, lte, sql } from "drizzle-orm";
 import { db } from "@/db";
@@ -92,11 +93,12 @@ function invoicePeriodRange(ref: MonthRef): { start: string; end: string } {
  * Nada é gravado aqui — o usuário confere antes.
  */
 export async function previewImport(rawInput: unknown): Promise<PreviewResult> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "manual-entry");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
   const parsedInput = previewImportInputSchema.safeParse(rawInput);
-  if (!parsedInput.success) return { error: "Arquivo ou dados de importação inválidos. Confira o tamanho, nome e campos do arquivo." };
+  if (!parsedInput.success) return { error: translateServer(locale, "Arquivo ou dados de importação inválidos. Confira o tamanho, nome e campos do arquivo.") };
   const input = parsedInput.data;
 
   const [account] = await db
@@ -104,23 +106,23 @@ export async function previewImport(rawInput: unknown): Promise<PreviewResult> {
     .from(accounts)
     .where(and(eq(accounts.id, input.accountId), eq(accounts.userId, userId)))
     .limit(1);
-  if (!account) return { error: "Escolha uma conta válida para receber os lançamentos." };
-  if (account.financeMode === "integracao") return { error: "Esta conta está integrada. Troque para modo manual em Configurações → Integração antes de importar." };
+  if (!account) return { error: translateServer(locale, "Escolha uma conta válida para receber os lançamentos.") };
+  if (account.financeMode === "integracao") return { error: translateServer(locale, "Esta conta está integrada. Troque para modo manual em Configurações → Integração antes de importar.") };
 
   const isCard = account.type === "CREDIT_CARD";
   const invoiceRef = isCard && input.invoiceMonth ? monthRefFromParam(input.invoiceMonth) : undefined;
   if (isCard && !invoiceRef) {
-    return { error: "Escolha o mês de referência da fatura antes de importar." };
+    return { error: translateServer(locale, "Escolha o mês de referência da fatura antes de importar.") };
   }
 
   const parsed = parseStatement(input.fileName, input.content, { invertSign: input.invertSign });
   if (!parsed.rows.length) {
     return {
-      error: parsed.warnings[0] ?? "Não encontramos lançamentos nesse arquivo.",
-      warnings: parsed.warnings,
+      error: translateServer(locale, parsed.warnings[0] ?? "Não encontramos lançamentos nesse arquivo."),
+      warnings: parsed.warnings.map(warning => translateServer(locale, warning)),
     };
   }
-  if (parsed.rows.length > MAX_IMPORT_ROWS) return { error: `O arquivo excede o limite de ${MAX_IMPORT_ROWS} lançamentos.` };
+  if (parsed.rows.length > MAX_IMPORT_ROWS) return { error: translateServer(locale, "O arquivo excede o limite de {0} lançamentos.", MAX_IMPORT_ROWS) };
 
   // Fatura de cartão traz linha de confirmação de pagamento (o banco
   // avisando que a fatura anterior foi paga) — não é gasto, e com o cartão
@@ -131,8 +133,8 @@ export async function previewImport(rawInput: unknown): Promise<PreviewResult> {
   const paymentLinesSkipped = parsed.rows.length - parsedRows.length;
   if (!parsedRows.length) {
     return {
-      error: "Todas as linhas desse arquivo eram confirmação de pagamento da fatura — nada para importar.",
-      warnings: parsed.warnings,
+      error: translateServer(locale, "Todas as linhas desse arquivo eram confirmação de pagamento da fatura — nada para importar."),
+      warnings: parsed.warnings.map(warning => translateServer(locale, warning)),
     };
   }
 
@@ -153,7 +155,7 @@ export async function previewImport(rawInput: unknown): Promise<PreviewResult> {
   const natureById = new Map(cats.map((c) => [c.id, c.nature]));
 
   const prints = new Set<string>();
-  const warnings = [...parsed.warnings];
+  const warnings = parsed.warnings.map(warning => translateServer(locale, warning));
 
   const rows: PreviewRow[] = parsedRows.map((r) => {
     const kind: "INCOME" | "EXPENSE" = r.amountCents >= 0 ? "INCOME" : "EXPENSE";
@@ -208,11 +210,11 @@ export async function previewImport(rawInput: unknown): Promise<PreviewResult> {
     isCard && !input.invertSign && rows.length >= 3 && rows.filter((r) => r.kind === "INCOME").length > rows.length / 2;
 
   if (isCard && invoiceRef) {
-    warnings.push(`Fatura de ${monthLabel(invoiceRef)}: compras à vista e primeiras parcelas mantêm a data de compra. As parcelas seguintes usam a data da cobrança no ciclo selecionado.`);
+    warnings.push(translateServer(locale, "Fatura de {0}: compras à vista e primeiras parcelas mantêm a data de compra. As parcelas seguintes usam a data da cobrança no ciclo selecionado.", monthLabel(invoiceRef, locale)));
   }
   if (paymentLinesSkipped > 0) {
     warnings.push(
-      `${paymentLinesSkipped} linha(s) de confirmação de pagamento da fatura foram identificadas e não entram na importação — não são gasto, são o pagamento que você já fez.`,
+      translateServer(locale, "{0} linha(s) de confirmação de pagamento da fatura foram identificadas e não entram na importação — não são gasto, são o pagamento que você já fez.", paymentLinesSkipped),
     );
   }
 
@@ -238,7 +240,7 @@ export async function previewImport(rawInput: unknown): Promise<PreviewResult> {
   }
   if (duplicates > 0) {
     warnings.push(
-      `${duplicates} linha(s) parecem já existir no sistema (mesma data, valor e descrição) — continuam marcadas para importar. Desmarque na tabela abaixo se alguma for mesmo repetida.`,
+      translateServer(locale, "{0} linha(s) parecem já existir no sistema (mesma data, valor e descrição) — continuam marcadas para importar. Desmarque na tabela abaixo se alguma for mesmo repetida.", duplicates),
     );
   }
 
@@ -271,7 +273,7 @@ export async function previewImport(rawInput: unknown): Promise<PreviewResult> {
     }
     if (existingInPeriod > 0) {
       warnings.push(
-        `${existingInPeriod} lançamento(s) importado(s) antes já fazem parte dessa fatura (${monthLabel(invoiceRef)}). Se você confirmar com "substituir" marcado, eles são apagados e trocados pelos desta importação.`,
+        translateServer(locale, "{0} lançamento(s) importado(s) antes já fazem parte dessa fatura ({1}). Se você confirmar com \"substituir\" marcado, eles são apagados e trocados pelos desta importação.", existingInPeriod, monthLabel(invoiceRef, locale)),
       );
     }
   } else if (period) {
@@ -290,7 +292,7 @@ export async function previewImport(rawInput: unknown): Promise<PreviewResult> {
     existingInPeriod = count;
     if (existingInPeriod > 0) {
       warnings.push(
-        `${existingInPeriod} lançamento(s) importado(s) antes já cobrem esse período (${formatDate(period.start)} a ${formatDate(period.end)}). Se você confirmar com "substituir" marcado, eles são apagados e trocados pelos desta importação.`,
+        translateServer(locale, "{0} lançamento(s) importado(s) antes já cobrem esse período ({1} a {2}). Se você confirmar com \"substituir\" marcado, eles são apagados e trocados pelos desta importação.", existingInPeriod, formatDate(period.start, locale), formatDate(period.end, locale)),
       );
     }
   }
@@ -309,11 +311,12 @@ export async function previewImport(rawInput: unknown): Promise<PreviewResult> {
 }
 
 export async function commitImport(rawInput: unknown): Promise<{ error?: string; saved?: number; replaced?: number }> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "manual-entry");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
   const parsedInput = commitImportInputSchema.safeParse(rawInput);
-  if (!parsedInput.success) return { error: "Dados da importação inválidos. Revise o arquivo antes de confirmar." };
+  if (!parsedInput.success) return { error: translateServer(locale, "Dados da importação inválidos. Revise o arquivo antes de confirmar.") };
   const input = parsedInput.data;
 
   const [account] = await db
@@ -327,17 +330,17 @@ export async function commitImport(rawInput: unknown): Promise<{ error?: string;
     .from(accounts)
     .where(and(eq(accounts.id, input.accountId), eq(accounts.userId, userId)))
     .limit(1);
-  if (!account) return { error: "Conta inválida." };
-  if (account.financeMode === "integracao") return { error: "Esta conta está integrada. Troque para modo manual em Configurações → Integração antes de importar." };
+  if (!account) return { error: translateServer(locale, "Conta inválida.") };
+  if (account.financeMode === "integracao") return { error: translateServer(locale, "Esta conta está integrada. Troque para modo manual em Configurações → Integração antes de importar.") };
 
   const isCard = account.type === "CREDIT_CARD";
   const invoiceRef = isCard && input.invoiceMonth ? monthRefFromParam(input.invoiceMonth) : undefined;
   if (isCard && !invoiceRef) {
-    return { error: "Escolha o mês de referência da fatura antes de importar." };
+    return { error: translateServer(locale, "Escolha o mês de referência da fatura antes de importar.") };
   }
 
   const filteredRows = input.rows.filter((r) => !r.duplicate && r.amountCents > 0);
-  if (!filteredRows.length) return { error: "Nenhuma linha selecionada para importar." };
+  if (!filteredRows.length) return { error: translateServer(locale, "Nenhuma linha selecionada para importar.") };
 
   // As linhas da prévia voltam do navegador (o usuário confere/edita antes de
   // confirmar), então o `categoryId` de cada uma não é confiável por si só —
@@ -454,7 +457,7 @@ export async function commitImport(rawInput: unknown): Promise<{ error?: string;
             fingerprint: r.fingerprint,
             installmentNumber: r.installmentNumber,
             installmentTotal: r.installmentTotal,
-            notes: r.dateAdjusted && r.originalDate ? `Compra realizada em ${formatDate(r.originalDate)}` : null,
+            notes: r.dateAdjusted && r.originalDate ? translateServer(locale, "Compra realizada em {0}", formatDate(r.originalDate, locale)) : null,
           };
         }),
       )
@@ -490,6 +493,7 @@ export async function commitImport(rawInput: unknown): Promise<{ error?: string;
  * jeito mais simples de corrigir é jogar fora e importar de novo.
  */
 export async function deleteImportBatch(batchId: string): Promise<{ error?: string; deleted?: number }> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
   const [batch] = await db
@@ -497,7 +501,7 @@ export async function deleteImportBatch(batchId: string): Promise<{ error?: stri
     .from(importBatches)
     .where(and(eq(importBatches.id, batchId), eq(importBatches.userId, userId)))
     .limit(1);
-  if (!batch) return { error: "Importação não encontrada." };
+  if (!batch) return { error: translateServer(locale, "Importação não encontrada.") };
 
   const deleted = await db
     .delete(transactions)

@@ -1,3 +1,5 @@
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { formatCents } from "./money";
 
 export type MonthForecastInput = {
@@ -63,20 +65,20 @@ export function monthForecast({
 /**
  * Formata o resumo da previsão para o bot do Telegram ou mensagens de texto.
  */
-export function formatForecastSummary(forecast: MonthForecastResult, monthLabelName: string): string {
-  const daily = formatCents(forecast.dailyAvgCents);
-  const projectedExp = formatCents(forecast.projectedExpenseCents);
-  const balance = formatCents(Math.abs(forecast.projectedBalanceCents));
+export function formatForecastSummary(forecast: MonthForecastResult, monthLabelName: string, locale: Locale = "pt-BR"): string {
+  const daily = formatCents(forecast.dailyAvgCents, locale);
+  const projectedExp = formatCents(forecast.projectedExpenseCents, locale);
+  const balance = formatCents(Math.abs(forecast.projectedBalanceCents), locale);
   const days = forecast.daysRemaining;
 
   const balanceText = forecast.projectedBalanceCents >= 0
-    ? `saldo positivo estimado de ${balance} (sobra)`
-    : `déficit estimado de ${balance} (gastos superando receitas)`;
+    ? translateServer(locale, "saldo positivo estimado de {0} (sobra)", balance)
+    : translateServer(locale, "déficit estimado de {0} (gastos superando receitas)", balance);
 
   return (
-    `Previsão de fim do mês (${monthLabelName}): no ritmo atual de ${daily}/dia, ` +
-    `os gastos fecharão em cerca de ${projectedExp}. ` +
-    `Resultado projetado: ${balanceText}. ` +
-    `(restam ${days} ${days === 1 ? "dia" : "dias"} no mês).`
+    translateServer(locale, "Previsão de fim do mês ({0}): no ritmo atual de {1}/dia, ", monthLabelName, daily) +
+    translateServer(locale, "os gastos fecharão em cerca de {0}. ", projectedExp) +
+    translateServer(locale, "Resultado projetado: {0}. ", balanceText) +
+    translateServer(locale, "(restam {0} {1} no mês).", days, days === 1 ? translateServer(locale, "dia") : translateServer(locale, "dias"))
   );
 }

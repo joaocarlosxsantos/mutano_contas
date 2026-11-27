@@ -1,3 +1,6 @@
+import type { Locale } from "@/lib/i18n/config";
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { getLocale } from "@/lib/i18n/server";
 import { MobileDisclosure } from "@/components/ui/mobile-disclosure";
 import { Target } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
@@ -23,9 +26,11 @@ import { GoalComposer } from "./goal-composer";
 import { GoalRecurringBanner } from "./goal-recurring-banner";
 import type { PlainGoalRecurringRule } from "./goal-recurring-control";
 
-export const metadata = { title: "Metas e reserva" };
+function localizedmetadata(locale: Locale) { return { title: translatePlanning(locale, "Metas e reserva") }; }
+export async function generateMetadata() { return localizedmetadata(await getLocale()); }
 
 export default async function GoalsPage() {
+  const locale = await getLocale().catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const ref = currentMonthRef();
 
@@ -60,14 +65,13 @@ export default async function GoalsPage() {
   return (
     <>
       <PageHeader
-        title="Metas e reserva"
-        description="Primeiro o colchão de segurança, depois os sonhos. Cada meta mostra quanto falta e em quanto tempo você chega no ritmo atual."
+        title={translatePlanning(locale, "Metas e reserva")}
+        description={translatePlanning(locale, "Primeiro o colchão de segurança, depois os sonhos. Cada meta mostra quanto falta e em quanto tempo você chega no ritmo atual.")}
       />
 
       <GoalRecurringBanner count={goalRecurring.pending.length} amountCents={goalRecurring.pendingAmountCents} />
       <InvestmentSummary balance={balances}>
-        Compare o saldo investido com sua meta de investimento. Ele não é atribuído automaticamente às metas; os valores guardados continuam separados.
-      </InvestmentSummary>
+        {translatePlanning(locale, "Compare o saldo investido com sua meta de investimento. Ele não é atribuído automaticamente às metas; os valores guardados continuam separados.")} </InvestmentSummary>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
@@ -84,10 +88,9 @@ export default async function GoalsPage() {
 
           <Card className="min-w-0 p-0 max-sm:border-0 max-sm:bg-transparent max-sm:shadow-none">
             <div className="border-b px-5 py-4">
-              <h2 className="text-[0.9375rem] font-semibold tracking-tight">Suas metas</h2>
+              <h2 className="text-[0.9375rem] font-semibold tracking-tight">{translatePlanning(locale, "Suas metas")}</h2>
               <p className="muted mt-0.5 text-[0.8125rem]">
-                Viagem, carro, entrada do apartamento, quitar uma dívida — tudo entra aqui.
-              </p>
+                {translatePlanning(locale, "Viagem, carro, entrada do apartamento, quitar uma dívida — tudo entra aqui.")} </p>
             </div>
 
             {others.length ? (
@@ -118,30 +121,27 @@ export default async function GoalsPage() {
             ) : (
               <EmptyState
                 icon={Target}
-                title="Nenhuma meta ainda"
-                description="Uma meta com nome e prazo tem muito mais chance de sair do papel do que 'guardar dinheiro'."
+                title={translatePlanning(locale, "Nenhuma meta ainda")}
+                description={translatePlanning(locale, "Uma meta com nome e prazo tem muito mais chance de sair do papel do que 'guardar dinheiro'.")}
               />
             )}
           </Card>
 
-          <Hint tone="info" title="Está endividado? A ordem muda.">
-            Se você paga juros de rotativo ou cheque especial, quitar essa dívida rende mais que
-            qualquer investimento. Monte uma reserva mínima de 1 mês, cadastre a dívida como meta de
-            quitação e ataque a de maior juros primeiro.
-          </Hint>
+          <Hint tone="info" title={translatePlanning(locale, "Está endividado? A ordem muda.")}>
+            {translatePlanning(locale, "Se você paga juros de rotativo ou cheque especial, quitar essa dívida rende mais que qualquer investimento. Monte uma reserva mínima de 1 mês, cadastre a dívida como meta de quitação e ataque a de maior juros primeiro.")} </Hint>
         </div>
 
         <div className="lg:sticky lg:top-6 lg:self-start">
           <Card className="min-w-0">
             <CardHeader
-              title="Nova meta"
+              title={translatePlanning(locale, "Nova meta")}
               subtitle={
                 monthlyCapacity > 0
-                  ? `Você tem sobrado cerca de ${formatCents(monthlyCapacity)} por mês.`
-                  : "Cadastre lançamentos para o sistema estimar quanto você consegue guardar."
+                  ? translatePlanning(locale, "Você tem sobrado cerca de {0} por mês.", formatCents(monthlyCapacity, locale))
+                  : translatePlanning(locale, "Cadastre lançamentos para o sistema estimar quanto você consegue guardar.")
               }
             />
-            <MobileDisclosure label="Preencher nova meta"><GoalComposer /></MobileDisclosure>
+            <MobileDisclosure label={translatePlanning(locale, "Preencher nova meta")}><GoalComposer /></MobileDisclosure>
           </Card>
         </div>
       </div>

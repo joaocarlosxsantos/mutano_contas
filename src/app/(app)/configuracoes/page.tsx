@@ -1,3 +1,7 @@
+import type { Locale } from "@/lib/i18n/config";
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { getLocale } from "@/lib/i18n/server";
+import { LanguageToggle } from "@/components/language-toggle";
 import { canUseCapability } from "@/lib/usage-profile";
 import { MobileDisclosure } from "@/components/ui/mobile-disclosure";
 import { requireUserId } from "@/lib/auth";
@@ -13,9 +17,11 @@ import Link from "next/link";
 import { Bell, ArrowRight } from "lucide-react";
 import { OnboardingSettingsActions } from "@/components/onboarding/settings-actions";
 
-export const metadata = { title: "Configurações" };
+function localizedmetadata(locale: Locale) { return { title: translatePlanning(locale, "Configurações") }; }
+export async function generateMetadata() { return localizedmetadata(await getLocale()); }
 
 export default async function SettingsPage() {
+  const locale = await getLocale().catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const [user, accounts, categories] = await Promise.all([
     getUser(userId),
@@ -26,17 +32,22 @@ export default async function SettingsPage() {
   return (
     <>
       <PageHeader
-        title="Configurações"
-        description="Renda, contas e categorias."
+        title={translatePlanning(locale, "Configurações")}
+        description={translatePlanning(locale, "Renda, contas e categorias.")}
       />
 
       <OnboardingSettingsActions />
 
+      <Card className="mb-4">
+        <CardHeader title="Idioma / Language" subtitle={translatePlanning(locale, "Escolha o idioma do aplicativo.")} />
+        <LanguageToggle />
+      </Card>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card className="min-w-0 border-[var(--acento)]/30 lg:col-span-2">
           <CardHeader
-            title="Notificações"
-            subtitle="Caixa de avisos no app, Web Push nativo (PWA) e preferências por canal."
+            title={translatePlanning(locale, "Notificações")}
+            subtitle={translatePlanning(locale, "Caixa de avisos no app, Web Push nativo (PWA) e preferências por canal.")}
           />
           <div className="p-4 pt-0">
             <Link
@@ -44,26 +55,25 @@ export default async function SettingsPage() {
               href="/notificacoes"
             >
               <Bell className="size-4" />
-              Abrir notificações
-              <ArrowRight className="size-4" />
+              {translatePlanning(locale, "Abrir notificações")} <ArrowRight className="size-4" />
             </Link>
           </div>
         </Card>
 
         <Card className="min-w-0 lg:col-span-2 xl:col-span-1">
-          <CardHeader title="Telegram" subtitle="Vincule seu chat privado ao Mutano Contas." />
+          <CardHeader title="Telegram" subtitle={translatePlanning(locale, "Vincule seu chat privado ao Mutano Contas.")} />
           <TelegramPanel />
         </Card>
         {canUseCapability(user.usageProfile, "integration") && (<Card className="min-w-0 lg:col-span-2 xl:col-span-1">
-          <CardHeader title="Open Finance" subtitle="Conecte o Pluggy e escolha a fonte de cada conta." />
-          <div className="p-4 pt-0"><Link className="inline-flex min-h-11 items-center text-sm font-medium text-[var(--text-brand)] underline" href="/configuracoes/integracao">Configurar integração</Link></div>
+          <CardHeader title="Open Finance" subtitle={translatePlanning(locale, "Conecte o Pluggy e escolha a fonte de cada conta.")} />
+          <div className="p-4 pt-0"><Link className="inline-flex min-h-11 items-center text-sm font-medium text-[var(--text-brand)] underline" href="/configuracoes/integracao">{translatePlanning(locale, "Configurar integração")}</Link></div>
         </Card>)}
         <Card className="min-w-0">
           <CardHeader
-            title="Perfil financeiro"
-            subtitle="Renda e objetivos de economia."
+            title={translatePlanning(locale, "Perfil financeiro")}
+            subtitle={translatePlanning(locale, "Renda e objetivos de economia.")}
           />
-          <MobileDisclosure label="Editar perfil financeiro"><ProfileForm
+          <MobileDisclosure label={translatePlanning(locale, "Editar perfil financeiro")}><ProfileForm
             defaults={{
               name: user.name,
               income: user.monthlyIncomeCents,
@@ -75,8 +85,8 @@ export default async function SettingsPage() {
 
         <Card className="min-w-0">
           <CardHeader
-            title="Contas e cartões"
-            subtitle="Gerencie suas contas financeiras."
+            title={translatePlanning(locale, "Contas e cartões")}
+            subtitle={translatePlanning(locale, "Gerencie suas contas financeiras.")}
           />
           <AccountsPanel
             accounts={accounts.map((a) => ({
@@ -96,8 +106,8 @@ export default async function SettingsPage() {
 
         <Card className="min-w-0 lg:col-span-2">
           <CardHeader
-            title="Categorias"
-            subtitle="As palavras-chave são o que faz a importação adivinhar a categoria certa. Separe por vírgula."
+            title={translatePlanning(locale, "Categorias")}
+            subtitle={translatePlanning(locale, "As palavras-chave são o que faz a importação adivinhar a categoria certa. Separe por vírgula.")}
           />
           <CategoriesPanel
             categories={categories.map((c) => ({
@@ -113,8 +123,8 @@ export default async function SettingsPage() {
 
         <Card className="min-w-0 lg:col-span-2">
           <CardHeader
-            title="Dados"
-            subtitle="Exporte um backup completo do seu perfil financeiro em JSON."
+            title={translatePlanning(locale, "Dados")}
+            subtitle={translatePlanning(locale, "Exporte um backup completo do seu perfil financeiro em JSON.")}
           />
           <div className="p-4">
             <BackupButton />

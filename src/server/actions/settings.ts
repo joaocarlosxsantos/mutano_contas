@@ -1,5 +1,7 @@
 "use server";
 
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -16,25 +18,27 @@ import { safeNameSchema, safeOptionalTextSchema } from "@/server/validation/sani
 
 export type ActionState = { error?: string; ok?: boolean };
 
-const profileSchema = z.object({
-  name: safeNameSchema(2, 100, "Digite seu nome."),
-  income: z.string().min(1, "Informe sua renda mensal."),
+function localizedprofileSchema(locale: Locale) { return z.object({
+  name: safeNameSchema(2, 100, translateServer(locale, "Digite seu nome.")),
+  income: z.string().min(1, translateServer(locale, "Informe sua renda mensal.")),
   emergencyMonths: z.coerce.number().int().min(1).max(24),
   savingsTargetPct: z.coerce.number().int().min(0).max(90),
-});
+}); }
+
 
 export async function saveProfile(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
-  const parsed = profileSchema.safeParse({
+  const parsed = localizedprofileSchema(locale).safeParse({
     name: formData.get("name"),
     income: formData.get("income"),
     emergencyMonths: formData.get("emergencyMonths"),
     savingsTargetPct: formData.get("savingsTargetPct"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const monthlyIncomeCents = Math.abs(parseMoneyToCents(parsed.data.income));
-  if (monthlyIncomeCents > MAX_CENTS) return { error: "Valor muito alto." };
+  if (monthlyIncomeCents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
 
   await db
     .update(users)
@@ -54,12 +58,13 @@ export async function saveProfile(_prev: ActionState, formData: FormData): Promi
 }
 
 export async function completeOnboarding(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const usageProfile = formData.get("usageProfile");
-  if (!isUsageProfile(usageProfile)) return { error: "Escolha como quer usar o app." };
+  if (!isUsageProfile(usageProfile)) return { error: translateServer(locale, "Escolha como quer usar o app.") };
   const parsed = onboardingCalibrationSchema.safeParse({ usageProfile, income: formData.get("income"),
     emergencyMonths: formData.get("emergencyMonths") ?? undefined, savingsTargetPct: formData.get("savingsTargetPct") ?? undefined });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const changed = await db
     .update(users)
@@ -72,15 +77,16 @@ export async function completeOnboarding(_prev: ActionState, formData: FormData)
       updatedAt: new Date(),
     })
     .where(eq(users.id, userId)).returning({ id: users.id });
-  if (!changed.length) return { error: "Usuário não encontrado." };
+  if (!changed.length) return { error: translateServer(locale, "Usuário não encontrado.") };
   revalidatePath("/", "layout");
   redirect("/painel");
 }
 
 export async function createAccount(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "manual-entry");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
   const parsed = accountSchema.safeParse({
     name: formData.get("name"),
     type: formData.get("type"),
@@ -89,7 +95,7 @@ export async function createAccount(_prev: ActionState, formData: FormData): Pro
     closingDay: formData.get("closingDay"),
     dueDay: formData.get("dueDay"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const isCard = parsed.data.type === "CREDIT_CARD";
 
@@ -109,24 +115,26 @@ export async function createAccount(_prev: ActionState, formData: FormData): Pro
   return { ok: true };
 }
 
-const categorySchema = z.object({
-  name: safeNameSchema(2, 100, "Dê um nome para a categoria."),
+function localizedcategorySchema(locale: Locale) { return z.object({
+  name: safeNameSchema(2, 100, translateServer(locale, "Dê um nome para a categoria.")),
   kind: z.enum(["INCOME", "EXPENSE"]),
   nature: z.enum(["FIXED", "VARIABLE"]),
   color: safeOptionalTextSchema(50),
   keywords: safeOptionalTextSchema(500),
-});
+}); }
+
 
 export async function createCategory(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
-  const parsed = categorySchema.safeParse({
+  const parsed = localizedcategorySchema(locale).safeParse({
     name: formData.get("name"),
     kind: formData.get("kind"),
     nature: formData.get("nature"),
     color: formData.get("color") || undefined,
     keywords: formData.get("keywords") || undefined,
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const keywords = (parsed.data.keywords ?? "")
     .split(",")
@@ -143,7 +151,7 @@ export async function createCategory(_prev: ActionState, formData: FormData): Pr
       keywords,
     });
   } catch {
-    return { error: "Já existe uma categoria com esse nome." };
+    return { error: translateServer(locale, "Já existe uma categoria com esse nome.") };
   }
 
   revalidatePath("/configuracoes");
@@ -161,20 +169,21 @@ export async function saveOpeningBalance(input: {
   amount: string;
   date?: string | null;
 }): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "manual-entry");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
 
   const [account] = await db
     .select({ id: accounts.id, financeMode: accounts.financeMode })
     .from(accounts)
     .where(and(eq(accounts.id, input.accountId), eq(accounts.userId, userId)))
     .limit(1);
-  if (!account) return { error: "Conta não encontrada." };
-  if (account.financeMode === "integracao") return { error: "O saldo inicial fica preservado enquanto a conta está integrada." };
+  if (!account) return { error: translateServer(locale, "Conta não encontrada.") };
+  if (account.financeMode === "integracao") return { error: translateServer(locale, "O saldo inicial fica preservado enquanto a conta está integrada.") };
 
   const openingBalanceCents = parseMoneyToCents(input.amount);
-  if (Math.abs(openingBalanceCents) > MAX_CENTS) return { error: "Valor muito alto." };
+  if (Math.abs(openingBalanceCents) > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
 
   await db
     .update(accounts)
@@ -191,25 +200,26 @@ export async function saveOpeningBalance(input: {
 }
 
 export async function updateCategory(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const id = String(formData.get("id") ?? "");
-  if (!id) return { error: "Categoria não encontrada." };
+  if (!id) return { error: translateServer(locale, "Categoria não encontrada.") };
 
-  const parsed = categorySchema.safeParse({
+  const parsed = localizedcategorySchema(locale).safeParse({
     name: formData.get("name"),
     kind: formData.get("kind"),
     nature: formData.get("nature"),
     color: formData.get("color") || undefined,
     keywords: formData.get("keywords") || undefined,
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const [existing] = await db
     .select({ id: categories.id })
     .from(categories)
     .where(and(eq(categories.id, id), eq(categories.userId, userId)))
     .limit(1);
-  if (!existing) return { error: "Categoria não encontrada." };
+  if (!existing) return { error: translateServer(locale, "Categoria não encontrada.") };
 
   const keywords = (parsed.data.keywords ?? "")
     .split(",")
@@ -228,7 +238,7 @@ export async function updateCategory(_prev: ActionState, formData: FormData): Pr
       })
       .where(and(eq(categories.id, id), eq(categories.userId, userId)));
   } catch {
-    return { error: "Já existe uma categoria com esse nome." };
+    return { error: translateServer(locale, "Já existe uma categoria com esse nome.") };
   }
 
   revalidatePath("/configuracoes");
@@ -259,9 +269,10 @@ export async function deleteAccount(id: string) {
 }
 
 export async function updateAccount(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const id = String(formData.get("id") ?? "");
-  if (!id) return { error: "Conta não encontrada." };
+  if (!id) return { error: translateServer(locale, "Conta não encontrada.") };
 
   const parsed = accountSchema.safeParse({
     name: formData.get("name"),
@@ -271,15 +282,15 @@ export async function updateAccount(_prev: ActionState, formData: FormData): Pro
     closingDay: formData.get("closingDay"),
     dueDay: formData.get("dueDay"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const [existing] = await db
     .select({ id: accounts.id, financeMode: accounts.financeMode })
     .from(accounts)
     .where(and(eq(accounts.id, id), eq(accounts.userId, userId)))
     .limit(1);
-  if (!existing) return { error: "Conta não encontrada." };
-  if (existing.financeMode === "integracao") return { error: "Desvincule a conta em Configurações → Integração antes de alterar o tipo." };
+  if (!existing) return { error: translateServer(locale, "Conta não encontrada.") };
+  if (existing.financeMode === "integracao") return { error: translateServer(locale, "Desvincule a conta em Configurações → Integração antes de alterar o tipo.") };
 
   const isCard = parsed.data.type === "CREDIT_CARD";
 

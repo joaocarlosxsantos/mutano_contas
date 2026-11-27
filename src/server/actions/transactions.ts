@@ -1,5 +1,7 @@
 "use server";
 
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { and, eq, inArray } from "drizzle-orm";
@@ -22,21 +24,22 @@ import {
 
 export type ActionState = { error?: string; ok?: boolean; groupId?: string };
 
-const schema = z.object({
-  date: z.string().min(1, "Informe a data."),
-  description: safeDescriptionSchema(2, 255, "Descreva o lançamento."),
-  amount: z.string().min(1, "Informe o valor."),
+function localizedschema(locale: Locale) { return z.object({
+  date: z.string().min(1, translateServer(locale, "Informe a data.")),
+  description: safeDescriptionSchema(2, 255, translateServer(locale, "Descreva o lançamento.")),
+  amount: z.string().min(1, translateServer(locale, "Informe o valor.")),
   kind: z.enum(["INCOME", "EXPENSE"]),
   nature: z.enum(["FIXED", "VARIABLE"]),
-  accountId: z.string().min(1, "Escolha a conta."),
+  accountId: z.string().min(1, translateServer(locale, "Escolha a conta.")),
   categoryId: z.string().optional(),
   notes: safeNotesSchema(2000),
   /** 1 = lançamento único. Acima disso vira compra parcelada. */
   installments: z.coerce.number().int().min(1).max(60).optional(),
-});
+}); }
 
-function readForm(formData: FormData) {
-  return schema.safeParse({
+
+function readForm(formData: FormData, locale: Locale = "pt-BR") {
+  return localizedschema(locale).safeParse({
     date: formData.get("date"),
     description: formData.get("description"),
     amount: formData.get("amount"),
@@ -66,6 +69,7 @@ async function getAccountAndVerify(
   accountId: string,
   categoryId: string | null,
 ): Promise<{ error?: string; account?: { id: string; type: string; closingDay: number | null; dueDay: number | null; financeMode: string } }> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const [account] = await db
     .select({
       id: accounts.id,
@@ -77,7 +81,7 @@ async function getAccountAndVerify(
     .from(accounts)
     .where(and(eq(accounts.id, accountId), eq(accounts.userId, userId)))
     .limit(1);
-  if (!account) return { error: "Conta inválida." };
+  if (!account) return { error: translateServer(locale, "Conta inválida.") };
 
   if (categoryId) {
     const [category] = await db
@@ -85,18 +89,19 @@ async function getAccountAndVerify(
       .from(categories)
       .where(and(eq(categories.id, categoryId), eq(categories.userId, userId)))
       .limit(1);
-    if (!category) return { error: "Categoria inválida." };
+    if (!category) return { error: translateServer(locale, "Categoria inválida.") };
   }
 
   return { account };
 }
 
 export async function createTransaction(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "manual-entry");
-  if (restriction) return { error: restriction };
-  const parsed = readForm(formData);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (restriction) return { error: translateServer(locale, restriction) };
+  const parsed = readForm(formData, locale);
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const d = parsed.data;
   const userExplicitCategory = Boolean(d.categoryId);
@@ -109,13 +114,13 @@ export async function createTransaction(_prev: ActionState, formData: FormData):
   }
 
   const amountCents = Math.abs(parseMoneyToCents(d.amount));
-  if (amountCents > MAX_CENTS) return { error: "Valor muito alto." };
-  if (amountCents <= 0) return { error: "O valor precisa ser maior que zero." };
+  if (amountCents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
+  if (amountCents <= 0) return { error: translateServer(locale, "O valor precisa ser maior que zero.") };
 
   const check = await getAccountAndVerify(userId, d.accountId, d.categoryId || null);
-  if (check.error || !check.account) return { error: check.error ?? "Conta inválida." };
+  if (check.error || !check.account) return { error: check.error ?? translateServer(locale, "Conta inválida.") };
   const account = check.account;
-  if (account.financeMode === "integracao") return { error: "Esta conta recebe lançamentos automaticamente. Troque o modo em Configurações → Integração para lançar manualmente." };
+  if (account.financeMode === "integracao") return { error: translateServer(locale, "Esta conta recebe lançamentos automaticamente. Troque o modo em Configurações → Integração para lançar manualmente.") };
 
   const date = new Date(`${d.date}T12:00:00.000Z`);
   const installments = d.installments ?? 1;
@@ -123,7 +128,7 @@ export async function createTransaction(_prev: ActionState, formData: FormData):
   // Compra parcelada: uma transação por parcela, nos meses seguintes.
   if (installments > 1) {
     if (d.kind !== "EXPENSE") {
-      return { error: "Parcelamento só faz sentido para saídas." };
+      return { error: translateServer(locale, "Parcelamento só faz sentido para saídas.") };
     }
     const { created } = await insertInstallments({
       userId,
@@ -145,7 +150,7 @@ export async function createTransaction(_prev: ActionState, formData: FormData):
     }
 
     refresh();
-    return created ? { ok: true } : { error: "Não foi possível criar as parcelas." };
+    return created ? { ok: true } : { error: translateServer(locale, "Não foi possível criar as parcelas.") };
   }
 
   const invoiceRef = resolveTransactionInvoiceRef({
@@ -179,19 +184,20 @@ export async function createTransaction(_prev: ActionState, formData: FormData):
 }
 
 export async function updateTransaction(id: string, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "manual-entry");
-  if (restriction) return { error: restriction };
-  const parsed = readForm(formData);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (restriction) return { error: translateServer(locale, restriction) };
+  const parsed = readForm(formData, locale);
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const d = parsed.data;
   const amountCents = Math.abs(parseMoneyToCents(d.amount));
-  if (amountCents > MAX_CENTS) return { error: "Valor muito alto." };
-  if (amountCents <= 0) return { error: "O valor precisa ser maior que zero." };
+  if (amountCents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
+  if (amountCents <= 0) return { error: translateServer(locale, "O valor precisa ser maior que zero.") };
 
   const check = await getAccountAndVerify(userId, d.accountId, d.categoryId || null);
-  if (check.error || !check.account) return { error: check.error ?? "Conta inválida." };
+  if (check.error || !check.account) return { error: check.error ?? translateServer(locale, "Conta inválida.") };
   const account = check.account;
 
   const date = new Date(`${d.date}T12:00:00.000Z`);
@@ -209,7 +215,7 @@ export async function updateTransaction(id: string, formData: FormData): Promise
     .from(transactions)
     .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
     .limit(1);
-  if (!existing) return { error: "Não encontrado." };
+  if (!existing) return { error: translateServer(locale, "Não encontrado.") };
   if (existing.origin === "PLUGGY") {
     await db.update(transactions).set({ categoryId: d.categoryId || null, notes: d.notes || null, updatedAt: new Date() }).where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
     if (d.categoryId) {
@@ -220,7 +226,7 @@ export async function updateTransaction(id: string, formData: FormData): Promise
   }
   // Editar uma perna isolada deixaria o par de transferência inconsistente.
   if (existing.transferGroupId) {
-    return { error: "Transferência: exclua e crie de novo para alterar." };
+    return { error: translateServer(locale, "Transferência: exclua e crie de novo para alterar.") };
   }
 
   // Parcelas e linhas importadas guardam a fatura do lote/ciclo original (a data da linha não
@@ -255,7 +261,7 @@ export async function updateTransaction(id: string, formData: FormData): Promise
     .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
     .returning({ id: transactions.id });
 
-  if (result.length === 0) return { error: "Não encontrado." };
+  if (result.length === 0) return { error: translateServer(locale, "Não encontrado.") };
 
   if (d.categoryId) {
     await learnCategoryRule(db, { userId, description: d.description, categoryId: d.categoryId, source: "USER" });
@@ -266,6 +272,7 @@ export async function updateTransaction(id: string, formData: FormData): Promise
 }
 
 export async function deleteTransaction(id: string) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
   const [tx] = await db
@@ -292,7 +299,7 @@ export async function deleteTransaction(id: string) {
 
       // 2 pernas normalmente; 1 quando a outra conta foi excluída (perna órfã, ON DELETE CASCADE)
       if (legs.length < 1 || legs.length > 2) {
-        throw new Error("Transferência inválida para exclusão.");
+        throw new Error(translateServer(locale, "Transferência inválida para exclusão."));
       }
 
       let deletedRows = 0;
@@ -305,7 +312,7 @@ export async function deleteTransaction(id: string) {
       }
 
       if (deletedRows !== legs.length) {
-        throw new Error(`Esperado exclusão de ${legs.length} linhas, mas foram excluídas ${deletedRows}.`);
+        throw new Error(translateServer(locale, "Esperado exclusão de {0} linhas, mas foram excluídas {1}.", legs.length, deletedRows));
       }
     });
   } else {
@@ -321,10 +328,11 @@ export async function deleteTransaction(id: string) {
  * ser contado duas vezes — o caso clássico é o pagamento da fatura do cartão.
  */
 export async function setTransactionTransfer(id: string, isTransfer: boolean): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
   const [source] = await db.select({ origin: transactions.origin }).from(transactions).where(and(eq(transactions.id, id), eq(transactions.userId, userId))).limit(1);
-  if (source?.origin === "PLUGGY") return { error: "Movimentos Pluggy não podem ser reclassificados como transferência manual." };
+  if (source?.origin === "PLUGGY") return { error: translateServer(locale, "Movimentos Pluggy não podem ser reclassificados como transferência manual.") };
 
   if (!isTransfer) {
     const [tx] = await db
@@ -334,7 +342,7 @@ export async function setTransactionTransfer(id: string, isTransfer: boolean): P
       .limit(1);
 
     if (tx?.transferGroupId) {
-      return { error: "Excluir a transferencia inteira em vez de parcelar" };
+      return { error: translateServer(locale, "Excluir a transferencia inteira em vez de parcelar") };
     }
   }
 
@@ -343,7 +351,7 @@ export async function setTransactionTransfer(id: string, isTransfer: boolean): P
     .set({ isTransfer, updatedAt: new Date() })
     .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
     .returning({ id: transactions.id });
-  if (result.length === 0) return { error: "Não encontrado." };
+  if (result.length === 0) return { error: translateServer(locale, "Não encontrado.") };
   refresh();
   revalidatePath("/orcamento");
   return { ok: true };
@@ -351,9 +359,10 @@ export async function setTransactionTransfer(id: string, isTransfer: boolean): P
 
 /** Marker manual para que um débito bancário de fatura fique no cash e fora do accrual. */
 export async function setTransactionCardPayment(id: string, isCardPayment: boolean): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const [row] = await db.select({ id: transactions.id, origin: transactions.origin, kind: transactions.kind, accountType: accounts.type }).from(transactions).innerJoin(accounts, eq(accounts.id, transactions.accountId)).where(and(eq(transactions.id, id), eq(transactions.userId, userId))).limit(1);
-  if (!row || row.origin === "MANUAL" || row.accountType === "CREDIT_CARD" || row.kind !== "EXPENSE") return { error: "O marcador só se aplica a débitos importados de contas bancárias." };
+  if (!row || row.origin === "MANUAL" || row.accountType === "CREDIT_CARD" || row.kind !== "EXPENSE") return { error: translateServer(locale, "O marcador só se aplica a débitos importados de contas bancárias.") };
   await db.update(transactions).set({ isCardPayment, updatedAt: new Date() }).where(and(eq(transactions.id, id), eq(transactions.userId, userId)));
   refresh();
   revalidatePath("/orcamento");
@@ -375,12 +384,13 @@ export async function createTransfer(
   date: Date | string,
   note?: string | null,
 ): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "manual-entry");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
 
   if (!fromAccountId || !toAccountId || fromAccountId === toAccountId) {
-    return { error: "As contas de origem e destino devem ser diferentes." };
+    return { error: translateServer(locale, "As contas de origem e destino devem ser diferentes.") };
   }
 
   if (
@@ -389,11 +399,11 @@ export async function createTransfer(
     !Number.isInteger(amountCents) ||
     amountCents <= 0
   ) {
-    return { error: "O valor precisa ser maior que zero." };
+    return { error: translateServer(locale, "O valor precisa ser maior que zero.") };
   }
 
   if (amountCents > MAX_CENTS) {
-    return { error: "Valor muito alto." };
+    return { error: translateServer(locale, "Valor muito alto.") };
   }
 
   // Verifica que ambas as contas existem e pertencem ao usuário
@@ -403,9 +413,9 @@ export async function createTransfer(
     .where(and(eq(accounts.userId, userId), inArray(accounts.id, [fromAccountId, toAccountId])));
 
   if (userAccounts.length !== 2) {
-    return { error: "Contas inválidas ou não pertencem ao usuário." };
+    return { error: translateServer(locale, "Contas inválidas ou não pertencem ao usuário.") };
   }
-  if (userAccounts.some((a) => a.financeMode === "integracao")) return { error: "Troque as contas integradas para o modo manual antes de criar transferência." };
+  if (userAccounts.some((a) => a.financeMode === "integracao")) return { error: translateServer(locale, "Troque as contas integradas para o modo manual antes de criar transferência.") };
 
   const parsedDate =
     typeof date === "string"
@@ -413,7 +423,7 @@ export async function createTransfer(
       : date;
 
   if (isNaN(parsedDate.getTime())) {
-    return { error: "Data inválida." };
+    return { error: translateServer(locale, "Data inválida.") };
   }
 
   const cleanNote = note ? sanitizeFreeText(note, true).slice(0, 2000) || null : null;
@@ -426,7 +436,7 @@ export async function createTransfer(
     outgoingLeg = legs[0];
     incomingLeg = legs[1];
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Erro ao gerar pernas da transferência." };
+    return { error: translateServer(locale, err instanceof Error ? err.message : "Erro ao gerar pernas da transferência.") };
   }
 
   await db.transaction(async (tx) => {
@@ -452,21 +462,22 @@ export async function updateTransfer(
   groupId: string,
   updates: UpdateTransferInput & { kind?: never },
 ): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const authUserId = await requireUserId();
   const restriction = await getProfileRestriction(authUserId, "manual-entry");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
   if (userId && userId !== authUserId) {
-    return { error: "Não autorizado." };
+    return { error: translateServer(locale, "Não autorizado.") };
   }
   const effectiveUserId = authUserId || userId;
 
   if (!groupId) {
-    return { error: "Grupo de transferência não informado." };
+    return { error: translateServer(locale, "Grupo de transferência não informado.") };
   }
 
   // Não permite trocar kind
   if ("kind" in (updates as Record<string, unknown>)) {
-    return { error: "Não é permitido alterar o tipo (kind) da transferência." };
+    return { error: translateServer(locale, "Não é permitido alterar o tipo (kind) da transferência.") };
   }
 
   if (updates.amountCents !== undefined) {
@@ -476,10 +487,10 @@ export async function updateTransfer(
       !Number.isInteger(updates.amountCents) ||
       updates.amountCents <= 0
     ) {
-      return { error: "O valor precisa ser maior que zero." };
+      return { error: translateServer(locale, "O valor precisa ser maior que zero.") };
     }
     if (updates.amountCents > MAX_CENTS) {
-      return { error: "Valor muito alto." };
+      return { error: translateServer(locale, "Valor muito alto.") };
     }
   }
 
@@ -490,21 +501,21 @@ export async function updateTransfer(
     .where(and(eq(transactions.transferGroupId, groupId), eq(transactions.userId, effectiveUserId)));
 
   if (legs.length !== 2) {
-    return { error: "Transferência não encontrada ou incompleta." };
+    return { error: translateServer(locale, "Transferência não encontrada ou incompleta.") };
   }
 
   const outgoingLeg = legs.find((l) => l.kind === "EXPENSE");
   const incomingLeg = legs.find((l) => l.kind === "INCOME");
 
   if (!outgoingLeg || !incomingLeg) {
-    return { error: "Pernas da transferência inválidas." };
+    return { error: translateServer(locale, "Pernas da transferência inválidas.") };
   }
 
   const targetFrom = updates.fromAccountId ?? outgoingLeg.accountId;
   const targetTo = updates.toAccountId ?? incomingLeg.accountId;
 
   if (targetFrom === targetTo) {
-    return { error: "As contas de origem e destino devem ser diferentes." };
+    return { error: translateServer(locale, "As contas de origem e destino devem ser diferentes.") };
   }
 
   if (updates.fromAccountId || updates.toAccountId) {
@@ -515,7 +526,7 @@ export async function updateTransfer(
       .where(and(eq(accounts.userId, effectiveUserId), inArray(accounts.id, accountsToCheck)));
 
     if (userAccounts.length !== accountsToCheck.length) {
-      return { error: "Contas inválidas ou não pertencem ao usuário." };
+      return { error: translateServer(locale, "Contas inválidas ou não pertencem ao usuário.") };
     }
   }
 
@@ -526,7 +537,7 @@ export async function updateTransfer(
         ? new Date(updates.date.includes("T") ? updates.date : `${updates.date}T12:00:00.000Z`)
         : updates.date;
     if (isNaN(parsedDate.getTime())) {
-      return { error: "Data inválida." };
+      return { error: translateServer(locale, "Data inválida.") };
     }
   }
 
@@ -549,7 +560,7 @@ export async function updateTransfer(
   if (updates.note !== undefined) {
     const cleanNote = updates.note ? sanitizeFreeText(updates.note, true).slice(0, 2000) || null : null;
     commonUpdates.notes = cleanNote;
-    commonUpdates.description = cleanNote ? sanitizeFreeText(cleanNote, false).slice(0, 255) || "Transferência" : "Transferência";
+    commonUpdates.description = cleanNote ? sanitizeFreeText(cleanNote, false).slice(0, 255) || translateServer(locale, "Transferência") : translateServer(locale, "Transferência");
   }
 
   try {
@@ -588,11 +599,11 @@ export async function updateTransfer(
 
       const affected = resOut.length + resIn.length;
       if (affected !== 2) {
-        throw new Error(`Esperado atualizar exatamente 2 linhas, mas foram afetadas ${affected}.`);
+        throw new Error(translateServer(locale, "Esperado atualizar exatamente 2 linhas, mas foram afetadas {0}.", affected));
       }
     });
   } catch (err) {
-    return { error: err instanceof Error ? err.message : "Erro ao atualizar transferência." };
+    return { error: translateServer(locale, err instanceof Error ? err.message : "Erro ao atualizar transferência.") };
   }
 
   refresh();
@@ -601,11 +612,12 @@ export async function updateTransfer(
 }
 
 export async function setTransactionCategory(id: string, categoryId: string | null): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
   const [ownedTransaction] = await db.select({ description: transactions.description })
     .from(transactions).where(and(eq(transactions.id, id), eq(transactions.userId, userId))).limit(1);
-  if (!ownedTransaction) return { error: "NÃ£o encontrado." };
+  if (!ownedTransaction) return { error: translateServer(locale, "NÃ£o encontrado.") };
 
   let nature: "FIXED" | "VARIABLE" | undefined;
   if (categoryId) {
@@ -614,7 +626,7 @@ export async function setTransactionCategory(id: string, categoryId: string | nu
       .from(categories)
       .where(and(eq(categories.id, categoryId), eq(categories.userId, userId)))
       .limit(1);
-    if (!cat) return { error: "Categoria não encontrada." };
+    if (!cat) return { error: translateServer(locale, "Categoria não encontrada.") };
     nature = cat.nature;
   }
 
@@ -624,7 +636,7 @@ export async function setTransactionCategory(id: string, categoryId: string | nu
     .where(and(eq(transactions.id, id), eq(transactions.userId, userId)))
     .returning({ id: transactions.id });
 
-  if (result.length === 0) return { error: "Não encontrado." };
+  if (result.length === 0) return { error: translateServer(locale, "Não encontrado.") };
   if (categoryId) {
     await learnCategoryRule(db, { userId, description: ownedTransaction.description, categoryId, source: "USER" });
   }

@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useState, useTransition } from "react";
 import { Check, ChevronDown, ChevronUp, MessageCircle, Phone, Repeat, Trash2, UserPlus } from "lucide-react";
 import { addBillParticipant, deleteBill, removeBillParticipant, toggleBillPaid, toggleParticipantPaid, updateBillGrouping } from "@/server/actions/bills";
@@ -62,6 +64,7 @@ export function BillItem({
   /** Status pago do participante para toggle individual */
   participantPaid?: boolean;
 }) {
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const confirm = useConfirm();
@@ -123,15 +126,15 @@ export function BillItem({
       monthLabel,
       groupingName: bill.groupingName,
       entries,
-    });
+    }, locale);
     return buildWhatsAppLink(phone, message);
   }
 
   async function remove() {
     const ok = await confirm({
-      title: `Excluir "${bill.name}"?`,
-      description: "Não pode ser desfeito.",
-      confirmLabel: "Excluir",
+      title: translatePlanning(locale, "Excluir \"{0}\"?", bill.name),
+      description: translatePlanning(locale, "Não pode ser desfeito."),
+      confirmLabel: translatePlanning(locale, "Excluir"),
       tone: "danger",
     });
     if (!ok) return;
@@ -148,7 +151,7 @@ export function BillItem({
               type="button"
               role="checkbox"
               aria-checked={isPaid}
-              aria-label={isPaid ? `Marcar ${bill.name} como pendente` : `Marcar ${bill.name} como paga`}
+              aria-label={isPaid ? translatePlanning(locale, "Marcar {0} como pendente", bill.name) : translatePlanning(locale, "Marcar {0} como paga", bill.name)}
               disabled={pending}
               onClick={togglePaid}
               className="min-h-11 min-w-11 group flex min-h-[44px] min-w-0 cursor-pointer items-center gap-2 -ml-2 pl-2 rounded-lg text-left transition-colors hover:bg-[var(--surface-2)] focus-visible:ring-2 focus-visible:ring-[var(--acento)]"
@@ -184,15 +187,15 @@ export function BillItem({
                     : "bg-[var(--surface-2)] text-[var(--text-muted)]"
               }`}
             >
-              {status === "PAGA" ? "Paga" : status === "VENCIDA" ? "Vencida" : "Pendente"}
+              {status === "PAGA" ? translatePlanning(locale, "Paga") : status === "VENCIDA" ? translatePlanning(locale, "Vencida") : translatePlanning(locale, "Pendente")}
             </span>
           </div>
 
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-[var(--text-muted)] pl-7">
-            {bill.dueDay ? <span>Vencimento dia {bill.dueDay}</span> : null}
+            {bill.dueDay ? <span>{translatePlanning(locale, "Vencimento dia")} {bill.dueDay}</span> : null}
             {bill.type === "GROUP" && bill.participants.length && participantShareCents === undefined ? (
               <span>
-                {bill.participants.length} pessoa{bill.participants.length > 1 ? "s" : ""}
+                {bill.participants.length} {translatePlanning(locale, "pessoa")}{bill.participants.length > 1 ? "s" : ""}
               </span>
             ) : null}
           </div>
@@ -203,17 +206,17 @@ export function BillItem({
           {participantShareCents !== undefined ? (
             <>
               <span className="tnum font-mono text-[0.875rem] font-semibold text-[var(--text)]">
-                {formatCents(participantShareCents)}
+                {formatCents(participantShareCents, locale)}
               </span>
               {participantShareCents !== bill.totalCents ? (
                 <span className="tnum font-mono text-xs text-[var(--text-muted)]">
-                  total {formatCents(bill.totalCents)}
+                  {translatePlanning(locale, "total")} {formatCents(bill.totalCents, locale)}
                 </span>
               ) : null}
             </>
           ) : (
             <span className="tnum font-mono text-[0.875rem] font-semibold text-[var(--text)]">
-              {formatCents(bill.totalCents)}
+              {formatCents(bill.totalCents, locale)}
             </span>
           )}
         </div>
@@ -221,7 +224,7 @@ export function BillItem({
         <button
           type="button"
           aria-expanded={open}
-          aria-label={open ? "Fechar detalhes" : "Ver detalhes"}
+          aria-label={open ? translatePlanning(locale, "Fechar detalhes") : translatePlanning(locale, "Ver detalhes")}
           onClick={() => setOpen((v) => !v)}
           className="min-h-11 min-w-11 muted shrink-0 cursor-pointer rounded-lg p-1.5 hover:bg-[var(--surface-2)]"
         >
@@ -229,7 +232,7 @@ export function BillItem({
         </button>
         <button
           type="button"
-          aria-label={`Excluir ${bill.name}`}
+          aria-label={translatePlanning(locale, "Excluir {0}", bill.name)}
           onClick={() => void remove()}
           className="inline-flex items-center justify-center min-h-11 min-w-11 muted shrink-0 cursor-pointer rounded-lg p-1.5 hover:bg-[var(--color-money-out-soft)] hover:text-[var(--text-out)]"
         >
@@ -241,7 +244,7 @@ export function BillItem({
         <div className="space-y-4 border-t px-4 pt-3 pb-4">
           {groupings.length ? (
             <div>
-              <p className="muted mb-1.5 text-xs font-semibold tracking-wide uppercase">Agrupamento</p>
+              <p className="muted mb-1.5 text-xs font-semibold tracking-wide uppercase">{translatePlanning(locale, "Agrupamento")}</p>
               <div className="relative">
                 <span
                   className={`pointer-events-none absolute top-1/2 left-3 size-2 -translate-y-1/2 rounded-full ${
@@ -250,14 +253,14 @@ export function BillItem({
                   style={currentGrouping ? { background: currentGrouping.color } : undefined}
                 />
                 <Select
-                  aria-label="Agrupamento"
+                  aria-label={translatePlanning(locale, "Agrupamento")}
                   value={bill.groupingId ?? ""}
                   onChange={(e) =>
                     start(async () => void (await updateBillGrouping(bill.id, e.target.value || null)))
                   }
                   className="min-h-12 min-w-0 max-w-full text-base! pl-7"
                 >
-                  <option value="">Sem agrupamento</option>
+                  <option value="">{translatePlanning(locale, "Sem agrupamento")}</option>
                   {groupings.map((g) => (
                     <option key={g.id} value={g.id}>
                       {g.name}
@@ -270,14 +273,14 @@ export function BillItem({
 
           {bill.type === "GROUP" ? (
             <div>
-              <p className="muted mb-1.5 text-xs font-semibold tracking-wide uppercase">Quem divide</p>
+              <p className="muted mb-1.5 text-xs font-semibold tracking-wide uppercase">{translatePlanning(locale, "Quem divide")}</p>
               {(() => {
                 const sum = bill.participants.reduce((acc, p) => acc + p.amountCents, 0);
                 const diff = bill.totalCents - sum;
                 if (diff !== 0) {
                   return (
                     <p className={`mb-2 text-xs font-medium ${diff > 0 ? "text-[var(--text-warn)]" : "text-[var(--text-out)]"}`}>
-                      {diff > 0 ? `Falta dividir ${formatCents(diff)}` : `Passou ${formatCents(-diff)} do total`}
+                      {diff > 0 ? translatePlanning(locale, "Falta dividir {0}", formatCents(diff, locale)) : translatePlanning(locale, "Passou {0} do total", formatCents(-diff, locale))}
                     </p>
                   );
                 }
@@ -291,12 +294,10 @@ export function BillItem({
                         <p className="truncate font-medium">{p.name}</p>
                         {p.paid ? (
                           <span className="inline-flex items-center rounded-[var(--radius-xs)] bg-[var(--color-money-in-soft)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-in)]">
-                            Pago
-                          </span>
+                            {translatePlanning(locale, "Pago")} </span>
                         ) : (
                           <span className="inline-flex items-center rounded-[var(--radius-xs)] bg-[var(--surface-2)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-muted)] ring-1 ring-[var(--border)] ring-inset">
-                            Pendente
-                          </span>
+                            {translatePlanning(locale, "Pendente")} </span>
                         )}
                       </div>
                       {p.phone ? (
@@ -306,7 +307,7 @@ export function BillItem({
                         </p>
                       ) : null}
                     </div>
-                    <span className="tnum font-mono shrink-0 font-medium">{formatCents(p.amountCents)}</span>
+                    <span className="tnum font-mono shrink-0 font-medium">{formatCents(p.amountCents, locale)}</span>
                     {(() => {
                       const link = shareLinkFor(p);
                       return link ? (
@@ -314,8 +315,8 @@ export function BillItem({
                           href={link}
                           target="_blank"
                           rel="noopener noreferrer"
-                          aria-label={`Enviar no WhatsApp para ${p.name}`}
-                          title="Enviar a parte dele no WhatsApp"
+                          aria-label={translatePlanning(locale, "Enviar no WhatsApp para {0}", p.name)}
+                          title={translatePlanning(locale, "Enviar a parte dele no WhatsApp")}
                           className="shrink-0 cursor-pointer rounded-lg p-1.5 text-[var(--text-in)] hover:bg-[var(--color-money-in-soft)]"
                         >
                           <MessageCircle className="size-3.5" />
@@ -324,8 +325,8 @@ export function BillItem({
                         <button
                           type="button"
                           disabled
-                          aria-label={`Sem telefone válido para ${p.name}`}
-                          title="Cadastre um telefone pra habilitar o WhatsApp"
+                          aria-label={translatePlanning(locale, "Sem telefone válido para {0}", p.name)}
+                          title={translatePlanning(locale, "Cadastre um telefone pra habilitar o WhatsApp")}
                           className="inline-flex items-center justify-center min-h-11 min-w-11 muted shrink-0 cursor-not-allowed rounded-lg p-1.5 opacity-40"
                         >
                           <MessageCircle className="size-3.5" />
@@ -334,7 +335,7 @@ export function BillItem({
                     })()}
                     <button
                       type="button"
-                      aria-label={`Remover ${p.name}`}
+                      aria-label={translatePlanning(locale, "Remover {0}", p.name)}
                       onClick={() => start(async () => void (await removeBillParticipant(p.id)))}
                       className="inline-flex items-center justify-center min-h-11 min-w-11 muted shrink-0 cursor-pointer rounded-lg p-1.5 hover:bg-[var(--color-money-out-soft)] hover:text-[var(--text-out)]"
                     >
@@ -350,7 +351,7 @@ export function BillItem({
           ) : null}
 
           <div>
-            <p className="muted mb-1.5 text-xs font-semibold tracking-wide uppercase">Valor e Vencimento</p>
+            <p className="muted mb-1.5 text-xs font-semibold tracking-wide uppercase">{translatePlanning(locale, "Valor e Vencimento")}</p>
             <BillAmountEditor
               billId={bill.id}
               totalCents={bill.totalCents}
@@ -366,6 +367,7 @@ export function BillItem({
 }
 
 function AddParticipantForm({ billId }: { billId: string }) {
+  const locale = useLocale();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [pending, start] = useTransition();
@@ -373,15 +375,15 @@ function AddParticipantForm({ billId }: { billId: string }) {
   return (
     <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
       <Input
-        placeholder="Nome"
-        aria-label="Nome"
+        placeholder={translatePlanning(locale, "Nome")}
+        aria-label={translatePlanning(locale, "Nome")}
         value={name}
         onChange={(e) => setName(e.target.value)}
         className="min-h-12 min-w-0 max-w-full text-base! h-8 flex-1 text-[0.8125rem]"
       />
       <Input
-        placeholder="Telefone (opcional)"
-        aria-label="Telefone (opcional)"
+        placeholder={translatePlanning(locale, "Telefone (opcional)")}
+        aria-label={translatePlanning(locale, "Telefone (opcional)")}
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
         className="min-h-12 min-w-0 max-w-full text-base! h-8 flex-1 min-w-0 text-[0.8125rem]"
@@ -390,7 +392,7 @@ function AddParticipantForm({ billId }: { billId: string }) {
         type="button"
         size="sm"
         variant="outline"
-        aria-label="Adicionar pessoa"
+        aria-label={translatePlanning(locale, "Adicionar pessoa")}
         disabled={pending || !name.trim()}
         onClick={() =>
           start(async () => {

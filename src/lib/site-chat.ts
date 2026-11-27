@@ -1,16 +1,34 @@
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { BOT_COMMANDS } from "@/server/telegram/commands";
 
-const names: Record<string, string> = {
-  saldo: "Saldo", previsao: "Previsão", hoje: "Gasto de hoje", assinaturas: "Assinaturas",
-  resumo: "Resumo diário", relatorio: "Relatório mensal", cartao: "Cartões",
-  start: "Início", menu: "Menu", ajuda: "Ajuda", pausar: "Pausar avisos",
-};
+function localizednames(locale: Locale): Record<string, string> { return {
+  saldo: translateServer(locale, "Saldo"), previsao: translateServer(locale, "Previsão"), hoje: translateServer(locale, "Gasto de hoje"), assinaturas: translateServer(locale, "Assinaturas"),
+  resumo: translateServer(locale, "Resumo diário"), relatorio: translateServer(locale, "Relatório mensal"), cartao: translateServer(locale, "Cartões"),
+  start: translateServer(locale, "Início"), menu: "Menu", ajuda: translateServer(locale, "Ajuda"), pausar: translateServer(locale, "Pausar avisos"),
+}; }
+
 // The bot's published catalog is the authority. No arbitrary text or AI path.
-export const SITE_CHAT_COMMANDS = [
-  ...BOT_COMMANDS.map(item => ({ command: `/${item.command}`, label: names[item.command] ?? item.command, description: item.description })),
-  { command: "/resumo semana", label: "Resumo semanal", description: "Ver o resumo da semana." },
-  { command: "/avisos", label: "Meus avisos", description: "Consultar as preferências do Telegram." },
-] as const;
+function localizedSITE_CHAT_COMMANDS(locale: Locale) { return [
+  ...BOT_COMMANDS.map(item => ({ command: `/${item.command}`, label: localizednames(locale)[item.command] ?? item.command, description: item.description })),
+  { command: "/resumo semana", label: translateServer(locale, "Resumo semanal"), description: translateServer(locale, "Ver o resumo da semana.") },
+  { command: "/avisos", label: translateServer(locale, "Meus avisos"), description: translateServer(locale, "Consultar as preferências do Telegram.") },
+] as const; }
+export const SITE_CHAT_COMMANDS = localizedSITE_CHAT_COMMANDS("pt-BR");
+
+const englishDescriptions: Record<string, string> = {
+  saldo: "View available balance, investments and net worth.", previsao: "View the month-end forecast.",
+  hoje: "See how much you can spend today.", assinaturas: "View subscriptions and price increases.",
+  resumo: "View the daily summary with bills, statements and alerts.", relatorio: "View this month's report.",
+  cartao: "View card statements, limits and recent purchases.", start: "Show the chat menu.",
+  menu: "Show this menu.", ajuda: "Show available commands.", pausar: "Pause automatic alerts.",
+};
+
+export function getSiteChatCommands(locale: Locale = "pt-BR") {
+  return localizedSITE_CHAT_COMMANDS(locale).map(item => ({ ...item,
+    description: locale === "en" ? englishDescriptions[item.command.slice(1)] ?? item.description : item.description,
+  }));
+}
 
 export const isSiteChatCommand = (value: unknown): value is string => typeof value === "string"
   && SITE_CHAT_COMMANDS.some(item => item.command === value);

@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useState, useTransition } from "react";
 import { CalendarClock } from "lucide-react";
 import { generateBillsForMonth } from "@/server/actions/bills";
@@ -22,6 +24,7 @@ export function BillsPendingBanner({
   monthName: string;
   pending: PendingRule[];
 }) {
+  const locale = useLocale();
   const [busy, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
@@ -35,8 +38,7 @@ export function BillsPendingBanner({
 
       <div className="min-w-0 flex-1">
         <p className="text-[0.875rem] font-medium">
-          {pending.length} conta{pending.length > 1 ? "s" : ""} recorrente{pending.length > 1 ? "s" : ""} ainda
-          sem registro em <span className="first-letter:uppercase">{monthName}</span>
+          {translatePlanning(locale, pending.length === 1 ? "{0} conta recorrente ainda sem registro em {1}." : "{0} contas recorrentes ainda sem registro em {1}.", pending.length, monthName)}
         </p>
         <p className="muted mt-0.5 truncate text-[0.8125rem]">
           {pending.map((r) => r.name).join(", ")}
@@ -51,11 +53,11 @@ export function BillsPendingBanner({
           onClick={() =>
             start(async () => {
               const { created, error } = await generateBillsForMonth(monthRefToParam(monthRef));
-              setMessage(error ?? `${created} conta(s) criada(s) — falta preencher o valor.`);
+              setMessage(error ?? translatePlanning(locale, "{0} conta(s) criada(s) — falta preencher o valor.", created));
             })
           }
         >
-          {busy ? "Criando..." : "Criar deste mês"}
+          {busy ? translatePlanning(locale, "Criando...") : translatePlanning(locale, "Criar deste mês")}
         </Button>
       </div>
     </div>

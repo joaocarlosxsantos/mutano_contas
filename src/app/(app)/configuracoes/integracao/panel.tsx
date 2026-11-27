@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -74,6 +76,7 @@ declare global {
 }
 
 export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: string }) {
+  const locale = useLocale();
   const manualEntry = canUseCapability(useUsageProfile(), "manual-entry");
   const router = useRouter();
   const confirm = useConfirm();
@@ -115,7 +118,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
     }
     formElement?.reset();
     setActiveSheet(null);
-    setMessage("Credenciais da Pluggy salvas e validadas com sucesso!");
+    setMessage(translatePlanning(locale, "Credenciais da Pluggy salvas e validadas com sucesso!"));
     router.refresh();
   }
 
@@ -128,9 +131,9 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
       if (existing) {
         existing.addEventListener("load", () => {
           if (window.PluggyConnect) resolve(window.PluggyConnect);
-          else reject(new Error("PluggyConnect não disponível após carregamento."));
+          else reject(new Error(translatePlanning(locale, "PluggyConnect não disponível após carregamento.")));
         });
-        existing.addEventListener("error", () => reject(new Error("Falha ao carregar o script do widget Pluggy Connect.")));
+        existing.addEventListener("error", () => reject(new Error(translatePlanning(locale, "Falha ao carregar o script do widget Pluggy Connect."))));
         return;
       }
       const script = document.createElement("script");
@@ -138,9 +141,9 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
       script.async = true;
       script.onload = () => {
         if (window.PluggyConnect) resolve(window.PluggyConnect);
-        else reject(new Error("PluggyConnect não disponível após carregamento."));
+        else reject(new Error(translatePlanning(locale, "PluggyConnect não disponível após carregamento.")));
       };
-      script.onerror = () => reject(new Error("Falha ao carregar o widget do Pluggy Connect. Verifique sua conexão ou se algum bloqueador de scripts está ativo."));
+      script.onerror = () => reject(new Error(translatePlanning(locale, "Falha ao carregar o widget do Pluggy Connect. Verifique sua conexão ou se algum bloqueador de scripts está ativo.")));
       document.body.appendChild(script);
     });
   }
@@ -152,7 +155,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
       const tokenRes = await getPluggyConnectToken();
       if (tokenRes.error || !tokenRes.connectToken) {
         setBusy(false);
-        return setMessage(tokenRes.error ?? "Não foi possível obter o token de conexão.");
+        return setMessage(tokenRes.error ?? translatePlanning(locale, "Não foi possível obter o token de conexão."));
       }
 
       const PluggyConnect = await loadPluggySdk();
@@ -160,19 +163,19 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
         connectToken: tokenRes.connectToken,
         includeSandbox: false,
         onSuccess: async (data: { item: { id: string } }) => {
-          setMessage("Conta conectada! Sincronizando dados...");
+          setMessage(translatePlanning(locale, "Conta conectada! Sincronizando dados..."));
           setBusy(true);
           const connectRes = await connectPluggyItem({ itemId: data.item.id });
           setBusy(false);
           if (connectRes.error) {
             setMessage(connectRes.error);
           } else {
-            setMessage("Conexão autorizada. Sincronize agora e confira o resultado por conta para confirmar a leitura dos dados.");
+            setMessage(translatePlanning(locale, "Conexão autorizada. Sincronize agora e confira o resultado por conta para confirmar a leitura dos dados."));
             router.refresh();
           }
         },
         onError: () => {
-          setMessage("Conexão cancelada ou não concluída no banco.");
+          setMessage(translatePlanning(locale, "Conexão cancelada ou não concluída no banco."));
           setBusy(false);
         },
         onClose: () => {
@@ -182,7 +185,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
       pluggyConnect.init();
     } catch (err) {
       setBusy(false);
-      setMessage(err instanceof Error ? err.message : "Erro ao abrir o widget do Pluggy Connect.");
+      setMessage(err instanceof Error ? err.message : translatePlanning(locale, "Erro ao abrir o widget do Pluggy Connect."));
     }
   }
 
@@ -214,9 +217,9 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
     if (!counts) return;
 
     const ok = await confirm({
-      title: `Excluir dados importados da Pluggy de "${c.label || "esta conexão"}"?`,
-      description: `Serão apagados ${counts.transactions} lançamentos importados via Open Finance, ${counts.invoices} faturas e ${counts.tombstones} bloqueios. Lançamentos manuais e arquivos CSV/OFX continuam intactos.`,
-      confirmLabel: "Excluir dados importados da Pluggy",
+      title: translatePlanning(locale, "Excluir dados importados da Pluggy de \"{0}\"?", c.label || translatePlanning(locale, "esta conexão")),
+      description: translatePlanning(locale, "Serão apagados {0} lançamentos importados via Open Finance, {1} faturas e {2} bloqueios. Lançamentos manuais e arquivos CSV/OFX continuam intactos.", counts.transactions, counts.invoices, counts.tombstones),
+      confirmLabel: translatePlanning(locale, "Excluir dados importados da Pluggy"),
       tone: "danger",
     });
     if (!ok) return;
@@ -231,7 +234,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
     }
 
     setActiveSheet(null);
-    setMessage(`${result.transactions} lançamento(s), ${result.invoices} fatura(s) e ${result.tombstones} bloqueio(s) excluídos com sucesso.`);
+    setMessage(translatePlanning(locale, "{0} lançamento(s), {1} fatura(s) e {2} bloqueio(s) excluídos com sucesso.", result.transactions, result.invoices, result.tombstones));
     router.refresh();
   }
 
@@ -240,15 +243,15 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
     if (!counts) return;
 
     const description = deleteImported
-      ? `A conexão "${c.label || "sem nome"}" será removida e serão apagados ${counts.transactions} lançamentos importados via Open Finance, ${counts.invoices} faturas e ${counts.tombstones} bloqueios. Lançamentos manuais e arquivos CSV/OFX continuam intactos. As contas locais voltarão ao modo manual.`
-      : `A conexão "${c.label || "sem nome"}" será desvinculada, mas ${counts.transactions} lançamentos importados via Open Finance serão mantidos no seu histórico. ${counts.invoices} faturas e o vínculo da conexão serão removidos. Bloqueios de reimportação continuarão ativos. As contas locais voltarão ao modo manual. Lançamentos manuais e arquivos CSV/OFX continuam intactos.`;
+      ? translatePlanning(locale, "A conexão \"{0}\" será removida e serão apagados {1} lançamentos importados via Open Finance, {2} faturas e {3} bloqueios. Lançamentos manuais e arquivos CSV/OFX continuam intactos. As contas locais voltarão ao modo manual.", c.label || "sem nome", counts.transactions, counts.invoices, counts.tombstones)
+      : translatePlanning(locale, "A conexão \"{0}\" será desvinculada, mas {1} lançamentos importados via Open Finance serão mantidos no seu histórico. {2} faturas e o vínculo da conexão serão removidos. Bloqueios de reimportação continuarão ativos. As contas locais voltarão ao modo manual. Lançamentos manuais e arquivos CSV/OFX continuam intactos.", c.label || "sem nome", counts.transactions, counts.invoices);
 
     const ok = await confirm({
       title: deleteImported
-        ? `Remover conexão e excluir lançamentos Pluggy?`
-        : `Remover conexão e manter lançamentos?`,
+        ? translatePlanning(locale, "Remover conexão e excluir lançamentos Pluggy?")
+        : translatePlanning(locale, "Remover conexão e manter lançamentos?"),
       description,
-      confirmLabel: deleteImported ? "Remover conexão e excluir lançamentos Pluggy" : "Remover conexão e manter lançamentos",
+      confirmLabel: deleteImported ? translatePlanning(locale, "Remover conexão e excluir lançamentos Pluggy") : translatePlanning(locale, "Remover conexão e manter lançamentos"),
       tone: "danger",
     });
     if (!ok) return;
@@ -269,17 +272,17 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
     setActiveSheet(null);
     setMessage(
       deleteImported
-        ? `Conexão removida com sucesso e ${result.deletedTransactions} lançamento(s) apagados.`
-        : "Conexão removida com sucesso. Os lançamentos importados foram preservados no histórico.",
+        ? translatePlanning(locale, "Conexão removida com sucesso e {0} lançamento(s) apagados.", result.deletedTransactions)
+        : translatePlanning(locale, "Conexão removida com sucesso. Os lançamentos importados foram preservados no histórico."),
     );
     router.refresh();
   }
 
   async function removeCredentials() {
     const ok = await confirm({
-      title: "Remover as credenciais Pluggy?",
-      description: "O Client ID e o Client Secret cifrados serão apagados. Esta ação só é permitida quando não há conexões cadastradas.",
-      confirmLabel: "Remover credenciais",
+      title: translatePlanning(locale, "Remover as credenciais Pluggy?"),
+      description: translatePlanning(locale, "O Client ID e o Client Secret cifrados serão apagados. Esta ação só é permitida quando não há conexões cadastradas."),
+      confirmLabel: translatePlanning(locale, "Remover credenciais"),
       tone: "danger",
     });
     if (!ok) return;
@@ -288,7 +291,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
     const result = await removeOpenFinanceCredentials({ confirmation: "REMOVER CREDENCIAIS" });
     setBusy(false);
     setActiveSheet(null);
-    setMessage(result.error ? result.error : "Credenciais removidas com sucesso.");
+    setMessage(result.error ? result.error : translatePlanning(locale, "Credenciais removidas com sucesso."));
     router.refresh();
   }
 
@@ -314,7 +317,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
             type="button"
             onClick={() => setMessage("")}
             className="inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg hover:bg-white/5"
-            aria-label="Dispensar aviso"
+            aria-label={translatePlanning(locale, "Dispensar aviso")}
           >
             <X className="size-4" />
           </button>
@@ -330,10 +333,9 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                 <Key className="size-4.5" />
               </div>
               <div>
-                <h2 className="text-heading font-semibold text-[var(--text)]">Configurar Pluggy Open Finance</h2>
+                <h2 className="text-heading font-semibold text-[var(--text)]">{translatePlanning(locale, "Configurar Pluggy Open Finance")}</h2>
                 <p className="text-xs text-[var(--text-muted)]">
-                  Confira com a Pluggy se a modalidade da aplicação permite o uso pretendido.
-                </p>
+                  {translatePlanning(locale, "Confira com a Pluggy se a modalidade da aplicação permite o uso pretendido.")} </p>
               </div>
             </div>
           </div>
@@ -347,22 +349,22 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
             }}
             className="space-y-4"
           >
-            <Field label="Client ID" hint="Identificador único da sua aplicação Pluggy">
+            <Field label="Client ID" hint={translatePlanning(locale, "Identificador único da sua aplicação Pluggy")}>
               <Input
                 name="clientId"
                 required
-                placeholder="Ex.: 00000000-0000-0000-0000-000000000000"
+                placeholder={translatePlanning(locale, "Ex.: 00000000-0000-0000-0000-000000000000")}
                 autoComplete="off"
                 disabled={busy}
               />
             </Field>
 
-            <Field label="Client Secret" hint="Chave secreta da sua aplicação (criptografada no servidor)">
+            <Field label="Client Secret" hint={translatePlanning(locale, "Chave secreta da sua aplicação (criptografada no servidor)")}>
               <Input
                 name="clientSecret"
                 type="password"
                 required
-                placeholder="Ex.: 00000000-0000-0000-0000-000000000000"
+                placeholder={translatePlanning(locale, "Ex.: 00000000-0000-0000-0000-000000000000")}
                 autoComplete="off"
                 disabled={busy}
               />
@@ -371,8 +373,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
             <div className="flex items-start gap-2 text-[0.6875rem] text-[var(--text-muted)]">
               <Lock className="size-3.5 shrink-0 mt-0.5 text-[var(--text-muted)]" />
               <span>
-                Criptografia AES-256-GCM com chave de ambiente. O Client Secret é validado na Pluggy e nunca é devolvido ao navegador nem exposto em logs.
-              </span>
+                {translatePlanning(locale, "Criptografia AES-256-GCM com chave de ambiente. O Client Secret é validado na Pluggy e nunca é devolvido ao navegador nem exposto em logs.")} </span>
             </div>
 
             <Button
@@ -381,7 +382,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
               className="min-h-12 w-full sm:w-auto font-medium gap-2"
             >
               <Key className="size-4" />
-              {busy ? "Validando e salvando..." : "Salvar e validar credenciais"}
+              {busy ? translatePlanning(locale, "Validando e salvando...") : translatePlanning(locale, "Salvar e validar credenciais")}
             </Button>
           </form>
         </section>
@@ -392,7 +393,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
             <div className="flex items-center gap-2.5 min-w-0">
               <CheckCircle2 className="size-4 text-[var(--text-in)] shrink-0" />
               <div className="min-w-0">
-                <p className="font-medium text-[var(--text)]">Credenciais Pluggy ativas</p>
+                <p className="font-medium text-[var(--text)]">{translatePlanning(locale, "Credenciais Pluggy ativas")}</p>
                 <p className="text-[var(--text-muted)] truncate">
                   Client ID: <span className="font-mono text-[var(--text)]">{setup.clientIdMasked ?? "••••"}</span>
                 </p>
@@ -407,8 +408,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                 disabled={busy}
                 className="min-h-9 text-xs"
               >
-                Trocar
-              </Button>
+                {translatePlanning(locale, "Trocar")} </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -417,13 +417,12 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                 disabled={busy || setup.connections.length > 0}
                 title={
                   setup.connections.length > 0
-                    ? "Remova todas as conexões antes de remover as credenciais"
+                    ? translatePlanning(locale, "Remova todas as conexões antes de remover as credenciais")
                     : undefined
                 }
                 className="min-h-9 text-xs text-[var(--text-out)] hover:bg-[var(--out-soft)] hover:text-[var(--text-out)]"
               >
-                Remover
-              </Button>
+                {translatePlanning(locale, "Remover")} </Button>
             </div>
           </section>
 
@@ -445,22 +444,22 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                         aria-hidden="true"
                       />
                       <h2 className="text-heading font-semibold text-[var(--text)] truncate">
-                        {activeConnection.label || "Conexão sem nome"}
+                        {activeConnection.label || translatePlanning(locale, "Conexão sem nome")}
                       </h2>
                       <span className="rounded-md border border-[var(--line)] bg-[var(--surface-2)] px-2 py-0.5 text-[0.6875rem] font-medium text-[var(--text-muted)]">
-                        {activeConnection.status === "UPDATED" ? "Conectado" : activeConnection.status}
+                        {translatePlanning(locale, activeConnection.status)}
                       </span>
                     </div>
 
                     <p className="text-xs text-[var(--text-muted)]">
                       {activeConnection.lastSyncedAt
-                        ? `Última sincronização: ${new Date(activeConnection.lastSyncedAt).toLocaleString("pt-BR")}`
-                        : "Nenhuma sincronização concluída"}
+                        ? translatePlanning(locale, "Última sincronização: {0}", new Date(activeConnection.lastSyncedAt).toLocaleString(locale === "en" ? "en-US" : "pt-BR"))
+                        : translatePlanning(locale, "Nenhuma sincronização concluída")}
                     </p>
 
                     {setup.connections.length > 1 ? (
                       <div className="pt-2">
-                        <label htmlFor="conn-selector" className="sr-only">Trocar conexão</label>
+                        <label htmlFor="conn-selector" className="sr-only">{translatePlanning(locale, "Trocar conexão")}</label>
                         <Select
                           id="conn-selector"
                           value={activeConnection.id}
@@ -473,7 +472,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                         >
                           {setup.connections.map((c) => (
                             <option key={c.id} value={c.id}>
-                              {c.label || "Sem nome"} ({c.status})
+                              {c.label || translatePlanning(locale, "Sem nome")} ({translatePlanning(locale, c.status)})
                             </option>
                           ))}
                         </Select>
@@ -496,22 +495,21 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                         error: result.error,
                         accounts: result.accounts ?? [],
                       });
-                      setMessage(result.error ?? `${result.imported} lançamento(s) atualizados.`);
+                      setMessage(result.error ?? translatePlanning(locale, "{0} lançamento(s) atualizados.", result.imported));
                       router.refresh();
                     }}
                     disabled={busy}
                     className="min-h-12 w-full sm:w-auto shrink-0 gap-2 font-medium"
                   >
                     <RefreshCw className={`size-4 ${busy ? "animate-spin" : ""}`} />
-                    Sincronizar agora
-                  </Button>
+                    {translatePlanning(locale, "Sincronizar agora")} </Button>
                 </div>
 
                 {activeConnection.lastErrorMessage ? (
                   <div className="flex items-start gap-2.5 rounded-xl border border-[var(--line-strong)] bg-[var(--out-soft)] p-3 text-xs text-[var(--text-out)]">
                     <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                     <div>
-                      <strong className="font-semibold">Erro na leitura:</strong>{" "}
+                      <strong className="font-semibold">{translatePlanning(locale, "Erro na leitura:")}</strong>{" "}
                       <span>{activeConnection.lastErrorMessage}</span>
                     </div>
                   </div>
@@ -535,11 +533,11 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                         <CreditCard className="size-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-[var(--text)]">Contas vinculadas</p>
+                        <p className="text-sm font-medium text-[var(--text)]">{translatePlanning(locale, "Contas vinculadas")}</p>
                         <p className="text-xs text-[var(--text-muted)] truncate">
                           {linkedAccountsCount > 0
-                            ? `${linkedAccountsCount} conta(s) em sincronização automática`
-                            : "Nenhuma conta local associada à Pluggy"}
+                            ? translatePlanning(locale, "{0} conta(s) em sincronização automática", linkedAccountsCount)
+                            : translatePlanning(locale, "Nenhuma conta local associada à Pluggy")}
                         </p>
                       </div>
                     </div>
@@ -557,11 +555,11 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                         <ReceiptText className="size-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-[var(--text)]">Histórico e faturas</p>
+                        <p className="text-sm font-medium text-[var(--text)]">{translatePlanning(locale, "Histórico e faturas")}</p>
                         <p className="text-xs text-[var(--text-muted)] truncate">
                           {setup.invoices.length > 0
-                            ? `${setup.invoices.length} fatura(s) detectada(s) · ver detalhes de importação`
-                            : "Detalhes e contadores da última leitura"}
+                            ? translatePlanning(locale, "{0} fatura(s) detectada(s) · ver detalhes de importação", setup.invoices.length)
+                            : translatePlanning(locale, "Detalhes e contadores da última leitura")}
                         </p>
                       </div>
                     </div>
@@ -580,9 +578,9 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                         <Plus className="size-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-[var(--text)]">Adicionar nova conexão</p>
+                        <p className="text-sm font-medium text-[var(--text)]">{translatePlanning(locale, "Adicionar nova conexão")}</p>
                         <p className="text-xs text-[var(--text-muted)] truncate">
-                          {busy ? "Abrindo Pluggy Connect..." : "Conectar outro banco via Pluggy"}
+                          {busy ? translatePlanning(locale, "Abrindo Pluggy Connect...") : translatePlanning(locale, "Conectar outro banco via Pluggy")}
                         </p>
                       </div>
                     </div>
@@ -600,10 +598,9 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                         <SlidersHorizontal className="size-4" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-[var(--text)]">Gerenciar conexão</p>
+                        <p className="text-sm font-medium text-[var(--text)]">{translatePlanning(locale, "Gerenciar conexão")}</p>
                         <p className="text-xs text-[var(--text-muted)] truncate">
-                          Limpar lançamentos importados, desvincular ou remover
-                        </p>
+                          {translatePlanning(locale, "Limpar lançamentos importados, desvincular ou remover")} </p>
                       </div>
                     </div>
                     <ChevronRight className="size-4 shrink-0 text-[var(--text-muted)]" />
@@ -619,10 +616,9 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
               </div>
 
               <div className="space-y-1.5 max-w-md mx-auto">
-                <h2 className="text-heading font-semibold text-[var(--text)]">Conectar ao Open Finance</h2>
+                <h2 className="text-heading font-semibold text-[var(--text)]">{translatePlanning(locale, "Conectar ao Open Finance")}</h2>
                 <p className="text-xs leading-relaxed text-[var(--text-muted)]">
-                  Suas credenciais estão configuradas. Conecte sua primeira conta ou cartão diretamente pelo Pluggy Connect.
-                </p>
+                  {translatePlanning(locale, "Suas credenciais estão configuradas. Conecte sua primeira conta ou cartão diretamente pelo Pluggy Connect.")} </p>
               </div>
 
               <div className="pt-2">
@@ -633,7 +629,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                   className="min-h-12 w-full sm:w-auto px-6 font-medium gap-2"
                 >
                   <Plus className="size-4" />
-                  {busy ? "Abrindo Pluggy Connect..." : "Conectar conta"}
+                  {busy ? translatePlanning(locale, "Abrindo Pluggy Connect...") : translatePlanning(locale, "Conectar conta")}
                 </Button>
               </div>
             </section>
@@ -646,7 +642,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
       {/* ─────────────────────────────────────────────────────────────────── */}
       {activeSheet === "credentials" ? (
         <Sheet
-          title={setup.credentialConfigured ? "Trocar credenciais Pluggy" : "Adicionar credenciais Pluggy"}
+          title={setup.credentialConfigured ? translatePlanning(locale, "Trocar credenciais Pluggy") : translatePlanning(locale, "Adicionar credenciais Pluggy")}
           maxWidth="xl"
           onClose={() => setActiveSheet(null)}
         >
@@ -662,32 +658,32 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
             >
               <p className="text-xs text-[var(--text-muted)]">
                 {setup.credentialConfigured
-                  ? "Informe o novo par de Client ID e Client Secret. As credenciais anteriores serão substituídas após a validação."
-                  : "Cole abaixo as credenciais obtidas no Dashboard da Pluggy para habilitar o Open Finance."}
+                  ? translatePlanning(locale, "Informe o novo par de Client ID e Client Secret. As credenciais anteriores serão substituídas após a validação.")
+                  : translatePlanning(locale, "Cole abaixo as credenciais obtidas no Dashboard da Pluggy para habilitar o Open Finance.")}
               </p>
 
               <Field
-                label={setup.credentialConfigured ? "Novo Client ID" : "Client ID"}
-                hint="Identificador único da aplicação na Pluggy"
+                label={setup.credentialConfigured ? translatePlanning(locale, "Novo Client ID") : "Client ID"}
+                hint={translatePlanning(locale, "Identificador único da aplicação na Pluggy")}
               >
                 <Input
                   name="clientId"
                   required
-                  placeholder="Ex.: 00000000-0000-0000-0000-000000000000"
+                  placeholder={translatePlanning(locale, "Ex.: 00000000-0000-0000-0000-000000000000")}
                   autoComplete="off"
                   disabled={busy}
                 />
               </Field>
 
               <Field
-                label={setup.credentialConfigured ? "Novo Client Secret" : "Client Secret"}
-                hint="Chave secreta da aplicação (criptografada no servidor)"
+                label={setup.credentialConfigured ? translatePlanning(locale, "Novo Client Secret") : "Client Secret"}
+                hint={translatePlanning(locale, "Chave secreta da aplicação (criptografada no servidor)")}
               >
                 <Input
                   name="clientSecret"
                   type="password"
                   required
-                  placeholder="Ex.: 00000000-0000-0000-0000-000000000000"
+                  placeholder={translatePlanning(locale, "Ex.: 00000000-0000-0000-0000-000000000000")}
                   autoComplete="off"
                   disabled={busy}
                 />
@@ -696,8 +692,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
               <div className="flex items-start gap-2 text-[0.6875rem] text-[var(--text-muted)]">
                 <Lock className="size-3.5 shrink-0 mt-0.5 text-[var(--text-muted)]" />
                 <span>
-                  Criptografia AES-256-GCM. O Client Secret nunca é devolvido ao navegador nem exposto em logs.
-                </span>
+                  {translatePlanning(locale, "Criptografia AES-256-GCM. O Client Secret nunca é devolvido ao navegador nem exposto em logs.")} </span>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-2 pt-2">
@@ -706,7 +701,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                   disabled={busy}
                   className="min-h-11 w-full sm:w-auto font-medium"
                 >
-                  {busy ? "Validando e salvando..." : "Salvar e validar credenciais"}
+                  {busy ? translatePlanning(locale, "Validando e salvando...") : translatePlanning(locale, "Salvar e validar credenciais")}
                 </Button>
                 <Button
                   type="button"
@@ -715,8 +710,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                   onClick={() => setActiveSheet(null)}
                   className="min-h-11 w-full sm:w-auto"
                 >
-                  Cancelar
-                </Button>
+                  {translatePlanning(locale, "Cancelar")} </Button>
               </div>
             </form>
           </div>
@@ -727,12 +721,11 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
       {/* SHEET 2: Contas Vinculadas */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       {activeSheet === "accounts" && activeConnection ? (
-        <Sheet title="Contas vinculadas" onClose={() => setActiveSheet(null)}>
+        <Sheet title={translatePlanning(locale, "Contas vinculadas")} onClose={() => setActiveSheet(null)}>
           <div className="space-y-4">
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between border-b border-[var(--line)] pb-3">
               <p className="text-xs text-[var(--text-muted)]">
-                Associe as contas descobertas na Pluggy às suas contas locais cadastradas.
-              </p>
+                {translatePlanning(locale, "Associe as contas descobertas na Pluggy às suas contas locais cadastradas.")} </p>
               <Button
                 type="button"
                 variant="outline"
@@ -742,19 +735,16 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                 className="min-h-11 gap-1.5 shrink-0 self-start sm:self-auto"
               >
                 <RefreshCw className={`size-3.5 ${busy ? "animate-spin" : ""}`} />
-                Atualizar contas Pluggy
-              </Button>
+                {translatePlanning(locale, "Atualizar contas Pluggy")} </Button>
             </div>
 
             {remote.some((account) => account.type === "CREDIT") &&
             !setup.accounts.some((account) => account.type === "CREDIT_CARD") ? (
               <div role="status" className="rounded-xl border border-[var(--line-strong)] bg-[var(--warn-soft)] p-3 text-xs text-[var(--text-muted)]">
-                O item Pluggy tem cartão de crédito, mas ainda não há uma conta local de cartão. Em{" "}
+                {translatePlanning(locale, "O item Pluggy tem cartão de crédito, mas ainda não há uma conta local de cartão. Em")}{" "}
                 <Link className="font-medium text-[var(--text)] underline inline-flex min-h-11 items-center" href="/configuracoes">
-                  Configurações → Contas e cartões → Nova conta
-                </Link>
-                , crie uma conta do tipo &ldquo;Cartão de crédito&rdquo; e volte para vinculá-la.
-              </div>
+                  {translatePlanning(locale, "Configurações → Contas e cartões → Nova conta")} </Link>
+                {translatePlanning(locale, ", crie uma conta do tipo &ldquo;Cartão de crédito&rdquo; e volte para vinculá-la.")} </div>
             ) : null}
 
             {remote.length ? (
@@ -767,12 +757,12 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                     <label htmlFor={`remote-${a.id}`} className="text-sm font-medium text-[var(--text)]">
                       {a.name}
                       <span className="block text-xs font-normal text-[var(--text-muted)] mt-0.5">
-                        {a.type === "CREDIT_CARD" ? "Cartão de Crédito" : a.type === "INVESTMENT" ? "Investimentos" : "Conta Bancária"} · modo{" "}
+                        {a.type === "CREDIT_CARD" ? translatePlanning(locale, "Cartão de Crédito") : a.type === "INVESTMENT" ? translatePlanning(locale, "Investimentos") : translatePlanning(locale, "Conta Bancária")} {translatePlanning(locale, "· modo")}{" "}
                         <strong className={a.financeMode === "integracao" ? "text-[var(--text-in)] font-medium" : "text-[var(--text-muted)] font-normal"}>
-                          {a.financeMode === "integracao" ? "automático (Pluggy)" : "manual"}
+                          {a.financeMode === "integracao" ? translatePlanning(locale, "automático (Pluggy)") : "manual"}
                         </strong>
                         {a.type === "CREDIT_CARD" && a.creditLimitCents !== null
-                          ? ` · limite ${formatCents(a.creditLimitCents ?? 0)} (${a.availableCreditCents === null ? "indisponível" : `${formatCents(a.availableCreditCents)} disponível`})`
+                          ? translatePlanning(locale, " · limite {0} ({1})", formatCents(a.creditLimitCents ?? 0, locale), a.availableCreditCents === null ? translatePlanning(locale, "indisponível") : translatePlanning(locale, "{0} disponível", formatCents(a.availableCreditCents, locale)))
                           : ""}
                       </span>
                     </label>
@@ -783,7 +773,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                       onChange={(event) => setRemoteSelection((current) => ({ ...current, [a.id]: event.target.value }))}
                       className="min-h-12 w-full rounded-lg border border-[var(--line)] bg-[var(--surface)] px-3 text-base! sm:text-sm text-[var(--text)]"
                     >
-                      <option value="" disabled={!manualEntry}>{manualEntry ? "Sem vínculo (modo manual)" : "Selecione uma conta bancária"}</option>
+                      <option value="" disabled={!manualEntry}>{manualEntry ? translatePlanning(locale, "Sem vínculo (modo manual)") : translatePlanning(locale, "Selecione uma conta bancária")}</option>
                       {remote
                         .filter((r) => (r.type === "INVESTMENT") === (a.type === "INVESTMENT") && (r.type === "CREDIT") === (a.type === "CREDIT_CARD"))
                         .map((r) => (
@@ -808,22 +798,20 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                           mode: externalAccountId ? "integracao" : "manual",
                         });
                         setBusy(false);
-                        setMessage(result.error ?? "Vínculo salvo com sucesso; histórico preservado.");
+                        setMessage(result.error ?? translatePlanning(locale, "Vínculo salvo com sucesso; histórico preservado."));
                         router.refresh();
                       }}
                       className="min-h-11 shrink-0"
                     >
-                      Salvar vínculo
-                    </Button>
+                      {translatePlanning(locale, "Salvar vínculo")} </Button>
                   </li>
                 ))}
               </ul>
             ) : (
               <div className="rounded-xl border border-dashed border-[var(--line-strong)] p-6 text-center space-y-1">
-                <p className="text-xs font-medium text-[var(--text)]">Contas ainda não carregadas</p>
+                <p className="text-xs font-medium text-[var(--text)]">{translatePlanning(locale, "Contas ainda não carregadas")}</p>
                 <p className="text-xs text-[var(--text-muted)]">
-                  Clique no botão &ldquo;Atualizar contas Pluggy&rdquo; acima para listar as contas disponíveis nesta conexão.
-                </p>
+                  {translatePlanning(locale, "Clique no botão &ldquo;Atualizar contas Pluggy&rdquo; acima para listar as contas disponíveis nesta conexão.")} </p>
               </div>
             )}
           </div>
@@ -834,16 +822,15 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
       {/* SHEET 3: Histórico e Faturas */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       {activeSheet === "sync_details" && activeConnection ? (
-        <Sheet title="Histórico e faturas" onClose={() => setActiveSheet(null)}>
+        <Sheet title={translatePlanning(locale, "Histórico e faturas")} onClose={() => setActiveSheet(null)}>
           <div className="space-y-5">
             {/* Resumo da última sync */}
             {syncSummary ? (
               <section aria-live="polite" className="space-y-3 rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] pb-2.5">
-                  <h3 className="text-sm font-semibold text-[var(--text)]">Última leitura realizada</h3>
+                  <h3 className="text-sm font-semibold text-[var(--text)]">{translatePlanning(locale, "Última leitura realizada")}</h3>
                   <span className="text-xs text-[var(--text-muted)]">
-                    Status: {syncSummary.status} · {syncSummary.imported} inseridos/atualizados
-                  </span>
+                    {translatePlanning(locale, "Status:")} {translatePlanning(locale, syncSummary.status)} · {syncSummary.imported} {translatePlanning(locale, "inseridos/atualizados")} </span>
                 </div>
                 {syncSummary.error ? (
                   <p className="text-xs text-[var(--text-out)]">{syncSummary.error}</p>
@@ -852,29 +839,28 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                   syncSummary.accounts.map((account, index) => (
                     <div key={`${account.accountName}-${index}`} className="space-y-1 text-xs pt-1">
                       <div className="flex flex-wrap justify-between gap-2 font-medium text-[var(--text)]">
-                        <span>{account.accountName} ({account.accountType})</span>
-                        <span className="text-[var(--text-muted)]">{account.status}</span>
+                        <span>{account.accountName} ({translatePlanning(locale, account.accountType)})</span>
+                        <span className="text-[var(--text-muted)]">{translatePlanning(locale, account.status)}</span>
                       </div>
                       <p className="text-[var(--text-muted)]">
-                        Lidos: {account.read} · Inseridos: {account.inserted} · Atualizados: {account.updated} · Ignorados: {account.ignoredByDate + account.ignoredByType + account.ignoredByTombstone}
+                        {translatePlanning(locale, "Lidos:")} {account.read} {translatePlanning(locale, "· Inseridos:")} {account.inserted} {translatePlanning(locale, "· Atualizados:")} {account.updated} {translatePlanning(locale, "· Ignorados:")} {account.ignoredByDate + account.ignoredByType + account.ignoredByTombstone}
                       </p>
                       {account.error ? <p className="text-[var(--text-out)]">{account.error}</p> : null}
                     </div>
                   ))
                 ) : (
-                  <p className="text-xs text-[var(--text-muted)]">Nenhuma conta local vinculada a esta conexão.</p>
+                  <p className="text-xs text-[var(--text-muted)]">{translatePlanning(locale, "Nenhuma conta local vinculada a esta conexão.")}</p>
                 )}
               </section>
             ) : (
               <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-4 text-xs text-[var(--text-muted)]">
-                Nenhuma sincronização executada nesta sessão. Clique em &ldquo;Sincronizar agora&rdquo; na tela principal para ler novos dados.
-              </div>
+                {translatePlanning(locale, "Nenhuma sincronização executada nesta sessão. Clique em &ldquo;Sincronizar agora&rdquo; na tela principal para ler novos dados.")} </div>
             )}
 
             {/* Faturas Pluggy */}
             <div className="space-y-2.5">
               <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                Faturas Pluggy ({setup.invoices.length})
+                {translatePlanning(locale, "Faturas Pluggy (")}{setup.invoices.length})
               </h3>
               {setup.invoices.length ? (
                 <div className="grid gap-2.5 sm:grid-cols-2">
@@ -884,16 +870,16 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                       className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-3.5 text-xs space-y-1.5"
                     >
                       <p className="font-semibold text-[var(--text)]">
-                        {setup.accounts.find((a) => a.id === invoice.accountId)?.name ?? "Cartão"}
+                        {setup.accounts.find((a) => a.id === invoice.accountId)?.name ?? translatePlanning(locale, "Cartão")}
                       </p>
                       <p className="text-[var(--text-muted)]">
-                        Vencimento: {invoice.dueDate.toLocaleDateString("pt-BR")}
+                        {translatePlanning(locale, "Vencimento:")} {invoice.dueDate.toLocaleDateString(locale === "en" ? "en-US" : "pt-BR")}
                       </p>
                       <div className="flex items-center justify-between pt-1 font-medium text-[var(--text)] border-t border-[var(--line)]">
-                        <span>Total: {invoice.totalAmountCents === null ? "indisponível" : formatCents(invoice.totalAmountCents)}</span>
+                        <span>{translatePlanning(locale, "Total:")} {invoice.totalAmountCents === null ? translatePlanning(locale, "indisponível") : formatCents(invoice.totalAmountCents, locale)}</span>
                         {invoice.minimumPaymentCents !== null ? (
                           <span className="text-[var(--text-muted)] font-normal text-[0.6875rem]">
-                            Mín: {formatCents(invoice.minimumPaymentCents)}
+                            {translatePlanning(locale, "Mín:")} {formatCents(invoice.minimumPaymentCents, locale)}
                           </span>
                         ) : null}
                       </div>
@@ -901,7 +887,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                   ))}
                 </div>
               ) : (
-                <p className="text-xs text-[var(--text-muted)]">Nenhuma fatura de cartão de crédito registrada no momento.</p>
+                <p className="text-xs text-[var(--text-muted)]">{translatePlanning(locale, "Nenhuma fatura de cartão de crédito registrada no momento.")}</p>
               )}
             </div>
           </div>
@@ -912,20 +898,18 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
       {/* SHEET 4: Gerenciar Conexão */}
       {/* ─────────────────────────────────────────────────────────────────── */}
       {activeSheet === "manage" && activeConnection ? (
-        <Sheet title="Gerenciar conexão" onClose={() => setActiveSheet(null)}>
+        <Sheet title={translatePlanning(locale, "Gerenciar conexão")} onClose={() => setActiveSheet(null)}>
           <div className="space-y-4">
             <p className="text-xs text-[var(--text-muted)]">
-              Opções de manutenção e desvinculação da conexão &ldquo;{activeConnection.label || "ativa"}&rdquo;.
-            </p>
+              {translatePlanning(locale, "Opções de manutenção e desvinculação da conexão &ldquo;")}{activeConnection.label || "ativa"}{translatePlanning(locale, "&rdquo;.")} </p>
 
             <div className="space-y-3">
               {/* Opção 1: Limpar dados */}
               <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-4 space-y-2.5">
                 <div>
-                  <p className="text-sm font-medium text-[var(--text)]">Limpar lançamentos importados</p>
+                  <p className="text-sm font-medium text-[var(--text)]">{translatePlanning(locale, "Limpar lançamentos importados")}</p>
                   <p className="text-xs text-[var(--text-muted)]">
-                    Exclui transações e faturas trazidas por esta conexão, mantendo a conexão ativa para futuras leituras.
-                  </p>
+                    {translatePlanning(locale, "Exclui transações e faturas trazidas por esta conexão, mantendo a conexão ativa para futuras leituras.")} </p>
                 </div>
                 <Button
                   type="button"
@@ -935,17 +919,15 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                   onClick={() => void deleteAll(activeConnection)}
                   className="min-h-11 w-full sm:w-auto text-[var(--text-out)] hover:bg-[var(--out-soft)] hover:text-[var(--text-out)]"
                 >
-                  Excluir dados importados
-                </Button>
+                  {translatePlanning(locale, "Excluir dados importados")} </Button>
               </div>
 
               {/* Opção 2: Desconectar mantendo histórico */}
               <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-2)] p-4 space-y-2.5">
                 <div>
-                  <p className="text-sm font-medium text-[var(--text)]">Desconectar e manter histórico</p>
+                  <p className="text-sm font-medium text-[var(--text)]">{translatePlanning(locale, "Desconectar e manter histórico")}</p>
                   <p className="text-xs text-[var(--text-muted)]">
-                    Desvincula esta conexão, mas preserva todos os lançamentos já importados no seu histórico contábil.
-                  </p>
+                    {translatePlanning(locale, "Desvincula esta conexão, mas preserva todos os lançamentos já importados no seu histórico contábil.")} </p>
                 </div>
                 <Button
                   type="button"
@@ -955,17 +937,15 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                   onClick={() => void removeConnection(activeConnection, false)}
                   className="min-h-11 w-full sm:w-auto"
                 >
-                  Desconectar (manter histórico)
-                </Button>
+                  {translatePlanning(locale, "Desconectar (manter histórico)")} </Button>
               </div>
 
               {/* Opção 3: Desconectar e apagar tudo */}
               <div className="rounded-xl border border-[var(--line-strong)] bg-[var(--surface-2)] p-4 space-y-2.5">
                 <div>
-                  <p className="text-sm font-medium text-[var(--text-out)]">Desconectar e apagar lançamentos</p>
+                  <p className="text-sm font-medium text-[var(--text-out)]">{translatePlanning(locale, "Desconectar e apagar lançamentos")}</p>
                   <p className="text-xs text-[var(--text-muted)]">
-                    Desvincula a conexão e remove todas as transações e faturas originadas por ela.
-                  </p>
+                    {translatePlanning(locale, "Desvincula a conexão e remove todas as transações e faturas originadas por ela.")} </p>
                 </div>
                 <Button
                   type="button"
@@ -975,19 +955,18 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                   onClick={() => void removeConnection(activeConnection, true)}
                   className="min-h-11 w-full sm:w-auto text-[var(--text-out)] hover:bg-[var(--out-soft)] hover:text-[var(--text-out)]"
                 >
-                  Desconectar e apagar lançamentos
-                </Button>
+                  {translatePlanning(locale, "Desconectar e apagar lançamentos")} </Button>
               </div>
             </div>
 
             {/* Credenciais Gerais */}
             <div className="pt-3 border-t border-[var(--line)] flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <p className="text-xs font-medium text-[var(--text)]">Credenciais gerais Pluggy</p>
+                <p className="text-xs font-medium text-[var(--text)]">{translatePlanning(locale, "Credenciais gerais Pluggy")}</p>
                 <p className="text-xs text-[var(--text-muted)]">
                   {setup.connections.length > 0
-                    ? "Remova todas as conexões ativas antes de apagar as credenciais salvas."
-                    : `ID salvo: ${setup.clientIdMasked ?? "configurado"}`}
+                    ? translatePlanning(locale, "Remova todas as conexões ativas antes de apagar as credenciais salvas.")
+                    : translatePlanning(locale, "ID salvo: {0}", setup.clientIdMasked ?? "configurado")}
                 </p>
               </div>
               <Button
@@ -998,8 +977,7 @@ export function IntegrationPanel({ initial, userId }: { initial: Setup; userId: 
                 onClick={() => void removeCredentials()}
                 className="min-h-11 shrink-0"
               >
-                Remover credenciais
-              </Button>
+                {translatePlanning(locale, "Remover credenciais")} </Button>
             </div>
           </div>
         </Sheet>

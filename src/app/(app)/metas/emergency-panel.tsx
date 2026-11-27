@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useTransition } from "react";
 import { LifeBuoy } from "lucide-react";
 import { upsertEmergencyGoal, contributeToGoal } from "@/server/actions/goals";
@@ -33,6 +35,7 @@ export function EmergencyPanel({
   monthlyCapacity: number;
   recurringRule?: PlainGoalRecurringRule | null;
 }) {
+  const locale = useLocale();
   const [pending, start] = useTransition();
   const missing = Math.max(0, target - saved);
   const runway = monthsOfRunway(saved, costBase);
@@ -46,32 +49,31 @@ export function EmergencyPanel({
           <LifeBuoy className="size-5" />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 className="text-[0.9375rem] font-semibold tracking-tight">Reserva de emergência</h2>
+          <h2 className="text-[0.9375rem] font-semibold tracking-tight">{translatePlanning(locale, "Reserva de emergência")}</h2>
           <p className="muted mt-0.5 text-[0.8125rem] leading-snug">
-            {months} meses de custo de vida ({formatCents(costBase)}/mês
-            {usingRealCost ? ", média real dos seus gastos" : ", estimado a partir da renda"}).
+            {months} {translatePlanning(locale, "meses de custo de vida (")}{formatCents(costBase, locale)}{translatePlanning(locale, "/mês")} {usingRealCost ? translatePlanning(locale, ", média real dos seus gastos") : translatePlanning(locale, ", estimado a partir da renda")}).
           </p>
         </div>
       </div>
 
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <Money cents={saved} size="hero" />
-        <span className="muted tnum text-[0.875rem]">meta: {formatCents(target)}</span>
+        <span className="muted tnum text-[0.875rem]">{translatePlanning(locale, "meta:")} {formatCents(target, locale)}</span>
       </div>
       <Progress
-        label="Progresso da reserva de emergência"
+        label={translatePlanning(locale, "Progresso da reserva de emergência")}
         value={target ? (saved / target) * 100 : 0}
         color="var(--color-save)"
         height={6}
       />
 
-      <div className="mt-3"><MobileDisclosure label="Detalhes e aportes da reserva">
+      <div className="mt-3"><MobileDisclosure label={translatePlanning(locale, "Detalhes e aportes da reserva")}>
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <Metric label="Falta guardar" value={formatCents(missing)} />
-        <Metric label="Meses cobertos hoje" value={`${runway} de ${months}`} />
+        <Metric label={translatePlanning(locale, "Falta guardar")} value={formatCents(missing, locale)} />
+        <Metric label={translatePlanning(locale, "Meses cobertos hoje")} value={`${runway} de ${months}`} />
         <Metric
-          label="Previsão no ritmo atual"
-          value={done ? "Concluída" : eta === null ? "—" : `${eta} ${eta === 1 ? "mês" : "meses"}`}
+          label={translatePlanning(locale, "Previsão no ritmo atual")}
+          value={done ? translatePlanning(locale, "Concluída") : eta === null ? "—" : `${eta} ${eta === 1 ? translatePlanning(locale, "mês") : translatePlanning(locale, "meses")}`}
         />
       </div>
 
@@ -83,22 +85,20 @@ export function EmergencyPanel({
           }}
         >
           <div className="min-w-40 flex-1">
-            <label className="mb-1.5 block text-[0.8125rem] font-medium">Registrar aporte</label>
-            <MoneyInput className="min-h-12 min-w-0 max-w-full text-base!" name="amount" inputMode="decimal" placeholder="0,00" required />
+            <label className="mb-1.5 block text-[0.8125rem] font-medium">{translatePlanning(locale, "Registrar aporte")}</label>
+            <MoneyInput className="min-h-12 min-w-0 max-w-full text-base!" name="amount" inputMode="decimal" placeholder={translatePlanning(locale, "0,00")} required />
           </div>
           <Button className="min-h-11 min-w-11" type="submit" name="mode" value="add">
-            Guardar
-          </Button>
+            {translatePlanning(locale, "Guardar")} </Button>
           <Button className="min-h-11 min-w-11"
             type="submit"
             name="mode"
             value="withdraw"
             variant="outline"
             formNoValidate={false}
-            title="Registrar um resgate da reserva"
+            title={translatePlanning(locale, "Registrar um resgate da reserva")}
           >
-            Resgatar
-          </Button>
+            {translatePlanning(locale, "Resgatar")} </Button>
         </form>
       ) : (
         <div className="mt-5">
@@ -106,12 +106,11 @@ export function EmergencyPanel({
             disabled={pending || target <= 0}
             onClick={() => start(async () => void (await upsertEmergencyGoal(target)))}
           >
-            {pending ? "Criando..." : "Criar minha reserva de emergência"}
+            {pending ? translatePlanning(locale, "Criando...") : translatePlanning(locale, "Criar minha reserva de emergência")}
           </Button>
           {target <= 0 ? (
             <p className="muted mt-2 text-xs">
-              Informe sua renda em Configurações para o sistema calcular a meta.
-            </p>
+              {translatePlanning(locale, "Informe sua renda em Configurações para o sistema calcular a meta.")} </p>
           ) : null}
         </div>
       )}
@@ -122,15 +121,11 @@ export function EmergencyPanel({
         <Hint tone={done ? "good" : "tip"}>
           {done ? (
             <>
-              Reserva completa. Mantenha o dinheiro em algo com <strong>liquidez diária</strong> e
-              direcione os próximos aportes para objetivos de prazo maior.
-            </>
+              {translatePlanning(locale, "Reserva completa. Mantenha o dinheiro em algo com")} <strong>{translatePlanning(locale, "liquidez diária")}</strong> {translatePlanning(locale, "e direcione os próximos aportes para objetivos de prazo maior.")} </>
           ) : (
             <>
-              Reserva de emergência não é investimento: o objetivo é estar disponível{" "}
-              <strong>no dia em que der problema</strong>. Prefira Tesouro Selic ou CDB de liquidez
-              diária — nunca ações ou fundos com carência.
-            </>
+              {translatePlanning(locale, "Reserva de emergência não é investimento: o objetivo é estar disponível")}{" "}
+              <strong>{translatePlanning(locale, "no dia em que der problema")}</strong>{translatePlanning(locale, ". Prefira Tesouro Selic ou CDB de liquidez diária — nunca ações ou fundos com carência.")} </>
           )}
         </Hint>
       </div>

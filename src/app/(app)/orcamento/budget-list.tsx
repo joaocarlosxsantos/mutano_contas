@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useState, useTransition } from "react";
 import { AlertTriangle, Check, Sparkles, TrendingUp } from "lucide-react";
 import { applyAllBudgetSuggestions, applyBudgetSuggestion, setBudget } from "@/server/actions/budgets";
@@ -7,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { formatCents, formatCentsPlain } from "@/lib/money";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { cn } from "@/lib/cn";
 import type { BudgetRow, BudgetStatus } from "@/server/queries";
 import type { MonthRef } from "@/lib/dates";
@@ -28,14 +31,14 @@ const STATUS_TEXT: Record<BudgetStatus, string> = {
 };
 
 export function BudgetList({ rows, monthRef }: { rows: BudgetRow[]; monthRef: MonthRef }) {
+  const locale = useLocale();
   const confirm = useConfirm();
   const [applyingAll, startTransition] = useTransition();
 
   if (!rows.length) {
     return (
       <p className="muted px-5 py-10 text-center text-[0.8125rem]">
-        Nenhuma categoria de gasto com movimento ou limite neste mês.
-      </p>
+        {translatePlanning(locale, "Nenhuma categoria de gasto com movimento ou limite neste mês.")} </p>
     );
   }
 
@@ -53,12 +56,12 @@ export function BudgetList({ rows, monthRef }: { rows: BudgetRow[]; monthRef: Mo
     );
 
     const ok = await confirm({
-      title: "Aplicar todas as sugestões?",
+      title: translatePlanning(locale, "Aplicar todas as sugestões?"),
       description:
         willOverwrite.length > 0
-          ? `Deseja aplicar as sugestões em ${rowsWithSuggestion.length} categoria(s)? ${willOverwrite.length} categoria(s) já possuem limite definido e serão atualizadas.`
-          : `Deseja definir o limite sugerido para as ${rowsWithSuggestion.length} categoria(s)?`,
-      confirmLabel: "Aplicar todas",
+          ? translatePlanning(locale, "Deseja aplicar as sugestões em {0} categoria(s)? {1} categoria(s) já possuem limite definido e serão atualizadas.", rowsWithSuggestion.length, willOverwrite.length)
+          : translatePlanning(locale, "Deseja definir o limite sugerido para as {0} categoria(s)?", rowsWithSuggestion.length),
+      confirmLabel: translatePlanning(locale, "Aplicar todas"),
     });
 
     if (!ok) return;
@@ -80,7 +83,7 @@ export function BudgetList({ rows, monthRef }: { rows: BudgetRow[]; monthRef: Mo
         <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-[var(--surface-2)]/40 px-4 py-2.5 sm:px-5">
           <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
             <Sparkles className="size-3.5 text-[var(--color-brand)]" aria-hidden="true" />
-            <span>Sugestões calculadas com base na média dos últimos 3 meses fechados.</span>
+            <span>{translatePlanning(locale, "Sugestões calculadas com base na média dos últimos 3 meses fechados.")}</span>
           </div>
           <Button
             size="sm"
@@ -89,7 +92,7 @@ export function BudgetList({ rows, monthRef }: { rows: BudgetRow[]; monthRef: Mo
             onClick={handleApplyAll}
             className="min-h-9 text-xs font-medium"
           >
-            {applyingAll ? "Aplicando..." : `Aplicar todas (${rowsWithSuggestion.length})`}
+            {applyingAll ? translatePlanning(locale, "Aplicando...") : translatePlanning(locale, "Aplicar todas ({0})", rowsWithSuggestion.length)}
           </Button>
         </div>
       ) : null}
@@ -104,8 +107,9 @@ export function BudgetList({ rows, monthRef }: { rows: BudgetRow[]; monthRef: Mo
 }
 
 function Row({ row, monthRef }: { row: BudgetRow; monthRef: MonthRef }) {
+  const locale = useLocale();
   const confirm = useConfirm();
-  const serverValue = row.limitCents === null ? "" : formatCentsPlain(row.limitCents);
+  const serverValue = row.limitCents === null ? "" : formatCentsPlain(row.limitCents, locale);
 
   const [value, setValue] = useState(serverValue);
   const [syncedWith, setSyncedWith] = useState(serverValue);
@@ -141,9 +145,9 @@ function Row({ row, monthRef }: { row: BudgetRow; monthRef: MonthRef }) {
     if (!row.suggestedLimitCents) return;
     if (row.limitCents !== null && row.limitCents !== row.suggestedLimitCents) {
       const ok = await confirm({
-        title: `Substituir limite de ${row.name}?`,
-        description: `O limite atual é ${formatCents(row.limitCents)}. Deseja substituir pela sugestão de ${formatCents(row.suggestedLimitCents)} (${row.suggestionLabel})?`,
-        confirmLabel: "Substituir limite",
+        title: translatePlanning(locale, "Substituir limite de {0}?", row.name),
+        description: translatePlanning(locale, "O limite atual é {0}. Deseja substituir pela sugestão de {1} ({2})?", formatCents(row.limitCents, locale), formatCents(row.suggestedLimitCents, locale), row.suggestionLabel),
+        confirmLabel: translatePlanning(locale, "Substituir limite"),
       });
       if (!ok) return;
     }
@@ -179,15 +183,14 @@ function Row({ row, monthRef }: { row: BudgetRow; monthRef: MonthRef }) {
         </span>
         {row.nature === "FIXED" ? (
           <span className="muted rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-xs font-medium ring-1 ring-[var(--border)] ring-inset">
-            fixo
-          </span>
+            {translatePlanning(locale, "fixo")} </span>
         ) : null}
 
         <div className="col-span-3 flex min-w-0 flex-wrap items-center gap-2">
           <span className="tnum w-full break-all text-[0.875rem] font-semibold sm:w-auto">
-            {formatCents(row.spentCents)}
+            {formatCents(row.spentCents, locale)}
           </span>
-          <span className="muted text-[0.8125rem]">de</span>
+          <span className="muted text-[0.8125rem]">{translatePlanning(locale, "de")}</span>
           <div className="relative min-w-0 flex-1 sm:ml-auto sm:flex-none">
             <span className="muted pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-xs">
               R$
@@ -200,8 +203,8 @@ function Row({ row, monthRef }: { row: BudgetRow; monthRef: MonthRef }) {
                 if (e.key === "Enter") e.currentTarget.blur();
               }}
               inputMode="decimal"
-              placeholder="sem limite"
-              aria-label={`Limite mensal de ${row.name}`}
+              placeholder={translatePlanning(locale, "sem limite")}
+              aria-label={translatePlanning(locale, "Limite mensal de {0}", row.name)}
               className="input-base tnum min-h-12 min-w-0 max-w-full w-full py-0 pl-8 text-right text-base! sm:w-40"
             />
           </div>
@@ -214,12 +217,12 @@ function Row({ row, monthRef }: { row: BudgetRow; monthRef: MonthRef }) {
       {hasSuggestion ? (
         <div className="mb-2.5 flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-lg bg-[var(--surface-2)]/60 px-2.5 py-1.5 text-xs">
           <span className="text-[var(--text-muted)]">
-            sugerido{" "}
+            {translatePlanning(locale, "sugerido")}{" "}
             <strong className="font-semibold text-[var(--foreground)]">
-              {formatCents(row.suggestedLimitCents!)}
+              {formatCents(row.suggestedLimitCents!, locale)}
             </strong>{" "}
             <span className="text-[0.6875rem] text-[var(--text-muted)]">
-              ({row.suggestionLabel})
+              ({translateServer(locale, row.suggestionLabel ?? "")})
             </span>
           </span>
           <button
@@ -228,46 +231,42 @@ function Row({ row, monthRef }: { row: BudgetRow; monthRef: MonthRef }) {
             onClick={handleApplySuggestion}
             className="inline-flex min-h-7 items-center rounded px-2 py-0.5 text-xs font-medium text-[var(--text-brand)] hover:bg-[var(--surface-3)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--focus-ring)] disabled:opacity-50 cursor-pointer"
           >
-            Aplicar sugestão
-          </button>
+            {translatePlanning(locale, "Aplicar sugestão")} </button>
         </div>
       ) : null}
 
       {row.limitCents !== null ? (
         <>
           <Progress
-            label={`${row.name}: ${row.usedPct}% do limite`}
+            label={translatePlanning(locale, "{0}: {1}% do limite", row.name, row.usedPct)}
             value={row.usedPct}
             color={color}
             height={7}
           />
           <div className="mt-2 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 text-xs [overflow-wrap:anywhere]">
             <span className="tnum font-medium" style={{ color: textColor }}>
-              {row.usedPct}% do limite
-            </span>
+              {row.usedPct}{translatePlanning(locale, "% do limite")} </span>
             <span className="muted tnum">
               {row.remainingCents >= 0
-                ? `ainda cabem ${formatCents(row.remainingCents)}`
-                : `passou ${formatCents(Math.abs(row.remainingCents))}`}
+                ? translatePlanning(locale, "ainda cabem {0}", formatCents(row.remainingCents, locale))
+                : translatePlanning(locale, "passou {0}", formatCents(Math.abs(row.remainingCents), locale))}
             </span>
             {projetaEstouro ? (
               <span className="ml-auto inline-flex items-center gap-1.5 text-[var(--text-warn)]">
                 <TrendingUp className="size-3.5" />
-                No ritmo atual fecha em {formatCents(row.projectedCents)}
+                {translatePlanning(locale, "No ritmo atual fecha em")} {formatCents(row.projectedCents, locale)}
               </span>
             ) : null}
             {row.status === "estourou" ? (
               <span className="ml-auto inline-flex items-center gap-1.5 text-[var(--text-out)]">
                 <AlertTriangle className="size-3.5" />
-                Limite estourado
-              </span>
+                {translatePlanning(locale, "Limite estourado")} </span>
             ) : null}
           </div>
         </>
       ) : row.spentCents > 0 ? (
         <p className="muted text-xs">
-          Sem limite definido — este gasto não entra no acompanhamento do orçamento.
-        </p>
+          {translatePlanning(locale, "Sem limite definido — este gasto não entra no acompanhamento do orçamento.")} </p>
       ) : null}
     </li>
   );

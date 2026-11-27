@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { archiveBillGrouping, createBillGrouping, type ActionState } from "@/server/actions/bills";
@@ -13,6 +15,7 @@ export type PlainGrouping = { id: string; name: string; color: string };
 
 /** Pastas simples pra organizar contas — sem lógica própria, só nome e cor. */
 export function BillGroupingsManager({ groupings }: { groupings: PlainGrouping[] }) {
+  const locale = useLocale();
   const [state, formAction] = useActionState(createBillGrouping, initial);
   const [open, setOpen] = useState(false);
   const [, start] = useTransition();
@@ -29,9 +32,9 @@ export function BillGroupingsManager({ groupings }: { groupings: PlainGrouping[]
 
   async function remove(id: string, name: string) {
     const ok = await confirm({
-      title: `Arquivar o agrupamento "${name}"?`,
-      description: "As contas dentro dele continuam salvas, só ficam sem agrupamento.",
-      confirmLabel: "Arquivar",
+      title: translatePlanning(locale, "Arquivar o agrupamento \"{0}\"?", name),
+      description: translatePlanning(locale, "As contas dentro dele continuam salvas, só ficam sem agrupamento."),
+      confirmLabel: translatePlanning(locale, "Arquivar"),
       tone: "danger",
     });
     if (!ok) return;
@@ -47,7 +50,7 @@ export function BillGroupingsManager({ groupings }: { groupings: PlainGrouping[]
             <span className="min-w-0 flex-1 truncate text-[0.8125rem] font-medium">{g.name}</span>
             <button
               type="button"
-              aria-label={`Arquivar ${g.name}`}
+              aria-label={translatePlanning(locale, "Arquivar {0}", g.name)}
               onClick={() => void remove(g.id, g.name)}
               className="inline-flex items-center justify-center min-h-11 min-w-11 muted cursor-pointer rounded-lg p-1.5 hover:bg-[var(--color-money-out-soft)] hover:text-[var(--text-out)]"
             >
@@ -56,7 +59,7 @@ export function BillGroupingsManager({ groupings }: { groupings: PlainGrouping[]
           </li>
         ))}
         {!groupings.length ? (
-          <li className="muted px-3 py-4 text-center text-[0.8125rem]">Nenhum agrupamento ainda.</li>
+          <li className="muted px-3 py-4 text-center text-[0.8125rem]">{translatePlanning(locale, "Nenhum agrupamento ainda.")}</li>
         ) : null}
       </ul>
 
@@ -64,27 +67,25 @@ export function BillGroupingsManager({ groupings }: { groupings: PlainGrouping[]
         <form ref={formRef} action={formAction} className="space-y-2 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface-2)] p-3">
           <div className="flex items-end gap-2">
             <div className="min-w-0 flex-1">
-              <Field label="Nome">
-                <Input className="min-h-12 min-w-0 max-w-full text-base!" name="name" required placeholder="Ex.: Casa" />
+              <Field label={translatePlanning(locale, "Nome")}>
+                <Input className="min-h-12 min-w-0 max-w-full text-base!" name="name" required placeholder={translatePlanning(locale, "Ex.: Casa")} />
               </Field>
             </div>
-            <Field label="Cor">
+            <Field label={translatePlanning(locale, "Cor")}>
               <Input name="color" type="color" defaultValue={["#", "2349c9"].join("")} className="h-11 w-16 p-1" />
             </Field>
           </div>
           {state.error ? <p className="text-[0.8125rem] text-[var(--text-out)]">{state.error}</p> : null}
           <div className="flex gap-2">
-            <SubmitButton className="min-h-11 min-w-11" size="sm">Adicionar</SubmitButton>
+            <SubmitButton className="min-h-11 min-w-11" size="sm">{translatePlanning(locale, "Adicionar")}</SubmitButton>
             <Button className="min-h-11 min-w-11" type="button" size="sm" variant="ghost" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
+              {translatePlanning(locale, "Cancelar")} </Button>
           </div>
         </form>
       ) : (
         <Button className="min-h-11 min-w-11" variant="outline" size="sm" onClick={() => setOpen(true)}>
           <Plus className="size-4" />
-          Novo agrupamento
-        </Button>
+          {translatePlanning(locale, "Novo agrupamento")} </Button>
       )}
     </div>
   );

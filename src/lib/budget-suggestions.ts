@@ -1,3 +1,5 @@
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import type { MonthRef } from "./dates";
 
 export type CategorySuggestion = {
@@ -44,14 +46,14 @@ export function getCategoryHistoryWindow(
  * - Arredonda para dezenas de reais (múltiplo de R$ 10,00 = 1000 centavos, mínimo de R$ 10 se > 0).
  */
 export function calculateCategorySuggestion(
-  monthlyValues: readonly number[],
+  monthlyValues: readonly number[], locale: Locale = "pt-BR"
 ): CategorySuggestion {
   const values = monthlyValues.filter((v) => Number.isFinite(v) && v >= 0);
   if (!values.length || values.every((v) => v === 0)) {
     return {
       suggestedCents: 0,
       monthsCount: values.length,
-      label: "sem histórico",
+      label: translateServer(locale, "sem histórico"),
     };
   }
 
@@ -68,7 +70,7 @@ export function calculateCategorySuggestion(
 
   // Arredondamento para dezenas de reais (mínimo de R$ 10,00 se > 0)
   const rounded = baseCents > 0 ? Math.max(1000, Math.round(baseCents / 1000) * 1000) : 0;
-  const label = `média ${values.length}m`;
+  const label = translateServer(locale, "média {0}m", values.length);
 
   return {
     suggestedCents: rounded,

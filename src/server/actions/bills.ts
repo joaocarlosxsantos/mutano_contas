@@ -1,5 +1,7 @@
 "use server";
 
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { and, eq, inArray, sql } from "drizzle-orm";
@@ -20,11 +22,12 @@ import { safeNameSchema, sanitizeFreeText } from "@/server/validation/sanitizati
 
 export type ActionState = { error?: string; ok?: boolean };
 
-const dueDaySchema = z.preprocess((v) => {
+function localizeddueDaySchema(locale: Locale) { return z.preprocess((v) => {
   if (v === "" || v === null || v === undefined) return null;
   const num = Number(v);
   return Number.isFinite(num) ? num : NaN;
-}, z.number({ message: "Dia de vencimento deve estar entre 1 e 31." }).int("Dia de vencimento deve estar entre 1 e 31.").min(1, "Dia de vencimento deve estar entre 1 e 31.").max(31, "Dia de vencimento deve estar entre 1 e 31.").nullable().optional());
+}, z.number({ message: translateServer(locale, "Dia de vencimento deve estar entre 1 e 31.") }).int(translateServer(locale, "Dia de vencimento deve estar entre 1 e 31.")).min(1, translateServer(locale, "Dia de vencimento deve estar entre 1 e 31.")).max(31, translateServer(locale, "Dia de vencimento deve estar entre 1 e 31.")).nullable().optional()); }
+const dueDaySchema = localizeddueDaySchema("pt-BR");
 
 
 /**
@@ -44,29 +47,32 @@ function refresh() {
  * o `groupingId` de outra pessoa, vazando o nome/cor do agrupamento dela).
  */
 async function verifyGroupingOwnership(userId: string, groupingId: string | null): Promise<string | null> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   if (!groupingId) return null;
   const [grouping] = await db
     .select({ id: billGroupings.id })
     .from(billGroupings)
     .where(and(eq(billGroupings.id, groupingId), eq(billGroupings.userId, userId)))
     .limit(1);
-  return grouping ? null : "Agrupamento não encontrado.";
+  return grouping ? null : translateServer(locale, "Agrupamento não encontrado.");
 }
 
 // ---------------------------------------------------------------- agrupamentos
 
-const groupingSchema = z.object({
-  name: safeNameSchema(1, 100, "Dê um nome ao agrupamento."),
+function localizedgroupingSchema(locale: Locale) { return z.object({
+  name: safeNameSchema(1, 100, translateServer(locale, "Dê um nome ao agrupamento.")),
   color: z.string().trim().min(1).max(50),
-});
+}); }
+
 
 export async function createBillGrouping(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
-  const parsed = groupingSchema.safeParse({
+  const parsed = localizedgroupingSchema(locale).safeParse({
     name: formData.get("name"),
     color: formData.get("color"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   await db.insert(billGroupings).values({ userId, name: parsed.data.name, color: parsed.data.color });
   refresh();
@@ -115,32 +121,34 @@ function readParticipants(formData: FormData): { name: string; phone: string | n
   return out;
 }
 
-const ruleSchema = z.object({
-  name: safeNameSchema(1, 100, "Dê um nome à conta."),
+function localizedruleSchema(locale: Locale) { return z.object({
+  name: safeNameSchema(1, 100, translateServer(locale, "Dê um nome à conta.")),
   type: z.enum(["INDIVIDUAL", "GROUP"]),
   groupingId: z.string().optional(),
   dueDay: dueDaySchema,
-});
+}); }
+
 
 /** Cria o molde de uma conta recorrente. Nenhum valor em dinheiro mora aqui — cada mês tem o seu, preenchido na geração. */
 export async function createBillRule(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
-  const parsed = ruleSchema.safeParse({
+  const parsed = localizedruleSchema(locale).safeParse({
     name: formData.get("name"),
     type: formData.get("type"),
     groupingId: formData.get("groupingId") || undefined,
     dueDay: formData.get("dueDay"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const d = parsed.data;
   const participants = d.type === "GROUP" ? readParticipants(formData) : [];
   if (d.type === "GROUP" && !participants.length) {
-    return { error: "Informe ao menos uma pessoa para dividir a conta." };
+    return { error: translateServer(locale, "Informe ao menos uma pessoa para dividir a conta.") };
   }
 
   const groupingError = await verifyGroupingOwnership(userId, d.groupingId || null);
-  if (groupingError) return { error: groupingError };
+  if (groupingError) return { error: translateServer(locale, groupingError) };
 
   await db.transaction(async (tx) => {
     const [rule] = await tx
@@ -187,6 +195,7 @@ export async function deleteBillRule(id: string) {
  * ano/mês, valor ainda zero) — mesma UI, ação certa por baixo.
  */
 export async function createBill(prev: ActionState, formData: FormData): Promise<ActionState> {
+
   return formData.get("recurring") === "1" ? createBillRule(prev, formData) : createOneOffBill(prev, formData);
 }
 
@@ -197,15 +206,16 @@ export async function generateBillsForMonth(
   input: unknown,
   ruleId?: string,
 ): Promise<{ created: number; error?: string }> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const parsed = billMonthSchema.safeParse(input);
-  if (!parsed.success) return { created: 0, error: parsed.error.issues[0]?.message ?? "Mês inválido. Use YYYY-MM." };
+  if (!parsed.success) return { created: 0, error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Mês inválido. Use YYYY-MM.")) };
   const ref = parsed.data;
   const { getBillRulesStatus } = await import("@/server/queries");
 
   const status = await getBillRulesStatus(userId, ref);
   const target = ruleId ? status.pending.filter((r) => r.id === ruleId) : status.pending;
-  if (!target.length) return { created: 0, error: "Nada pendente para gerar neste mês." };
+  if (!target.length) return { created: 0, error: translateServer(locale, "Nada pendente para gerar neste mês.") };
 
   let created = 0;
   await db.transaction(async (tx) => {
@@ -250,14 +260,15 @@ export async function generateBillsForMonth(
 
 // ---------------------------------------------------------------- conta avulsa
 
-const oneOffSchema = z.object({
-  name: safeNameSchema(1, 100, "Dê um nome à conta."),
+function localizedoneOffSchema(locale: Locale) { return z.object({
+  name: safeNameSchema(1, 100, translateServer(locale, "Dê um nome à conta.")),
   type: z.enum(["INDIVIDUAL", "GROUP"]),
   groupingId: z.string().optional(),
-  year: z.coerce.number().int().min(2000).max(2100, "Ano deve estar entre 2000 e 2100."),
+  year: z.coerce.number().int().min(2000).max(2100, translateServer(locale, "Ano deve estar entre 2000 e 2100.")),
   month: z.coerce.number().int().min(1).max(12),
   dueDay: dueDaySchema,
-});
+}); }
+
 
 /**
  * Conta "única daquele mês" — sem regra recorrente por trás. O valor total é
@@ -268,8 +279,9 @@ const oneOffSchema = z.object({
  * divisão manual depois editando a conta.
  */
 export async function createOneOffBill(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
-  const parsed = oneOffSchema.safeParse({
+  const parsed = localizedoneOffSchema(locale).safeParse({
     name: formData.get("name"),
     type: formData.get("type"),
     groupingId: formData.get("groupingId") || undefined,
@@ -277,19 +289,19 @@ export async function createOneOffBill(_prev: ActionState, formData: FormData): 
     month: formData.get("month"),
     dueDay: formData.get("dueDay"),
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const d = parsed.data;
   const participants = d.type === "GROUP" ? readParticipants(formData) : [];
   if (d.type === "GROUP" && !participants.length) {
-    return { error: "Informe ao menos uma pessoa para dividir a conta." };
+    return { error: translateServer(locale, "Informe ao menos uma pessoa para dividir a conta.") };
   }
 
   const groupingError = await verifyGroupingOwnership(userId, d.groupingId || null);
-  if (groupingError) return { error: groupingError };
+  if (groupingError) return { error: translateServer(locale, groupingError) };
 
   const totalCents = Math.abs(parseMoneyToCents(formData.get("total") as string | null));
-  if (totalCents > MAX_CENTS) return { error: "Valor muito alto." };
+  if (totalCents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
   const shares = totalCents > 0 && participants.length ? splitBillEqually(totalCents, participants.length) : null;
 
   await db.transaction(async (tx) => {
@@ -353,17 +365,18 @@ async function batchUpdateParticipantAmounts(
 }
 
 export async function addBillParticipant(billId: string, name: string, phone?: string): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const trimmed = name.trim();
-  if (!trimmed) return { error: "Informe o nome." };
+  if (!trimmed) return { error: translateServer(locale, "Informe o nome.") };
 
   const [bill] = await db
     .select({ id: bills.id, type: bills.type, totalCents: bills.totalCents })
     .from(bills)
     .where(and(eq(bills.id, billId), eq(bills.userId, userId)))
     .limit(1);
-  if (!bill) return { error: "Conta não encontrada." };
-  if (bill.type !== "GROUP") return { error: "Só contas em grupo têm participantes." };
+  if (!bill) return { error: translateServer(locale, "Conta não encontrada.") };
+  if (bill.type !== "GROUP") return { error: translateServer(locale, "Só contas em grupo têm participantes.") };
 
   await db.transaction(async (tx) => {
     const oldParticipants = await tx
@@ -393,6 +406,7 @@ export async function addBillParticipant(billId: string, name: string, phone?: s
 }
 
 export async function removeBillParticipant(participantId: string): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const [row] = await db
     .select({ id: billParticipants.id, billId: bills.id, totalCents: bills.totalCents })
@@ -400,7 +414,7 @@ export async function removeBillParticipant(participantId: string): Promise<Acti
     .innerJoin(bills, eq(bills.id, billParticipants.billId))
     .where(and(eq(billParticipants.id, participantId), eq(bills.userId, userId)))
     .limit(1);
-  if (!row) return { error: "Participante não encontrado." };
+  if (!row) return { error: translateServer(locale, "Participante não encontrado.") };
 
   await db.transaction(async (tx) => {
     const oldParticipants = await tx
@@ -439,29 +453,30 @@ export async function removeBillParticipant(participantId: string): Promise<Acti
  * faltar nem passar — é a regra que o João pediu).
  */
 export async function updateBillAmount(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const billId = formData.get("billId") as string | null;
-  if (!billId) return { error: "Conta inválida." };
+  if (!billId) return { error: translateServer(locale, "Conta inválida.") };
 
   const [bill] = await db
     .select({ id: bills.id, type: bills.type })
     .from(bills)
     .where(and(eq(bills.id, billId), eq(bills.userId, userId)))
     .limit(1);
-  if (!bill) return { error: "Conta não encontrada." };
+  if (!bill) return { error: translateServer(locale, "Conta não encontrada.") };
 
   let nextDueDay: number | null | undefined = undefined;
   if (formData.has("dueDay")) {
-    const parsedDue = dueDaySchema.safeParse(formData.get("dueDay"));
+    const parsedDue = localizeddueDaySchema(locale).safeParse(formData.get("dueDay"));
     if (!parsedDue.success) {
-      return { error: parsedDue.error.issues[0]?.message ?? "Dia de vencimento inválido." };
+      return { error: translateServer(locale, parsedDue.error.issues[0]?.message ?? "Dia de vencimento inválido.") };
     }
     nextDueDay = parsedDue.data ?? null;
   }
 
   const totalCents = Math.abs(parseMoneyToCents(formData.get("total") as string | null));
-  if (totalCents <= 0) return { error: "O valor total precisa ser maior que zero." };
-  if (totalCents > MAX_CENTS) return { error: "Valor muito alto." };
+  if (totalCents <= 0) return { error: translateServer(locale, "O valor total precisa ser maior que zero.") };
+  if (totalCents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
 
   const billUpdates: { totalCents: number; updatedAt: Date; dueDay?: number | null } = {
     totalCents,
@@ -481,7 +496,7 @@ export async function updateBillAmount(_prev: ActionState, formData: FormData): 
     .select({ id: billParticipants.id })
     .from(billParticipants)
     .where(eq(billParticipants.billId, billId));
-  if (!participants.length) return { error: "Adicione ao menos uma pessoa antes de definir o valor." };
+  if (!participants.length) return { error: translateServer(locale, "Adicione ao menos uma pessoa antes de definir o valor.") };
 
   const mode = formData.get("mode") === "MANUAL" ? "MANUAL" : "EQUAL";
 
@@ -497,8 +512,8 @@ export async function updateBillAmount(_prev: ActionState, formData: FormData): 
       return {
         error:
           check.remainingCents > 0
-            ? `Falta dividir ${formatCents(check.remainingCents)} ainda.`
-            : `A divisão passou o total em ${formatCents(-check.remainingCents)}.`,
+            ? translateServer(locale, "Falta dividir {0} ainda.", formatCents(check.remainingCents, locale))
+            : translateServer(locale, "A divisão passou o total em {0}.", formatCents(-check.remainingCents, locale)),
       };
     }
   }
@@ -594,14 +609,16 @@ async function generateNextMonthForBill(
   }
 }
 
-const togglePaidSchema = z.object({
-  billId: z.string().trim().min(1, "Conta inválida."),
+function localizedtogglePaidSchema(locale: Locale) { return z.object({
+  billId: z.string().trim().min(1, translateServer(locale, "Conta inválida.")),
   paid: z.boolean(),
-});
+}); }
+
 
 export async function toggleBillPaid(billId: string, paid: boolean): Promise<ActionState> {
-  const parsed = togglePaidSchema.safeParse({ billId, paid });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
+  const parsed = localizedtogglePaidSchema(locale).safeParse({ billId, paid });
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Dados inválidos.")) };
 
   const userId = await requireUserId();
 
@@ -612,7 +629,7 @@ export async function toggleBillPaid(billId: string, paid: boolean): Promise<Act
       .where(and(eq(bills.id, parsed.data.billId), eq(bills.userId, userId)))
       .limit(1);
 
-    if (!bill) return { error: "Conta não encontrada." };
+    if (!bill) return { error: translateServer(locale, "Conta não encontrada.") };
 
     await tx
       .update(bills)
@@ -640,14 +657,16 @@ export async function toggleBillPaid(billId: string, paid: boolean): Promise<Act
   return { ok: true };
 }
 
-const toggleParticipantPaidSchema = z.object({
-  participantId: z.string().trim().min(1, "Participante inválido."),
+function localizedtoggleParticipantPaidSchema(locale: Locale) { return z.object({
+  participantId: z.string().trim().min(1, translateServer(locale, "Participante inválido.")),
   paid: z.boolean(),
-});
+}); }
+
 
 export async function toggleParticipantPaid(participantId: string, paid: boolean): Promise<ActionState> {
-  const parsed = toggleParticipantPaidSchema.safeParse({ participantId, paid });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
+  const parsed = localizedtoggleParticipantPaidSchema(locale).safeParse({ participantId, paid });
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Dados inválidos.")) };
 
   const userId = await requireUserId();
 
@@ -670,7 +689,7 @@ export async function toggleParticipantPaid(participantId: string, paid: boolean
       .where(and(eq(billParticipants.id, parsed.data.participantId), eq(bills.userId, userId)))
       .limit(1);
 
-    if (!row) return { error: "Participante não encontrado." };
+    if (!row) return { error: translateServer(locale, "Participante não encontrado.") };
 
     await tx
       .update(billParticipants)
@@ -714,13 +733,14 @@ export async function toggleParticipantPaid(participantId: string, paid: boolean
  * das próximas gerações; ver comentário em `billRules` no schema).
  */
 export async function updateBillGrouping(billId: string, groupingId: string | null): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const [bill] = await db
     .select({ id: bills.id, ruleId: bills.ruleId })
     .from(bills)
     .where(and(eq(bills.id, billId), eq(bills.userId, userId)))
     .limit(1);
-  if (!bill) return { error: "Conta não encontrada." };
+  if (!bill) return { error: translateServer(locale, "Conta não encontrada.") };
 
   if (groupingId) {
     const [grouping] = await db
@@ -728,7 +748,7 @@ export async function updateBillGrouping(billId: string, groupingId: string | nu
       .from(billGroupings)
       .where(and(eq(billGroupings.id, groupingId), eq(billGroupings.userId, userId)))
       .limit(1);
-    if (!grouping) return { error: "Agrupamento não encontrado." };
+    if (!grouping) return { error: translateServer(locale, "Agrupamento não encontrado.") };
   }
 
   await db.transaction(async (tx) => {

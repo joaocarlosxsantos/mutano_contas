@@ -1,5 +1,7 @@
 "use server";
 
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { count, eq } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -13,7 +15,8 @@ import { GROUP_ID_PATTERN, isSharedSchemaMissing, listGroupMembers, MAX_GROUP_EN
 
 export type GroupActionResult = { ok: true; groupId: string } | { ok: false; error: string };
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
-const id = z.string().regex(GROUP_ID_PATTERN, "Identificador inválido.");
+function localizedid(locale: Locale) { return z.string().regex(GROUP_ID_PATTERN, translateServer(locale, "Identificador inválido.")); }
+const id = localizedid("pt-BR");
 const cents = z.number().int().min(1).max(MAX_CENTS);
 const createSchema = z.strictObject({ name: safeNameSchema(2), members: z.array(safeNameSchema()).min(2).max(20) });
 const expenseSchema = z.strictObject({
@@ -30,12 +33,13 @@ function reject(error: string): GroupActionResult { return { ok: false, error };
 function saved(groupId: string): GroupActionResult { return { ok: true, groupId }; }
 
 async function persist(work: (tx: Transaction) => Promise<GroupActionResult>): Promise<GroupActionResult> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   let result: GroupActionResult;
   try {
     result = await db.transaction(work);
   } catch (error) {
-    if (isSharedSchemaMissing(error)) return reject("Os grupos estarão disponíveis após a atualização do banco.");
-    return reject("Não foi possível salvar. Tente novamente.");
+    if (isSharedSchemaMissing(error)) return reject(translateServer(locale, "Os grupos estarão disponíveis após a atualização do banco."));
+    return reject(translateServer(locale, "Não foi possível salvar. Tente novamente."));
   }
   if (result.ok) {
     revalidatePath(SHARED_GROUP_PATH);
@@ -45,17 +49,19 @@ async function persist(work: (tx: Transaction) => Promise<GroupActionResult>): P
 }
 
 async function lockGroup(tx: Transaction, userId: string, groupId: string) {
+
   const [group] = await tx.select({ id: sharedGroups.id }).from(sharedGroups)
     .where(ownedGroupCondition(userId, groupId)).for("update").limit(1);
   return group;
 }
 
 export async function createSharedGroup(input: unknown): Promise<GroupActionResult> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const parsed = createSchema.safeParse(input);
-  if (!parsed.success) return reject("Informe o nome do grupo e de 2 a 20 participantes.");
+  if (!parsed.success) return reject(translateServer(locale, "Informe o nome do grupo e de 2 a 20 participantes."));
   const { name, members } = parsed.data;
-  if (new Set(members.map((member) => member.toLowerCase())).size !== members.length) return reject("Use um nome diferente para cada pessoa.");
+  if (new Set(members.map((member) => member.toLowerCase())).size !== members.length) return reject(translateServer(locale, "Use um nome diferente para cada pessoa."));
   return persist(async (tx) => {
     const [group] = await tx.insert(sharedGroups).values({ userId, name }).returning({ id: sharedGroups.id });
     await tx.insert(sharedMembers).values(members.map((member) => ({ groupId: group.id, name: member })));
@@ -64,25 +70,26 @@ export async function createSharedGroup(input: unknown): Promise<GroupActionResu
 }
 
 export async function addSharedExpense(input: unknown): Promise<GroupActionResult> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const parsed = expenseSchema.safeParse(input);
-  if (!parsed.success) return reject("Confira o pagador, a descrição, o valor e as partes da despesa.");
+  if (!parsed.success) return reject(translateServer(locale, "Confira o pagador, a descrição, o valor e as partes da despesa."));
   const { groupId, payerId, description, amountCents, mode, members } = parsed.data;
   return persist(async (tx) => {
     const group = await lockGroup(tx, userId, groupId);
-    if (!group) return reject("Grupo não encontrado.");
+    if (!group) return reject(translateServer(locale, "Grupo não encontrado."));
     const roster = await listGroupMembers(tx, group.id);
     const submitted = new Map(members.map((member) => [member.memberId, member]));
     const selected = roster.filter((member) => submitted.has(member.id));
     if (!roster.some((member) => member.id === payerId) || selected.length !== members.length) {
-      return reject("Escolha apenas participantes deste grupo, sem repetir nomes.");
+      return reject(translateServer(locale, "Escolha apenas participantes deste grupo, sem repetir nomes."));
     }
     const result = allocateGroupExpense(amountCents, mode, selected.map((member) => ({
       memberId: member.id, name: member.name, amountCents: submitted.get(member.id)?.amountCents,
     })));
     if (!result.ok) return reject(result.error);
     const [expenseCount] = await tx.select({ total: count() }).from(sharedExpenses).where(eq(sharedExpenses.groupId, group.id));
-    if (expenseCount.total >= MAX_GROUP_ENTRIES) return reject("Este grupo chegou ao limite de despesas.");
+    if (expenseCount.total >= MAX_GROUP_ENTRIES) return reject(translateServer(locale, "Este grupo chegou ao limite de despesas."));
     const [expense] = await tx.insert(sharedExpenses).values({ groupId: group.id, payerId, description, amountCents }).returning({ id: sharedExpenses.id });
     await tx.insert(sharedExpenseShares).values(result.shares.map((share) => ({ ...share, groupId: group.id, expenseId: expense.id })));
     return saved(group.id);
@@ -90,17 +97,18 @@ export async function addSharedExpense(input: unknown): Promise<GroupActionResul
 }
 
 export async function recordSharedSettlement(input: unknown): Promise<GroupActionResult> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const parsed = settlementSchema.safeParse(input);
-  if (!parsed.success) return reject("Confira as pessoas e o valor do acerto.");
+  if (!parsed.success) return reject(translateServer(locale, "Confira as pessoas e o valor do acerto."));
   const { groupId, ...payment } = parsed.data;
   return persist(async (tx) => {
     // Serialize writers. Recompute after the lock so concurrent acertos cannot overpay.
     const group = await lockGroup(tx, userId, groupId);
-    if (!group) return reject("Grupo não encontrado.");
+    if (!group) return reject(translateServer(locale, "Grupo não encontrado."));
     const { debts, settlements } = await readSharedLedger(tx, group.id);
-    if (!canSettle(debts, payment)) return reject("O valor excede o saldo atual entre essas pessoas. Confira os saldos e tente novamente.");
-    if (settlements.length >= MAX_GROUP_ENTRIES) return reject("Este grupo chegou ao limite de acertos.");
+    if (!canSettle(debts, payment)) return reject(translateServer(locale, "O valor excede o saldo atual entre essas pessoas. Confira os saldos e tente novamente."));
+    if (settlements.length >= MAX_GROUP_ENTRIES) return reject(translateServer(locale, "Este grupo chegou ao limite de acertos."));
     await tx.insert(sharedSettlements).values({ groupId: group.id, ...payment });
     return saved(group.id);
   });

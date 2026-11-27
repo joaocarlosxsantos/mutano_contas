@@ -1,3 +1,6 @@
+import type { Locale } from "@/lib/i18n/config";
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { getLocale } from "@/lib/i18n/server";
 import { MobileDisclosure } from "@/components/ui/mobile-disclosure";
 import { TrendingDown } from "lucide-react";
 import { requireUserId } from "@/lib/auth";
@@ -13,9 +16,11 @@ import { DebtList } from "./debt-list";
 import { DebtComposer } from "./debt-composer";
 import { PayoffPlanner } from "./payoff-planner";
 
-export const metadata = { title: "Dívidas" };
+function localizedmetadata(locale: Locale) { return { title: translatePlanning(locale, "Dívidas") }; }
+export async function generateMetadata() { return localizedmetadata(await getLocale()); }
 
 export default async function DebtsPage() {
+  const locale = await getLocale().catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const ref = currentMonthRef();
 
@@ -34,8 +39,8 @@ export default async function DebtsPage() {
   return (
     <>
       <PageHeader
-        title="Dívidas"
-        description="Sair da dívida é um problema de ordem, não de força de vontade. Aqui você vê quanto os juros custam por mês e qual sequência de quitação sai mais barato."
+        title={translatePlanning(locale, "Dívidas")}
+        description={translatePlanning(locale, "Sair da dívida é um problema de ordem, não de força de vontade. Aqui você vê quanto os juros custam por mês e qual sequência de quitação sai mais barato.")}
       />
 
       {!overview.debts.length ? (
@@ -43,13 +48,13 @@ export default async function DebtsPage() {
           <Card className="min-w-0 p-0">
             <EmptyState
               icon={TrendingDown}
-              title="Nenhuma dívida cadastrada"
-              description="Se você não tem dívida, ótimo — pule esta tela. Se tem, cadastrar é o passo que transforma um problema difuso em um plano com data para acabar."
+              title={translatePlanning(locale, "Nenhuma dívida cadastrada")}
+              description={translatePlanning(locale, "Se você não tem dívida, ótimo — pule esta tela. Se tem, cadastrar é o passo que transforma um problema difuso em um plano com data para acabar.")}
             />
           </Card>
           <Card className="min-w-0">
-            <CardHeader title="Cadastrar dívida" subtitle="Comece pela de maior juros." />
-            <MobileDisclosure label="Preencher dívida"><DebtComposer /></MobileDisclosure>
+            <CardHeader title={translatePlanning(locale, "Cadastrar dívida")} subtitle={translatePlanning(locale, "Comece pela de maior juros.")} />
+            <MobileDisclosure label={translatePlanning(locale, "Preencher dívida")}><DebtComposer /></MobileDisclosure>
           </Card>
         </div>
       ) : (
@@ -57,25 +62,25 @@ export default async function DebtsPage() {
           <div className="min-w-0 space-y-4">
             <Card className="min-w-0">
               <CardHeader
-                title="O tamanho do buraco"
-                subtitle="O primeiro passo é enxergar o número real."
+                title={translatePlanning(locale, "O tamanho do buraco")}
+                subtitle={translatePlanning(locale, "O primeiro passo é enxergar o número real.")}
               />
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <Metric
-                  label="Saldo devedor"
-                  value={formatCents(overview.totalBalanceCents)}
+                  label={translatePlanning(locale, "Saldo devedor")}
+                  value={formatCents(overview.totalBalanceCents, locale)}
                   tone="bad"
                 />
                 <Metric
-                  label="Juros por mês"
-                  value={formatCents(overview.totalMonthlyInterestCents)}
-                  hint={income ? `${jurosSobreRenda}% da sua renda` : undefined}
+                  label={translatePlanning(locale, "Juros por mês")}
+                  value={formatCents(overview.totalMonthlyInterestCents, locale)}
+                  hint={income ? translatePlanning(locale, "{0}% da sua renda", jurosSobreRenda) : undefined}
                   tone="bad"
                 />
                 <Metric
-                  label="Mínimos por mês"
-                  value={formatCents(overview.totalMinimumCents)}
-                  hint={income ? `${comprometido}% da sua renda` : undefined}
+                  label={translatePlanning(locale, "Mínimos por mês")}
+                  value={formatCents(overview.totalMinimumCents, locale)}
+                  hint={income ? translatePlanning(locale, "{0}% da sua renda", comprometido) : undefined}
                 />
               </div>
 
@@ -83,16 +88,11 @@ export default async function DebtsPage() {
                 <Hint tone={overview.totalMonthlyInterestCents > 0 ? "warn" : "info"}>
                   {overview.totalMonthlyInterestCents > 0 ? (
                     <>
-                      Só de juros, essas dívidas custam{" "}
-                      <strong>{formatCents(overview.totalMonthlyInterestCents)} por mês</strong> —
-                      esse é o valor que some da sua vida sem comprar nada. Pagar só o mínimo
-                      significa que boa parte disso se repete no mês seguinte.
-                    </>
+                      {translatePlanning(locale, "Só de juros, essas dívidas custam")}{" "}
+                      <strong>{formatCents(overview.totalMonthlyInterestCents, locale)} {translatePlanning(locale, "por mês")}</strong> {translatePlanning(locale, "— esse é o valor que some da sua vida sem comprar nada. Pagar só o mínimo significa que boa parte disso se repete no mês seguinte.")} </>
                   ) : (
                     <>
-                      Nenhuma dessas dívidas está cobrando juros. Se alguma cobra, informe a taxa
-                      para o plano ficar realista.
-                    </>
+                      {translatePlanning(locale, "Nenhuma dessas dívidas está cobrando juros. Se alguma cobra, informe a taxa para o plano ficar realista.")} </>
                   )}
                 </Hint>
               </div>
@@ -100,10 +100,9 @@ export default async function DebtsPage() {
 
             <Card className="min-w-0 p-0">
               <div className="border-b px-5 py-4">
-                <h2 className="text-[0.9375rem] font-semibold tracking-tight">Suas dívidas</h2>
+                <h2 className="text-[0.9375rem] font-semibold tracking-tight">{translatePlanning(locale, "Suas dívidas")}</h2>
                 <p className="muted mt-0.5 text-[0.8125rem]">
-                  Da que cobra mais juros para a que cobra menos. Clique nos valores para editar.
-                </p>
+                  {translatePlanning(locale, "Da que cobra mais juros para a que cobra menos. Clique nos valores para editar.")} </p>
               </div>
               <DebtList debts={overview.debts} />
             </Card>
@@ -123,15 +122,12 @@ export default async function DebtsPage() {
 
           <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
             <Card className="min-w-0">
-              <CardHeader title="Cadastrar dívida" />
-              <MobileDisclosure label="Preencher dívida"><DebtComposer /></MobileDisclosure>
+              <CardHeader title={translatePlanning(locale, "Cadastrar dívida")} />
+              <MobileDisclosure label={translatePlanning(locale, "Preencher dívida")}><DebtComposer /></MobileDisclosure>
             </Card>
 
-            <Hint tone="tip" title="A ordem que funciona">
-              Antes de investir, quite o que cobra juros alto — nenhum investimento seguro paga
-              13% ao mês. A exceção é uma reserva mínima de um mês de custo de vida: sem ela,
-              qualquer imprevisto vira dívida nova e o esforço recomeça do zero.
-            </Hint>
+            <Hint tone="tip" title={translatePlanning(locale, "A ordem que funciona")}>
+              {translatePlanning(locale, "Antes de investir, quite o que cobra juros alto — nenhum investimento seguro paga 13% ao mês. A exceção é uma reserva mínima de um mês de custo de vida: sem ela, qualquer imprevisto vira dívida nova e o esforço recomeça do zero.")} </Hint>
           </div>
         </div>
       )}

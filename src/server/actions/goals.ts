@@ -1,5 +1,7 @@
 "use server";
 
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
@@ -22,19 +24,21 @@ function refresh() {
   revalidatePath("/projecoes");
 }
 
-const goalSchema = z.object({
-  name: safeNameSchema(2, 100, "Dê um nome para a meta."),
+function localizedgoalSchema(locale: Locale) { return z.object({
+  name: safeNameSchema(2, 100, translateServer(locale, "Dê um nome para a meta.")),
   kind: z.enum(["EMERGENCY_FUND", "PURCHASE", "TRIP", "DEBT_PAYOFF", "INVESTMENT", "CUSTOM"]),
-  target: z.string().min(1, "Informe o valor da meta."),
+  target: z.string().min(1, translateServer(locale, "Informe o valor da meta.")),
   saved: z.string().optional(),
   targetDate: z.string().optional(),
   color: safeOptionalTextSchema(50),
   note: safeNotesSchema(2000),
-});
+}); }
+
 
 export async function createGoal(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
-  const parsed = goalSchema.safeParse({
+  const parsed = localizedgoalSchema(locale).safeParse({
     name: formData.get("name"),
     kind: formData.get("kind"),
     target: formData.get("target"),
@@ -43,15 +47,15 @@ export async function createGoal(_prev: ActionState, formData: FormData): Promis
     color: formData.get("color") || undefined,
     note: formData.get("note") || undefined,
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const d = parsed.data;
   const targetCents = Math.abs(parseMoneyToCents(d.target));
-  if (targetCents > MAX_CENTS) return { error: "Valor muito alto." };
-  if (targetCents <= 0) return { error: "O valor da meta precisa ser maior que zero." };
+  if (targetCents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
+  if (targetCents <= 0) return { error: translateServer(locale, "O valor da meta precisa ser maior que zero.") };
 
   const savedCents = Math.abs(parseMoneyToCents(d.saved ?? "0"));
-  if (savedCents > MAX_CENTS) return { error: "Valor muito alto." };
+  if (savedCents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
 
   await db.insert(goals).values({
     userId,
@@ -70,10 +74,11 @@ export async function createGoal(_prev: ActionState, formData: FormData): Promis
 }
 
 export async function contributeToGoal(goalId: string, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const cents = Math.abs(parseMoneyToCents(String(formData.get("amount") ?? "")));
-  if (cents > MAX_CENTS) return { error: "Valor muito alto." };
-  if (cents <= 0) return { error: "Informe um valor válido." };
+  if (cents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
+  if (cents <= 0) return { error: translateServer(locale, "Informe um valor válido.") };
 
   const delta = String(formData.get("mode") ?? "add") === "withdraw" ? -cents : cents;
 
@@ -103,26 +108,28 @@ export async function contributeToGoal(goalId: string, formData: FormData): Prom
     });
     return true;
   });
-  if (!found) return { error: "Meta não encontrada." };
-  if (found === "max") return { error: "Valor muito alto." };
+  if (!found) return { error: translateServer(locale, "Meta não encontrada.") };
+  if (found === "max") return { error: translateServer(locale, "Valor muito alto.") };
 
   refresh();
   return { ok: true };
 }
 
 export async function deleteGoal(goalId: string): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const result = await db
     .delete(goals)
     .where(and(eq(goals.id, goalId), eq(goals.userId, userId)))
     .returning({ id: goals.id });
-  if (result.length === 0) return { error: "Não encontrado." };
+  if (result.length === 0) return { error: translateServer(locale, "Não encontrado.") };
   refresh();
   return { ok: true };
 }
 
 /** Cria (ou atualiza) a meta de reserva de emergência calculada pelo sistema. */
 export async function upsertEmergencyGoal(targetCents: number) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
   const [existing] = await db
@@ -139,11 +146,11 @@ export async function upsertEmergencyGoal(targetCents: number) {
   } else {
     await db.insert(goals).values({
       userId,
-      name: "Reserva de emergência",
+      name: translateServer(locale, "Reserva de emergência"),
       kind: "EMERGENCY_FUND",
       targetCents,
       color: "#0891b2",
-      note: "Dinheiro para imprevistos. Deve ficar em algo com liquidez diária.",
+      note: translateServer(locale, "Dinheiro para imprevistos. Deve ficar em algo com liquidez diária."),
     });
   }
 
