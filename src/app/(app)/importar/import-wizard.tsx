@@ -9,6 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Field, Select } from "@/components/ui/field";
 import { Hint } from "@/components/ui/hint";
 import { formatDate, monthLabel, monthRefFromParam, todayRef } from "@/lib/dates";
+import { useLocale } from "@/lib/i18n/context";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 import { ImportReview } from "./import-review";
 import { cn } from "@/lib/cn";
 
@@ -20,6 +22,8 @@ function currentMonthValue(): string {
 }
 
 export function ImportWizard({ accounts, categories }: { accounts: Account[]; categories: Category[] }) {
+  const locale = useLocale();
+  const dict = getActivityDict(locale);
   const [accountId, setAccountId] = useState(accounts[0]?.id ?? "");
   const [invertSign, setInvertSign] = useState(false);
   const [invoiceMonth, setInvoiceMonth] = useState(currentMonthValue);
@@ -72,18 +76,17 @@ export function ImportWizard({ accounts, categories }: { accounts: Account[]; ca
 
   async function handleFile(file: File) {
     if (!accountId) {
-      setError("Cadastre uma conta em Configurações antes de importar um extrato.");
+      setError(dict["Cadastre uma conta em Configurações antes de importar um extrato."]);
       return;
     }
     if (isCard && !invoiceMonth) {
-      setError("Escolha o mês de referência da fatura antes de importar.");
+      setError(dict["Escolha o mês de referência da fatura antes de importar."]);
       return;
     }
     const content = await file.text();
     await runPreview(file.name, content, invertSign);
   }
 
-  /** Aplica a sugestão de "inverter sinal" e atualiza a prévia com o mesmo arquivo, sem pedir pra escolher de novo. */
   function acceptInvertSignSuggestion() {
     if (!fileName || !fileContent) return;
     setInvertSign(true);
@@ -150,11 +153,11 @@ export function ImportWizard({ accounts, categories }: { accounts: Account[]; ca
   return (
     <div className="space-y-4">
       <Card className="min-w-0">
-        <CardHeader title="1. Escolha a conta e o arquivo" />
+        <CardHeader title={dict["1. Escolha a conta e o arquivo"]} />
 
-        <MobileDisclosure label="Escolher conta e arquivo">
+        <MobileDisclosure label={dict["Escolher conta e arquivo"]}>
         <div className={cn("grid grid-cols-1 gap-4", isCard ? "sm:grid-cols-3" : "sm:grid-cols-2")}>
-          <Field label="Conta que vai receber os lançamentos">
+          <Field label={dict["Conta que vai receber os lançamentos"]}>
             <Select className="min-h-12 min-w-0 max-w-full text-base!" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -166,8 +169,8 @@ export function ImportWizard({ accounts, categories }: { accounts: Account[]; ca
 
           {isCard ? (
             <Field
-              label="Mês de referência da fatura"
-              hint="Parcela vai para esse mês (dia original preservado). Compra à vista mantém a data real de compra do arquivo."
+              label={dict["Mês de referência da fatura"]}
+              hint={dict["Parcela vai para esse mês (dia original preservado). Compra à vista mantém a data real de compra do arquivo."]}
             >
               <input
                 type="month"
@@ -178,7 +181,7 @@ export function ImportWizard({ accounts, categories }: { accounts: Account[]; ca
             </Field>
           ) : null}
 
-          <Field label="Ajuste de sinal" hint="Use quando a prévia mostrar gastos como entradas.">
+          <Field label={dict["Ajuste de sinal"]} hint={dict["Use quando a prévia mostrar gastos como entradas."]}>
             <label className="min-h-11 flex h-[42px] cursor-pointer items-center gap-2.5 rounded-xl border bg-[var(--surface-2)] px-3.5">
               <input
                 type="checkbox"
@@ -186,13 +189,11 @@ export function ImportWizard({ accounts, categories }: { accounts: Account[]; ca
                 onChange={(e) => {
                   const next = e.target.checked;
                   setInvertSign(next);
-                  // Já tem arquivo carregado: atualiza a prévia na hora em
-                  // vez de deixar os valores errados até escolher de novo.
                   if (fileName && fileContent) void runPreview(fileName, fileContent, next);
                 }}
                 className="size-4 accent-[var(--color-brand-600)]"
               />
-              <span className="text-[0.8125rem]">Inverter sinal dos valores</span>
+              <span className="text-[0.8125rem]">{dict["Inverter sinal dos valores"]}</span>
             </label>
           </Field>
         </div>
@@ -220,12 +221,12 @@ export function ImportWizard({ accounts, categories }: { accounts: Account[]; ca
             <FileUp className="mb-3 size-6 opacity-60" />
           )}
           <p className="max-w-full break-words text-[0.9375rem] font-medium [overflow-wrap:anywhere]">
-            {fileName ?? "Clique para escolher o arquivo"}
+            {fileName ?? dict["Clique para escolher o arquivo"]}
           </p>
           <p className="muted mt-1 text-[0.8125rem]">
             {isCard
-              ? `As linhas serão vinculadas à fatura de ${monthLabel(monthRefFromParam(invoiceMonth))}. Compras à vista e primeiras parcelas mantêm a data do arquivo. As parcelas seguintes usam a data da cobrança.`
-              : "Aceita CSV e OFX de extrato bancário — cada linha entra com a própria data do arquivo."}
+              ? `${dict["As linhas serão vinculadas à fatura de "]}${monthLabel(monthRefFromParam(invoiceMonth), locale)}${dict[". Compras à vista e primeiras parcelas mantêm a data do arquivo. As parcelas seguintes usam a data da cobrança."]}`
+              : dict["Aceita CSV e OFX de extrato bancário — cada linha entra com a própria data do arquivo."]}
           </p>
         </label>
         </MobileDisclosure>
@@ -239,15 +240,15 @@ export function ImportWizard({ accounts, categories }: { accounts: Account[]; ca
             <CheckCircle2 className="size-6 text-[var(--text-in)]" />
             <div>
               <p className="text-[0.9375rem] font-semibold">
-                {savedCount} lançamento(s) importado(s) com sucesso
+                {savedCount}{dict[" lançamento(s) importado(s) com sucesso"]}
               </p>
               <p className="muted text-[0.8125rem]">
                 {replacedCount ? (
                   <>
-                    {replacedCount} lançamento(s) de uma importação anterior desse período foram substituídos.{" "}
+                    {replacedCount}{dict[" lançamento(s) de uma importação anterior desse período foram substituídos. "]}
                   </>
                 ) : null}
-                Confira em Lançamentos — as categorias sugeridas podem ser trocadas a qualquer momento.
+                {dict["Confira em Lançamentos — as categorias sugeridas podem ser trocadas a qualquer momento."]}
               </p>
             </div>
           </div>
@@ -257,30 +258,28 @@ export function ImportWizard({ accounts, categories }: { accounts: Account[]; ca
       {rows ? (
         <Card className="min-w-0">
           <CardHeader
-            title="2. Confira antes de gravar"
-            subtitle={`${selected} linha(s) serão importadas · ${ignored} ignorada(s). Desmarque o que não quiser trazer.`}
+            title={dict["2. Confira antes de gravar"]}
+            subtitle={`${selected}${dict[" linha(s) serão importadas · "]}${ignored}${dict[" ignorada(s). Desmarque o que não quiser trazer."]}`}
             action={
               <Button className="min-h-11 min-w-11" onClick={confirm} disabled={pending || selected === 0}>
-                {pending ? "Importando..." : `Importar ${selected}`}
+                {pending ? dict["Importando..."] : `${dict["Importar"]} ${selected}`}
               </Button>
             }
           />
 
           {columns ? (
             <p className="muted mb-3 text-xs">
-              Colunas detectadas — data: <strong>{columns.data}</strong> · descrição:{" "}
-              <strong>{columns.descricao}</strong> · valor: <strong>{columns.valor}</strong>
+              {dict["Colunas detectadas — data: "]}<strong>{columns.data}</strong>{dict[" · descrição: "]}<strong>{columns.descricao}</strong>{dict[" · valor: "]}<strong>{columns.valor}</strong>
             </p>
           ) : null}
 
           {suggestInvertSign ? (
-            <Hint tone="tip" title="Os valores parecem estar ao contrário" className="mb-3">
+            <Hint tone="tip" title={dict["Os valores parecem estar ao contrário"]} className="mb-3">
               <p className="mb-2">
-                A maioria das linhas dessa fatura virou entrada — é bem comum o cartão exportar os
-                gastos como valor positivo. Marcar &quot;inverter sinal&quot; deve corrigir.
+                {dict["A maioria das linhas dessa fatura virou entrada — é bem comum o cartão exportar os gastos como valor positivo. Marcar \"inverter sinal\" deve corrigir."]}
               </p>
               <Button className="min-h-11 min-w-11" type="button" size="sm" variant="outline" onClick={acceptInvertSignSuggestion}>
-                Marcar &quot;inverter sinal&quot; e atualizar prévia
+                {dict["Marcar \"inverter sinal\" e atualizar prévia"]}
               </Button>
             </Hint>
           ) : null}
@@ -310,13 +309,13 @@ export function ImportWizard({ accounts, categories }: { accounts: Account[]; ca
               <span>
                 <span className="block font-medium">
                   {isCard
-                    ? `Substituir os ${existingInPeriod} lançamento(s) já importado(s) antes para essa fatura (${monthLabel(monthRefFromParam(invoiceMonth))})`
-                    : `Substituir os ${existingInPeriod} lançamento(s) já importado(s) entre ${formatDate(period.start)} e ${formatDate(period.end)}`}
+                    ? `${dict["Substituir os "]}${existingInPeriod}${dict[" lançamento(s) já importado(s) antes para essa fatura ("]}${monthLabel(monthRefFromParam(invoiceMonth), locale)})`
+                    : `${dict["Substituir os "]}${existingInPeriod}${dict[" lançamento(s) já importado(s) entre "]}${formatDate(period.start, locale)} e ${formatDate(period.end, locale)}`}
                 </span>
                 <span className="muted mt-0.5 block">
                   {replacePeriod
-                    ? "Marcado: eles serão apagados e trocados pelos desta importação — o jeito certo de reimportar o mesmo extrato."
-                    : "Desmarcado: os antigos ficam como estão, e só o que for novo entra (nada de outra importação é tocado; lançamentos digitados à mão nunca são apagados de qualquer forma)."}
+                    ? dict["Marcado: eles serão apagados e trocados pelos desta importação — o jeito certo de reimportar o mesmo extrato."]
+                    : dict["Desmarcado: os antigos ficam como estão, e só o que for novo entra (nada de outra importação é tocado; lançamentos digitados à mão nunca são apagados de qualquer forma)."]}
                 </span>
               </span>
             </label>

@@ -4,12 +4,16 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Search, X } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/cn";
+import { useLocale } from "@/lib/i18n/context";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 import type { PlainCategory } from "./types";
 
 export function Filters({ categories, accounts }: { categories: PlainCategory[]; accounts: Array<{ id: string; name: string; type: string }> }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const locale = useLocale();
+  const dict = getActivityDict(locale);
   const [q, setQ] = useState(params.get("q") ?? "");
 
   function update(key: string, value: string) {
@@ -37,52 +41,52 @@ export function Filters({ categories, accounts }: { categories: PlainCategory[];
         className="relative min-w-44 flex-1"
       >
         <Search className="muted pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2" />
-        <input aria-label="Buscar descrição..."
+        <input aria-label={dict["Buscar descrição..."]}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Buscar descrição..."
+          placeholder={dict["Buscar descrição..."]}
           className="min-h-12 min-w-0 max-w-full text-base! input-base h-12 py-0 pl-8 text-base md:h-8 md:min-h-8 md:text-xs"
         />
       </form>
 
       <Chip active={kind === "EXPENSE"} onClick={() => update("kind", kind === "EXPENSE" ? "" : "EXPENSE")}>
-        Só saídas
+        {dict["Só saídas"]}
       </Chip>
       <Chip active={kind === "INCOME"} onClick={() => update("kind", kind === "INCOME" ? "" : "INCOME")}>
-        Só entradas
+        {dict["Só entradas"]}
       </Chip>
       <Chip active={nature === "FIXED"} onClick={() => update("nature", nature === "FIXED" ? "" : "FIXED")}>
-        Fixos
+        {dict["Fixos"]}
       </Chip>
       <Chip
         active={nature === "VARIABLE"}
         onClick={() => update("nature", nature === "VARIABLE" ? "" : "VARIABLE")}
       >
-        Variáveis
+        {dict["Variáveis"]}
       </Chip>
 
       <span className="mx-0.5 h-4 w-px bg-[var(--border)]" aria-hidden />
 
       <Chip active={acc === "OTHER"} onClick={() => update("acc", acc === "OTHER" ? "" : "OTHER")}>
-        Sem cartão
+        {dict["Sem cartão"]}
       </Chip>
       <Chip active={acc === "CARD"} onClick={() => update("acc", acc === "CARD" ? "" : "CARD")}>
-        Cartão
+        {dict["Cartão"]}
       </Chip>
 
-      <select aria-label="Filtrar por conta" value={selectedAccount} onChange={(e) => update("acc", e.target.value)} className="input-base min-h-12 max-w-full cursor-pointer text-base md:min-h-8 md:text-xs">
-        <option value="">Todas as contas</option>
-        {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.type === "INVESTMENT" ? " · Investimento" : ""}</option>)}
+      <select aria-label={dict["Filtrar por conta"]} value={selectedAccount} onChange={(e) => update("acc", e.target.value)} className="input-base min-h-12 max-w-full cursor-pointer text-base md:min-h-8 md:text-xs">
+        <option value="">{dict["Todas as contas"]}</option>
+        {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}{account.type === "INVESTMENT" ? dict[" · Investimento"] : ""}</option>)}
       </select>
 
       <select
         value={cat}
         onChange={(e) => update("cat", e.target.value)}
-        aria-label="Filtrar por categoria"
+        aria-label={dict["Filtrar por categoria"]}
         className="min-h-12 min-w-0 max-w-full text-base! input-base h-12 w-auto max-w-full cursor-pointer py-0 text-base md:h-8 md:min-h-8 md:text-xs"
       >
-        <option value="">Todas as categorias</option>
-        <option value="NONE">Sem categoria</option>
+        <option value="">{dict["Todas as categorias"]}</option>
+        <option value="NONE">{dict["Sem categoria"]}</option>
         {categories.map((c) => (
           <option key={c.id} value={c.id}>
             {c.name}
@@ -97,7 +101,7 @@ export function Filters({ categories, accounts }: { categories: PlainCategory[];
           className="min-h-11 min-w-11 muted inline-flex h-11 cursor-pointer items-center gap-1 rounded-[var(--radius-button)] px-3 text-sm hover:bg-[var(--surface-2)] md:h-8 md:px-2 md:text-xs"
         >
           <X className="size-3" />
-          Limpar
+          {dict["Limpar"]}
         </button>
       ) : null}
     </div>

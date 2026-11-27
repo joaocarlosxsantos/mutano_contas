@@ -6,6 +6,8 @@ import { deleteRecurringRule, toggleRecurringRule } from "@/server/actions/recur
 import { formatCents } from "@/lib/money";
 import { cn } from "@/lib/cn";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { useLocale } from "@/lib/i18n/context";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 import type { MonthRef } from "@/lib/dates";
 
 type Rule = {
@@ -25,7 +27,7 @@ type Rule = {
   endMonth: number | null;
 };
 
-export function RuleList({ rules }: { rules: Rule[]; monthRef: MonthRef }) {
+export function RuleList({ rules }: { rules: Rule[]; monthRef?: MonthRef }) {
   return (
     <ul className="divide-y">
       {rules.map((rule) => (
@@ -35,30 +37,32 @@ export function RuleList({ rules }: { rules: Rule[]; monthRef: MonthRef }) {
   );
 }
 
-function statusOf(rule: Rule): { label: string; className: string } {
+function statusOf(rule: Rule, dict: Record<string, string>): { label: string; className: string } {
   if (!rule.active) {
-    return { label: "pausada", className: "bg-[var(--surface-2)] text-[var(--text-muted)]" };
+    return { label: dict["pausada"], className: "bg-[var(--surface-2)] text-[var(--text-muted)]" };
   }
   if (rule.generated) {
     return {
-      label: "lançada no mês",
+      label: dict["lançada no mês"],
       className:
         "bg-[var(--color-money-in-soft)] text-[var(--text-in)]",
     };
   }
   if (rule.dueThisMonth) {
     return {
-      label: "pendente",
+      label: dict["pendente"],
       className: "bg-[var(--color-save-soft)] text-[var(--text-brand)]",
     };
   }
-  return { label: "fora do período", className: "bg-[var(--surface-2)] text-[var(--text-muted)]" };
+  return { label: dict["fora do período"], className: "bg-[var(--surface-2)] text-[var(--text-muted)]" };
 }
 
 function Row({ rule }: { rule: Rule }) {
+  const locale = useLocale();
+  const dict = getActivityDict(locale);
   const [pending, start] = useTransition();
   const confirm = useConfirm();
-  const status = statusOf(rule);
+  const status = statusOf(rule, dict);
 
   return (
     <li className={cn("flex flex-wrap items-center gap-3 px-5 py-3.5", pending && "opacity-50")}>
@@ -75,9 +79,9 @@ function Row({ rule }: { rule: Rule }) {
           </span>
         </div>
         <p className="muted mt-1 truncate text-xs">
-          todo dia {rule.dayOfMonth} · {rule.categoryName ?? "sem categoria"} · {rule.accountName}
+          {dict["todo dia "]}{rule.dayOfMonth} · {rule.categoryName ?? dict["sem categoria"]} · {rule.accountName}
           {rule.endYear && rule.endMonth
-            ? ` · até ${String(rule.endMonth).padStart(2, "0")}/${rule.endYear}`
+            ? `${dict[" até "]}${String(rule.endMonth).padStart(2, "0")}/${rule.endYear}`
             : ""}
         </p>
       </div>
@@ -88,13 +92,13 @@ function Row({ rule }: { rule: Rule }) {
           color: rule.kind === "INCOME" ? "var(--text-in)" : "var(--text-out)",
         }}
       >
-        {rule.kind === "INCOME" ? "+" : "−"} {formatCents(rule.amountCents)}
+        {rule.kind === "INCOME" ? "+" : "−"} {formatCents(rule.amountCents, locale)}
       </span>
 
       <button
         type="button"
-        aria-label={rule.active ? `Pausar ${rule.description}` : `Retomar ${rule.description}`}
-        title={rule.active ? "Pausar" : "Retomar"}
+        aria-label={rule.active ? `${dict["Pausar "]}${rule.description}` : `${dict["Retomar "]}${rule.description}`}
+        title={rule.active ? dict["Pausar"] : dict["Retomar"]}
         disabled={pending}
         onClick={() => start(async () => void (await toggleRecurringRule(rule.id, !rule.active)))}
         className="min-h-11 min-w-11 muted shrink-0 cursor-pointer rounded-lg p-2.5 hover:bg-[var(--surface-2)]"
@@ -104,13 +108,13 @@ function Row({ rule }: { rule: Rule }) {
 
       <button
         type="button"
-        aria-label={`Excluir ${rule.description}`}
+        aria-label={`${dict["Excluir "]}${rule.description}`}
         disabled={pending}
         onClick={async () => {
           const ok = await confirm({
-            title: `Excluir a recorrência "${rule.description}"?`,
-            description: "Os lançamentos já criados continuam no histórico.",
-            confirmLabel: "Excluir",
+            title: `${dict["Excluir a recorrência \""]}${rule.description}${dict["\"?"]}`,
+            description: dict["Os lançamentos já criados continuam no histórico."],
+            confirmLabel: dict["Excluir"],
             tone: "danger",
           });
           if (!ok) return;

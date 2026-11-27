@@ -2,9 +2,12 @@ import Link from "next/link";
 import { TriangleAlert, Info } from "lucide-react";
 import type { Alert } from "@/lib/alerts";
 import { cn } from "@/lib/cn";
+import type { Locale } from "@/lib/i18n/config";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 
-export function AlertsCard({ alerts, className }: { alerts: Alert[]; className?: string }) {
+export function AlertsCard({ alerts, className, locale = "pt-BR" }: { alerts: Alert[]; className?: string; locale?: Locale }) {
   if (!alerts.length) return null;
+  const dict = getActivityDict(locale);
 
   return (
     <aside
@@ -12,11 +15,11 @@ export function AlertsCard({ alerts, className }: { alerts: Alert[]; className?:
         "rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--surface)] p-3.5",
         className,
       )}
-      aria-label="Avisos importantes"
+      aria-label={dict["Avisos importantes"]}
     >
       <div className="mb-2 flex items-center justify-between border-b border-[var(--line)] pb-1.5">
         <h2 className="text-xs font-semibold tracking-normal text-[var(--text-muted)]">
-          Avisos ({alerts.length})
+          {dict["Avisos"]} ({alerts.length})
         </h2>
       </div>
       <ul className="divide-y divide-[var(--line)]" role="list">

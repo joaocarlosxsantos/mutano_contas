@@ -1,6 +1,8 @@
 import type { HealthResult } from "@/lib/finance";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/cn";
+import type { Locale } from "@/lib/i18n/config";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 
 const LINKED_PART_LABEL = "Reserva de emergência";
 
@@ -21,19 +23,22 @@ const toneText: Record<HealthResult["tone"], string> = {
 export function HealthCard({
   health,
   className,
+  locale = "pt-BR",
 }: {
   health: HealthResult;
   className?: string;
+  locale?: Locale;
 }) {
+  const dict = getActivityDict(locale);
   const color = toneColor[health.tone];
   const textColor = toneText[health.tone];
 
   return (
-    <section aria-label="Saúde financeira" className={cn("h-full", className)}>
+    <section aria-label={dict["Saúde financeira"]} className={cn("h-full", className)}>
       <div className="mb-4 flex items-baseline justify-between border-b border-[var(--line)] pb-2">
         <div>
           <h2 className="text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">
-            Saúde financeira
+            {dict["Saúde financeira"]}
           </h2>
           <p className="text-xs font-medium" style={{ color: textColor }}>
             {health.label}
@@ -50,6 +55,7 @@ export function HealthCard({
       <ul className="space-y-3.5" role="list">
         {health.parts.map((part) => {
           const isReserve = part.label === LINKED_PART_LABEL;
+          const displayLabel = isReserve ? dict["Reserva de emergência"] : part.label;
           return (
             <li key={part.label}>
               <div className="mb-1 flex items-baseline justify-between gap-3 text-xs">
@@ -58,10 +64,10 @@ export function HealthCard({
                     href="#reserva-emergencia"
                     className="font-medium text-[var(--text-brand)] hover:underline"
                   >
-                    {part.label}
+                    {displayLabel}
                   </a>
                 ) : (
-                  <span className="font-medium text-[var(--text)]">{part.label}</span>
+                  <span className="font-medium text-[var(--text)]">{displayLabel}</span>
                 )}
                 <span className="tnum font-mono text-[var(--text-muted)] text-xs">
                   {part.score}/{part.max}
@@ -69,15 +75,15 @@ export function HealthCard({
               </div>
               {isReserve ? (
                 <p className="text-xs text-[var(--text-muted)] leading-snug">
-                  {part.score} de {part.max} pts. Detalhes em{" "}
+                  {part.score} {dict["de "]}{part.max} {dict["pts. Detalhes em "]}{" "}
                   <a href="#reserva-emergencia" className="font-medium text-[var(--text-brand)] underline">
-                    Reserva de emergência
+                    {dict["Reserva de emergência"]}
                   </a>.
                 </p>
               ) : (
                 <>
                   <Progress
-                    label={part.label}
+                    label={displayLabel}
                     value={(part.score / part.max) * 100}
                     color={color}
                     height={4}

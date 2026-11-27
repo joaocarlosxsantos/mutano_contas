@@ -6,6 +6,9 @@ import { deleteImportBatch } from "@/server/actions/import";
 import { formatDate } from "@/lib/dates";
 import { cn } from "@/lib/cn";
 import { useConfirm } from "@/components/ui/confirm-dialog";
+import { useLocale } from "@/lib/i18n/context";
+import type { Locale } from "@/lib/i18n/config";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 
 type Batch = {
   id: string;
@@ -21,7 +24,10 @@ type Batch = {
  * data errada (um bug, ou a conta errada) — em vez de caçar lançamento por
  * lançamento em Lançamentos, apaga o lote inteiro de uma vez e importa de novo.
  */
-export function ImportHistory({ batches }: { batches: Batch[] }) {
+export function ImportHistory({ batches, locale: propLocale }: { batches: Batch[]; locale?: Locale }) {
+  const contextLocale = useLocale();
+  const locale = propLocale ?? contextLocale;
+  const dict = getActivityDict(locale);
   const [items, setItems] = useState(batches);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,9 +36,9 @@ export function ImportHistory({ batches }: { batches: Batch[] }) {
 
   async function remove(batch: Batch) {
     const ok = await confirm({
-      title: `Apagar a importação "${batch.fileName}"?`,
-      description: `Os ${batch.savedRows} lançamento(s) que vieram dela serão excluídos. Isso não pode ser desfeito.`,
-      confirmLabel: "Apagar",
+      title: `${dict["Apagar a importação \""]}${batch.fileName}${dict["\"?"]}`,
+      description: `${dict["Os "]}${batch.savedRows}${dict[" lançamento(s) que vieram dela serão excluídos. Isso não pode ser desfeito."]}`,
+      confirmLabel: dict["Apagar"],
       tone: "danger",
     });
     if (!ok) return;
@@ -60,13 +66,13 @@ export function ImportHistory({ batches }: { batches: Batch[] }) {
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium">{b.fileName}</p>
               <p className="muted text-xs">
-                {b.savedRows} de {b.rowCount} linhas · {b.accountName} · {formatDate(b.createdAt)}
+                {b.savedRows}{dict[" de "]}{b.rowCount}{dict[" linhas · "]}{b.accountName} · {formatDate(b.createdAt, locale)}
               </p>
             </div>
             <button
               type="button"
-              aria-label={`Apagar importação ${b.fileName}`}
-              title="Apagar esta importação e os lançamentos que vieram dela"
+              aria-label={`${dict["Apagar importação "]}${b.fileName}`}
+              title={dict["Apagar esta importação e os lançamentos que vieram dela"]}
               disabled={pendingId === b.id}
               onClick={() => remove(b)}
               className="inline-flex items-center justify-center min-h-11 min-w-11 muted mt-0.5 shrink-0 cursor-pointer rounded-lg p-2.5 hover:bg-[var(--color-money-out-soft)] hover:text-[var(--text-out)]"

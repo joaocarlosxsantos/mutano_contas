@@ -45,6 +45,8 @@ import { Progress } from "@/components/ui/progress";
 import { EmptyState } from "@/components/ui/empty";
 import { MonthlyFlowChart, FixedVariableChart } from "@/components/charts/monthly-flow";
 import { CategoryBars } from "@/components/charts/category-bars";
+import { getIntlLocale, type Locale } from "@/lib/i18n/config";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 import { AutoSync } from "./auto-sync";
 import { HealthCard } from "./health-card";
 import { BudgetCard } from "./budget-card";
@@ -54,13 +56,29 @@ import { OnboardingCard } from "./onboarding-card";
 import { ForecastCard } from "./forecast-card";
 import { DailyBudgetCard } from "./daily-budget-card";
 
-export const metadata = { title: "Painel" };
+async function resolveLocale(): Promise<Locale> {
+  try {
+    const { getLocale } = await import("@/lib/i18n/server");
+    return await getLocale();
+  } catch {
+    return "pt-BR";
+  }
+}
+
+export async function generateMetadata() {
+  const locale = await resolveLocale();
+  const dict = getActivityDict(locale);
+  return { title: dict["Painel"] };
+}
 
 export default async function DashboardPage({
   searchParams,
 }: {
   searchParams: Promise<{ m?: string }>;
 }) {
+  const locale = await resolveLocale();
+  const dict = getActivityDict(locale);
+  const intlLocale = getIntlLocale(locale);
   const userId = await requireUserId();
   const { m } = await searchParams;
   const ref = monthRefFromParam(m);
@@ -82,10 +100,6 @@ export default async function DashboardPage({
     balances,
   ] = await Promise.all([
     getUser(userId),
-    // "cash": o resumo principal do painel é o retrato do dinheiro que
-    // realmente entrou e saiu de uma conta de verdade — compra no cartão
-    // vira demonstrativo (tem gráfico próprio abaixo) e nunca entra aqui;
-    // o que sai do cartão só conta quando aparece no extrato importado.
     getMonthSummary(userId, ref, { cardMode: "cash" }),
     getMonthlySeries(userId, 6, ref, { cardMode: "cash" }),
     getCategoryBreakdown(userId, ref, { cardMode: "cash" }),
@@ -144,8 +158,8 @@ export default async function DashboardPage({
     <>
       {canUseCapability(user.usageProfile, "integration") && <AutoSync />}
       <PageHeader
-        title={`Olá, ${user.name.split(" ")[0]}`}
-        description="Resumo do mês: entradas, saídas e saldo."
+        title={`${dict["Olá, "]}${user.name.split(" ")[0]}`}
+        description={dict["Resumo do mês: entradas, saídas e saldo."]}
         action={<MonthSwitcher value={ref} />}
       />
 
@@ -154,12 +168,12 @@ export default async function DashboardPage({
       {/* 1. Hero mês: 'Sobrou' grande + linha Entrou/Saiu/Fixo menores */}
       <section
         className="card min-w-0 p-4 sm:p-6 lg:grid lg:grid-cols-2 lg:items-center lg:gap-8"
-        aria-label="Resumo financeiro do mês"
+        aria-label={dict["Resumo financeiro do mês"]}
       >
         <div className="flex flex-col gap-2 sm:flex-row sm:items-baseline sm:justify-between">
           <div>
             <span className="text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">
-              Sobrou no mês
+              {dict["Sobrou no mês"]}
             </span>
             <div className="mt-1 flex flex-wrap items-baseline gap-3">
               <Money
@@ -170,8 +184,8 @@ export default async function DashboardPage({
               />
               <span className="text-xs font-medium text-[var(--text-muted)]">
                 {sobrou >= 0
-                  ? `Taxa de economia: ${rate}% da renda`
-                  : "Gastos superaram as receitas no mês"}
+                  ? `${dict["Taxa de economia:"]} ${rate}% ${dict["da renda"]}`
+                  : dict["Gastos superaram as receitas no mês"]}
               </span>
             </div>
           </div>
@@ -180,7 +194,7 @@ export default async function DashboardPage({
         <div className="mt-3 grid min-w-0 grid-cols-3 gap-2 border-t border-[var(--border)] pt-3 sm:mt-5 sm:gap-0 sm:divide-x sm:divide-[var(--border)] sm:pt-4 lg:mt-0 lg:border-t-0 lg:pt-0">
           <div className="min-w-0 sm:pr-4">
             <p className="text-[0.75rem] font-medium tracking-normal text-[var(--text-muted)]">
-              Entrou
+              {dict["Entrou"]}
             </p>
             <div className="mt-1">
               <Money
@@ -191,13 +205,13 @@ export default async function DashboardPage({
               />
             </div>
             <p className="muted mt-0.5 hidden text-xs sm:block truncate">
-              Salário e receitas
+              {dict["Salário e receitas"]}
             </p>
           </div>
 
           <div className="min-w-0 sm:px-4">
             <p className="text-[0.75rem] font-medium tracking-normal text-[var(--text-muted)]">
-              Saiu
+              {dict["Saiu"]}
             </p>
             <div className="mt-1">
               <Money
@@ -208,13 +222,13 @@ export default async function DashboardPage({
               />
             </div>
             <p className="muted mt-0.5 hidden text-xs sm:block truncate">
-              {formatCents(summary.variableCents)} variável
+              {formatCents(summary.variableCents, locale)} {dict["variável"]}
             </p>
           </div>
 
           <div className="min-w-0 sm:pl-4">
             <p className="text-[0.75rem] font-medium tracking-normal text-[var(--text-muted)]">
-              Fixo
+              {dict["Fixo"]}
             </p>
             <div className="mt-1">
               <Money
@@ -224,37 +238,37 @@ export default async function DashboardPage({
               />
             </div>
             <p className="muted mt-0.5 hidden text-xs sm:block truncate">
-              {fixedShare > 0 ? `${fixedShare}% da renda` : "Compromissos"}
+              {fixedShare > 0 ? `${fixedShare}% ${dict["da renda"]}` : dict["Compromissos"]}
             </p>
           </div>
         </div>
       </section>
 
-        <section className={`mt-4 space-y-3 ${isCurrentMonth && hasData ? "lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0" : ""}`} aria-label="Ritmo e previsões">
-          {hasData && (user.monthlyIncomeCents > 0 || summary.incomeCents > 0) && dailyAnalysis && <DailyBudgetCard dailyBudget={dailyAnalysis.daily} spentTodayCents={dailyAnalysis.spentTodayCents} historyDays={dailyAnalysis.historyDays} />}
-          <ForecastCard forecast={forecast} monthName={monthLabel(ref)} />
-        </section>
+      <section className={`mt-4 space-y-3 ${isCurrentMonth && hasData ? "lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0" : ""}`} aria-label={dict["Ritmo e previsões"]}>
+        {hasData && (user.monthlyIncomeCents > 0 || summary.incomeCents > 0) && dailyAnalysis && <DailyBudgetCard locale={locale} dailyBudget={dailyAnalysis.daily} spentTodayCents={dailyAnalysis.spentTodayCents} historyDays={dailyAnalysis.historyDays} />}
+        <ForecastCard locale={locale} forecast={forecast} monthName={monthLabel(ref, locale)} />
+      </section>
 
       {investedAccounts.length > 0 ? (
-        <section className="mt-4" aria-label="Investimentos">
+        <section className="mt-4" aria-label={dict["Investimentos"]}>
           <Card className="min-w-0">
             <CardHeader
-              title="Investimentos"
-              subtitle="Saldo atual. Aplicações e resgates ficam fora de Entrou/Saiu; impostos contam como despesa."
+              title={dict["Investimentos"]}
+              subtitle={dict["Saldo atual. Aplicações e resgates ficam fora de Entrou/Saiu; impostos contam como despesa."]}
               action={
                 <Link href="/contas" className="inline-flex min-h-11 items-center text-[0.8125rem] font-medium text-brand-600 hover:underline dark:text-brand-300">
-                  Ver contas
+                  {dict["Ver contas"]}
                 </Link>
               }
             />
             <Money cents={balances.investedCents} size="lg" className="text-2xl font-semibold" />
-            {position.incomplete ? <p className="muted mt-1 text-xs">Saldo parcial: há investimento sem saldo atualizado.</p> : null}
-            {position.sharePct !== null ? <p className="muted mt-1 text-xs">{position.sharePct.toLocaleString("pt-BR")}% do patrimônio líquido</p> : null}
+            {position.incomplete ? <p className="muted mt-1 text-xs">{dict["Saldo parcial: há investimento sem saldo atualizado."]}</p> : null}
+            {position.sharePct !== null ? <p className="muted mt-1 text-xs">{position.sharePct.toLocaleString(intlLocale)}% {dict["do patrimônio líquido"]}</p> : null}
             <ul className="mt-3 divide-y divide-[var(--border)] text-[0.8125rem]">
               {investedAccounts.map((a) => (
                 <li key={a.id} className="flex items-baseline justify-between gap-3 py-2">
-                  <span className="muted min-w-0 truncate">{a.name}{a.bankBalanceAt ? ` · atualizado em ${new Date(a.bankBalanceAt).toLocaleDateString("pt-BR")}` : ""}</span>
-                  {a.financeMode === "integracao" && a.bankBalanceCents === null ? <span className="muted">Sem saldo atualizado</span> : <Money cents={a.balanceCents} size="sm" className="font-medium" />}
+                  <span className="muted min-w-0 truncate">{a.name}{a.bankBalanceAt ? ` · ${dict["atualizado em"]} ${new Date(a.bankBalanceAt).toLocaleDateString(intlLocale)}` : ""}</span>
+                  {a.financeMode === "integracao" && a.bankBalanceCents === null ? <span className="muted">{dict["Sem saldo atualizado"]}</span> : <Money cents={a.balanceCents} size="sm" className="font-medium" />}
                 </li>
               ))}
             </ul>
@@ -268,66 +282,66 @@ export default async function DashboardPage({
 
         {canUseCapability(user.usageProfile, "manual-entry") && (<RecurringBanner
           monthRef={ref}
-          monthName={monthLabel(ref)}
+          monthName={monthLabel(ref, locale)}
           count={recurring.pending.length}
           incomeCents={recurring.pendingIncomeCents}
           expenseCents={recurring.pendingExpenseCents}
         />)}
 
-        <AlertsCard alerts={alerts} />
+        <AlertsCard alerts={alerts} locale={locale} />
 
         {!hasData ? (
           <Card className="min-w-0 p-0">
             <EmptyState
               icon={Receipt}
-              title={`Nenhum lançamento em ${monthLabel(ref)}`}
-              description={canUseCapability(user.usageProfile, "manual-entry") ? "Use o botão + para lançar uma movimentação." : "Conecte suas contas para receber as movimentações."}
+              title={`${dict["Nenhum lançamento em "]}${monthLabel(ref, locale)}`}
+              description={canUseCapability(user.usageProfile, "manual-entry") ? dict["Use o botão + para lançar uma movimentação."] : dict["Conecte suas contas para receber as movimentações."]}
               action={canUseCapability(user.usageProfile, "manual-entry") ? (
-                <Link href="/lancamentos" className="inline-flex min-h-11 items-center rounded-xl bg-[var(--acento)] px-4 text-sm font-medium text-[var(--on-acento)]">Ver lançamentos</Link>
-              ) : <Link href="/configuracoes/integracao" className="inline-flex min-h-11 items-center rounded-xl bg-[var(--acento)] px-4 text-sm font-medium text-[var(--on-acento)]">Conectar e sincronizar</Link>}
+                <Link href="/lancamentos" className="inline-flex min-h-11 items-center rounded-xl bg-[var(--acento)] px-4 text-sm font-medium text-[var(--on-acento)]">{dict["Ver lançamentos"]}</Link>
+              ) : <Link href="/configuracoes/integracao" className="inline-flex min-h-11 items-center rounded-xl bg-[var(--acento)] px-4 text-sm font-medium text-[var(--on-acento)]">{dict["Conectar e sincronizar"]}</Link>}
             />
           </Card>
         ) : null}
       </div>
 
-      {/* 3. Gráfico 6m + ranking categorias lado-a-lado (largura maior) */}
-      <section className="mt-6 grid min-w-0 w-full max-w-full grid-cols-1 gap-4 overflow-x-hidden lg:grid-cols-12" aria-label="Fluxo e categorias">
+      {/* 3. Gráfico 6m + ranking categorias lado-a-lado */}
+      <section className="mt-6 grid min-w-0 w-full max-w-full grid-cols-1 gap-4 overflow-x-hidden lg:grid-cols-12" aria-label={dict["Fluxo e categorias"]}>
         <Card className="min-w-0 min-w-0 max-w-full overflow-x-hidden lg:col-span-7">
           <CardHeader
-            title="Entrou, saiu e sobrou nos últimos 6 meses"
-            mobileTitle="Fluxo dos últimos 6 meses"
-            subtitle="Histórico de entradas, saídas e saldo líquido mês a mês."
+            title={dict["Entrou, saiu e sobrou nos últimos 6 meses"]}
+            mobileTitle={dict["Fluxo dos últimos 6 meses"]}
+            subtitle={dict["Histórico de entradas, saídas e saldo líquido mês a mês."]}
           />
           <MonthlyFlowChart data={series} />
         </Card>
 
         <Card className="min-w-0 min-w-0 max-w-full overflow-x-hidden lg:col-span-5">
           <CardHeader
-            title={`Para onde foi o dinheiro em ${monthLabel(ref)}`}
-            subtitle="Ranking das categorias que mais pesaram no mês."
+            title={`${dict["Para onde foi o dinheiro em "]}${monthLabel(ref, locale)}`}
+            subtitle={dict["Ranking das categorias que mais pesaram no mês."]}
           />
           {breakdown.length ? (
             <CategoryBars slices={breakdown} />
           ) : (
             <p className="muted py-8 text-center text-[0.8125rem]">
-              Sem despesas registradas neste mês.
+              {dict["Sem despesas registradas neste mês."]}
             </p>
           )}
         </Card>
       </section>
 
       {cardBreakdown.length ? (
-        <section className="mt-4" aria-label="Gastos no cartão de crédito">
+        <section className="mt-4" aria-label={dict["Gastos no cartão de crédito"]}>
           <Card className="min-w-0">
             <CardHeader
-              title={`Faturas de cartão de ${monthLabel(ref)}`}
-              subtitle="Demonstrativo de compras faturadas no cartão de crédito."
+              title={`${dict["Faturas de cartão de "]}${monthLabel(ref, locale)}`}
+              subtitle={dict["Demonstrativo de compras faturadas no cartão de crédito."]}
               action={
                 <Link
                   href={`/lancamentos?acc=CARD&m=${monthRefToParam(ref)}`}
                   className="inline-flex min-h-11 items-center text-[0.8125rem] font-medium text-brand-600 hover:underline dark:text-brand-300"
                 >
-                  Ver lançamentos do cartão
+                  {dict["Ver lançamentos do cartão"]}
                 </Link>
               }
             />
@@ -336,29 +350,29 @@ export default async function DashboardPage({
         </section>
       ) : null}
 
-      {/* 4. Seções planas (saúde, orçamento, reserva, dívidas, 50/30/20) em 2 colunas desktop */}
+      {/* 4. Seções planas em 2 colunas desktop */}
       <section
         className="mt-8 border-t border-[var(--border)] pt-8"
-        aria-label="Planejamento e saúde financeira"
+        aria-label={dict["Planejamento e saúde financeira"]}
       >
         <div className="grid min-w-0 grid-cols-1 gap-8 lg:grid-cols-2">
           {/* Coluna 1: Saúde Financeira, Orçamento & Fixo x Variável */}
           <div className="min-w-0 space-y-8 [&_.card]:border-0 [&_.card]:bg-transparent [&_.card]:p-0 [&_.card]:shadow-none [&_.card]:rounded-none">
             <div>
-              <HealthCard health={health} className="border-0 bg-transparent p-0 rounded-none shadow-none" />
+              <HealthCard locale={locale} health={health} className="border-0 bg-transparent p-0 rounded-none shadow-none" />
             </div>
 
             <div className="min-w-0 border-t border-[var(--border)] pt-6">
-              <BudgetCard overview={budget} monthRef={ref} className="border-0 bg-transparent p-0 rounded-none shadow-none" />
+              <BudgetCard locale={locale} overview={budget} monthRef={ref} className="border-0 bg-transparent p-0 rounded-none shadow-none" />
             </div>
 
             <div className="border-t border-[var(--border)] pt-6">
               <div className="mb-4 border-b border-[var(--line)] pb-3">
                 <h2 className="text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">
-                  Gasto fixo x variável
+                  {dict["Gasto fixo x variável"]}
                 </h2>
                 <p className="muted mt-1 text-[0.8125rem] leading-snug">
-                  Evolução de compromissos fixos e gastos controláveis nos últimos 6 meses.
+                  {dict["Evolução de compromissos fixos e gastos controláveis nos últimos 6 meses."]}
                 </p>
               </div>
               <div className="min-w-0 max-w-full overflow-hidden">
@@ -368,13 +382,13 @@ export default async function DashboardPage({
                 <Hint tone={fixedShare > 60 ? "warn" : "tip"}>
                   {fixedShare > 0 ? (
                     <>
-                      Gastos fixos consomem <strong>{fixedShare}%</strong> da renda.{" "}
+                      {dict["Gastos fixos consomem "]}<strong>{fixedShare}%</strong> {dict["da renda"]}.{" "}
                       {fixedShare > 60
-                        ? "Acima de 60% o orçamento engessa e reduz flexibilidade."
-                        : "Abaixo de 50% é o equilíbrio ideal para absorver imprevistos."}
+                        ? dict["Acima de 60% o orçamento engessa e reduz flexibilidade."]
+                        : dict["Abaixo de 50% é o equilíbrio ideal para absorver imprevistos."]}
                     </>
                   ) : (
-                    <>Classifique lançamentos como fixo ou variável para esta análise.</>
+                    <>{dict["Classifique lançamentos como fixo ou variável para esta análise."]}</>
                   )}
                 </Hint>
               </div>
@@ -388,50 +402,51 @@ export default async function DashboardPage({
               <div className="mb-4 flex items-start justify-between gap-4 border-b border-[var(--line)] pb-3">
                 <div className="min-w-0">
                   <h2 className="text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">
-                    Reserva de emergência
+                    {dict["Reserva de emergência"]}
                   </h2>
                   <p className="muted mt-1 text-[0.8125rem] leading-snug">
-                    Meta de {user.emergencyMonths} meses de custo de vida.
+                    {dict["Meta de "]}{user.emergencyMonths}{dict[" meses de custo de vida."]}
                   </p>
                 </div>
                 <Link
                   href="/metas"
                   className="inline-flex min-h-11 items-center shrink-0 text-[0.8125rem] font-medium text-brand-600 hover:underline dark:text-brand-300"
                 >
-                  Gerenciar
+                  {dict["Gerenciar"]}
                 </Link>
               </div>
 
               <div className="mb-2 flex items-baseline justify-between">
                 <Money cents={emergencySaved} size="lg" className="text-2xl font-semibold" />
                 <span className="muted text-[0.8125rem]">
-                  de <Money cents={emergencyTarget} size="sm" />
+                  {dict["de "]}{<Money cents={emergencyTarget} size="sm" />}
                 </span>
               </div>
               <Progress
-                label="Progresso da reserva de emergência"
+                label={dict["Progresso da reserva de emergência"]}
                 value={emergencyTarget ? (emergencySaved / emergencyTarget) * 100 : 0}
                 color="var(--color-save)"
                 height={8}
               />
               <p className="muted mt-2 text-xs leading-relaxed">
-                Base de cálculo: custo de vida de <strong>{formatCents(costBase)}</strong> por mês
-                {avgCost > 0 ? " (média real recente)" : " (estimado em 70% da renda)"}
-                {saved > emergencySaved ? ` · Total em metas: ${formatCents(saved)}` : ""}.
+                {dict["Base de cálculo: custo de vida de "]}<strong>{formatCents(costBase, locale)}</strong>{dict[" por mês"]}
+                {avgCost > 0 ? dict[" (média real recente)"] : dict[" (estimado em 70% da renda)"]}
+                {saved > emergencySaved ? `${dict[" · Total em metas: "]}${formatCents(saved, locale)}` : ""}.
               </p>
               <div className="mt-3">
                 <Hint tone={runway >= user.emergencyMonths ? "good" : "info"}>
                   {runway >= user.emergencyMonths
-                    ? "Reserva completa. O excedente pode ir para investimentos de longo prazo."
-                    : `Cobre ${runway} ${runway === 1 ? "mês" : "meses"} sem renda. Faltam ${formatCents(Math.max(0, emergencyTarget - emergencySaved))} para a meta.`}
+                    ? dict["Reserva completa. O excedente pode ir para investimentos de longo prazo."]
+                    : `${runway === 1 ? dict["Cobre 1 mês sem renda."] : `${dict["Cobre "]}${runway}${dict[" meses sem renda."]}`}${dict[" Faltam "]}${formatCents(Math.max(0, emergencyTarget - emergencySaved), locale)}${dict[" para a meta."]}`}
                 </Hint>
               </div>
             </div>
 
-            {/* Dívidas (se houver) */}
+            {/* Dívidas */}
             {debts.debts.length > 0 ? (
               <div className="border-t border-[var(--border)] pt-6">
                 <DebtCard
+                  locale={locale}
                   overview={debts}
                   incomeCents={user.monthlyIncomeCents}
                   className="border-0 bg-transparent p-0 rounded-none shadow-none"
@@ -443,41 +458,44 @@ export default async function DashboardPage({
             <div className="border-t border-[var(--border)] pt-6">
               <div className="mb-4 border-b border-[var(--line)] pb-3">
                 <h2 className="text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">
-                  Como dividir a sua renda
+                  {dict["Como dividir a sua renda"]}
                 </h2>
                 <p className="muted mt-1 text-[0.8125rem] leading-snug">
-                  Referência 50/30/20 aplicada à sua renda mensal.
+                  {dict["Referência 50/30/20 aplicada à sua renda mensal."]}
                 </p>
               </div>
 
               <ul className="space-y-4">
                 <SplitRow
-                  label="Essenciais"
-                  hint="Moradia, contas, mercado, transporte, saúde"
+                  label={dict["Essenciais"]}
+                  hint={dict["Moradia, contas, mercado, transporte, saúde"]}
                   target={split.necessitiesCents}
                   actual={summary.fixedCents}
                   color="var(--text-brand)"
                   share={50}
+                  dict={dict}
                 />
                 <SplitRow
-                  label="Estilo de vida"
-                  hint="Lazer, delivery, assinaturas, compras"
+                  label={dict["Estilo de vida"]}
+                  hint={dict["Lazer, delivery, assinaturas, compras"]}
                   target={split.wantsCents}
                   actual={summary.variableCents}
                   color="var(--color-variable)"
                   share={30}
+                  dict={dict}
                 />
                 <SplitRow
-                  label="Futuro"
-                  hint="Reserva, investimentos e quitação de dívidas"
+                  label={dict["Futuro"]}
+                  hint={dict["Reserva, investimentos e quitação de dívidas"]}
                   target={split.futureCents}
                   actual={Math.max(0, sobrou)}
                   color="var(--color-money-in)"
                   share={20}
+                  dict={dict}
                 />
               </ul>
               <p className="muted mt-3 text-xs leading-relaxed">
-                Referência para equilibrar gastos essenciais, estilo de vida e metas.
+                {dict["Referência para equilibrar gastos essenciais, estilo de vida e metas."]}
               </p>
             </div>
           </div>
@@ -494,6 +512,7 @@ function SplitRow({
   actual,
   color,
   share,
+  dict,
 }: {
   label: string;
   hint: string;
@@ -501,6 +520,7 @@ function SplitRow({
   actual: number;
   color: string;
   share: number;
+  dict: Record<string, string>;
 }) {
   const ratio = target ? (actual / target) * 100 : 0;
   return (
@@ -516,7 +536,7 @@ function SplitRow({
           <span className="muted"> / <Money cents={target} size="sm" /></span>
         </span>
       </div>
-      <Progress value={ratio} color={color} label={`${label}: quanto do sugerido já foi usado`} />
+      <Progress value={ratio} color={color} label={`${label}${dict[": quanto do sugerido já foi usado"]}`} />
       <p className="muted mt-1 text-xs">{hint}</p>
     </li>
   );

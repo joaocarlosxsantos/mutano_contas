@@ -5,35 +5,40 @@ import { formatCents } from "@/lib/money";
 import { monthRefToParam, type MonthRef } from "@/lib/dates";
 import type { BudgetOverview } from "@/server/queries";
 import { cn } from "@/lib/cn";
+import type { Locale } from "@/lib/i18n/config";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 
 export function BudgetCard({
   overview,
   monthRef,
   className,
+  locale = "pt-BR",
 }: {
   overview: BudgetOverview;
   monthRef: MonthRef;
   className?: string;
+  locale?: Locale;
 }) {
+  const dict = getActivityDict(locale);
   const href = `/orcamento?m=${monthRefToParam(monthRef)}`;
   const hasBudgets = overview.totalLimitCents > 0;
 
   if (!hasBudgets) {
     return (
-      <section aria-label="Orçamento do mês" className={cn("h-full", className)}>
+      <section aria-label={dict["Orçamento do mês"]} className={cn("h-full", className)}>
         <div className="mb-3 flex items-baseline justify-between border-b border-[var(--line)] pb-2">
           <h2 className="text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">
-            Orçamento do mês
+            {dict["Orçamento do mês"]}
           </h2>
           <Link
             href={href}
             className="inline-flex min-h-11 items-center text-xs font-medium text-[var(--text-brand)] hover:underline"
           >
-            Definir limites
+            {dict["Definir limites"]}
           </Link>
         </div>
         <p className="text-xs text-[var(--text-muted)] leading-relaxed py-2">
-          Nenhum limite definido ainda. Defina tetos por categoria para acompanhar seus gastos no mês.
+          {dict["Nenhum limite definido ainda. Defina tetos por categoria para acompanhar seus gastos no mês."]}
         </p>
       </section>
     );
@@ -52,29 +57,29 @@ export function BudgetCard({
     .slice(0, 3);
 
   return (
-    <section aria-label="Orçamento do mês" className={cn("h-full", className)}>
+    <section aria-label={dict["Orçamento do mês"]} className={cn("h-full", className)}>
       <div className="mb-3 flex items-baseline justify-between border-b border-[var(--line)] pb-2">
         <h2 className="text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">
-          Orçamento do mês
+          {dict["Orçamento do mês"]}
         </h2>
         <Link
           href={href}
           className="inline-flex min-h-11 items-center text-xs font-medium text-[var(--text-brand)] hover:underline"
         >
-          Gerenciar
+          {dict["Gerenciar"]}
         </Link>
       </div>
 
       <div className="mb-2 flex items-baseline justify-between gap-3">
         <span className="tnum font-mono text-xl font-semibold tracking-tight text-[var(--text)]">
-          {formatCents(overview.budgetedSpentCents)}
+          {formatCents(overview.budgetedSpentCents, locale)}
         </span>
         <span className="tnum font-mono text-xs text-[var(--text-muted)]">
-          de {formatCents(overview.totalLimitCents)}
+          {dict["de "]}{formatCents(overview.totalLimitCents, locale)}
         </span>
       </div>
       <Progress
-        label="Consumo do orçamento"
+        label={dict["Consumo do orçamento"]}
         value={usage}
         color={color}
         height={4}
@@ -99,14 +104,14 @@ export function BudgetCard({
         </ul>
       ) : (
         <p className="mt-3 text-xs text-[var(--text-muted)]">
-          Nenhuma categoria perto do limite.
+          {dict["Nenhuma categoria perto do limite."]}
         </p>
       )}
 
       {overview.unbudgetedSpentCents > 0 ? (
         <p className="mt-3 flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
           <AlertTriangle className="size-3 shrink-0 text-[var(--text-warn)]" />
-          <span>{formatCents(overview.unbudgetedSpentCents)} em categorias sem limite.</span>
+          <span>{formatCents(overview.unbudgetedSpentCents, locale)}{dict[" em categorias sem limite."]}</span>
         </p>
       ) : null}
     </section>

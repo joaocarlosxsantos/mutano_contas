@@ -21,6 +21,8 @@ import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Sheet } from "@/components/sheet";
 import { Field, Select } from "@/components/ui/field";
+import { useLocale } from "@/lib/i18n/context";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 import { SplitDialog } from "./split-dialog";
 import { TransferDialog } from "./transfer-dialog";
 import type { PlainAccount, PlainCategory, PlainTransaction } from "./types";
@@ -36,6 +38,8 @@ export function TransactionList({
   accounts: PlainAccount[];
   isFilteredByAccount?: boolean;
 }) {
+  const locale = useLocale();
+  const dict = getActivityDict(locale);
   const profile = useUsageProfile();
   const manualEntry = canUseCapability(profile, "manual-entry");
   const [transferOpen, setTransferOpen] = useState(false);
@@ -47,15 +51,15 @@ export function TransactionList({
     <div>
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--line)] bg-[var(--surface)] px-4 py-2.5">
         <span className="text-xs font-semibold tracking-normal text-[var(--text-muted)]">
-          Lançamentos
+          {dict["Lançamentos"]}
         </span>
         <div className="flex max-w-full flex-wrap items-center gap-2">
           {transactions.some((transaction) => !transaction.categoryId && !transaction.isTransfer) ? (
             <Button type="button" variant="outline" size="sm" disabled={recategorizing} onClick={() => startRecategorizing(async () => {
               const result = await recategorizeUncategorizedTransactions();
-              setCategorizationMessage("error" in result ? String(result.error ?? "Falha ao categorizar.") : `${result.updated} categorizados · ${result.counts.user} por seu histórico, ${result.counts.rule + result.counts.dictionary} por regras`);
+              setCategorizationMessage("error" in result ? String(result.error ?? dict["Falha ao categorizar."]) : `${result.updated} categorizados · ${result.counts.user} por seu histórico, ${result.counts.rule + result.counts.dictionary} por regras`);
             })} className="min-h-11 min-w-11 text-xs">
-              {recategorizing ? "Categorizando…" : "Categorizar não categorizados"}
+              {recategorizing ? dict["Categorizando…"] : dict["Categorizar não categorizados"]}
             </Button>
           ) : null}
           {manualEntry && <>
@@ -71,7 +75,7 @@ export function TransactionList({
             className="hidden min-h-11 min-w-11 cursor-pointer gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text)] md:inline-flex"
           >
             <Plus className="size-3.5" />
-            Novo lançamento
+            {dict["Novo lançamento"]}
           </Button>
 
           <Button
@@ -79,11 +83,11 @@ export function TransactionList({
             variant="outline"
             size="sm"
             onClick={() => setTransferOpen(true)}
-            aria-label="Nova transferência"
+            aria-label={dict["Nova transferência"]}
             className="min-h-11 min-w-11 cursor-pointer gap-1.5 text-xs font-medium text-[var(--text-brand)] hover:bg-[var(--color-save-soft)]"
           >
             <ArrowLeftRight className="size-3.5" />
-            <span className="hidden sm:inline">Nova transferência</span>
+            <span className="hidden sm:inline">{dict["Nova transferência"]}</span>
           </Button>
           </>}
         </div>
@@ -101,7 +105,7 @@ export function TransactionList({
           return (
             <div key={date}>
               <div className="flex items-center justify-between border-y border-[var(--line)] bg-[var(--surface-2)] px-4 py-1.5 text-xs font-medium text-[var(--text-muted)]">
-                <span className="capitalize">{formatDayMonth(date)}</span>
+                <span className="capitalize">{formatDayMonth(date, locale)}</span>
                 <span
                   className={cn(
                     "tnum font-mono text-xs font-semibold",
@@ -113,7 +117,7 @@ export function TransactionList({
                   )}
                 >
                   {dayTotalCents > 0 ? "+" : dayTotalCents < 0 ? "−" : ""}{" "}
-                  {formatCents(Math.abs(dayTotalCents))}
+                  {formatCents(Math.abs(dayTotalCents), locale)}
                 </span>
               </div>
               <ul className="divide-y divide-[var(--line)]">
@@ -151,6 +155,8 @@ function Row({
   categories: PlainCategory[];
   isFilteredByAccount?: boolean;
 }) {
+  const locale = useLocale();
+  const dict = getActivityDict(locale);
   const profile = useUsageProfile();
   const manualEntry = canUseCapability(profile, "manual-entry");
   const [pending, start] = useTransition();
@@ -163,10 +169,6 @@ function Row({
   const isSplit = Boolean(tx.splits && tx.splits.length > 0);
   const isPairedTransfer = Boolean(tx.transferGroupId);
 
-  // Exibição do sinal e cor:
-  // - Em "todas as contas" (!isFilteredByAccount): valor neutro sem sinal
-  // - Quando filtrado por conta (isFilteredByAccount): perna daquela conta com sinal (EXPENSE -, INCOME +)
-  // - Transferência antiga (isTransfer sem transferGroupId): valor neutro sem sinal como hoje
   const showSignedTransfer = isPairedTransfer && Boolean(isFilteredByAccount);
   const isNeutralValue = tx.isTransfer && !showSignedTransfer;
 
@@ -182,7 +184,6 @@ function Row({
       ? "text-[var(--text-in)]"
       : "text-[var(--text-out)]";
 
-  // Nome da conta / rota exibida
   const displayName = isPairedTransfer && !isFilteredByAccount && tx.transferRoute
     ? tx.transferRoute
     : tx.accountName;
@@ -191,7 +192,7 @@ function Row({
     setCategoryError("");
     start(async () => {
       try { await setTransactionCategory(tx.id, value || null); }
-      catch { setCategoryError("Não foi possível alterar a categoria. Tente novamente."); }
+      catch { setCategoryError(dict["Não foi possível alterar a categoria. Tente novamente."]); }
     });
   }
 
@@ -201,13 +202,13 @@ function Row({
           type="button"
           aria-label={
             isSplit
-              ? `Editar divisão de ${tx.description}`
-              : `Dividir ${tx.description}`
+              ? `${dict["Editar divisão de "]}${tx.description}`
+              : `${dict["Dividir "]}${tx.description}`
           }
           title={
             isSplit
-              ? `Dividido com ${tx.splits!.length} pessoa(s). Clique para editar`
-              : "Dividir despesa com outras pessoas"
+              ? `${dict["Dividido com "]}${tx.splits!.length}${dict[" pessoa(s). Clique para editar"]}`
+              : dict["Dividir despesa com outras pessoas"]
           }
           disabled={pending}
           onClick={() => setSplitOpen(true)}
@@ -225,13 +226,13 @@ function Row({
           type="button"
           aria-label={
             tx.isTransfer
-              ? `Voltar a contar ${tx.description} nos totais`
-              : `Marcar ${tx.description} como transferência`
+              ? `${dict["Voltar a contar "]}${tx.description}${dict[" nos totais"]}`
+              : `${dict["Marcar "]}${tx.description}${dict[" como transferência"]}`
           }
           title={
             tx.isTransfer
-              ? "Voltar a contar nos totais"
-              : "Marcar como transferência entre contas suas"
+              ? dict["Voltar a contar nos totais"]
+              : dict["Marcar como transferência entre contas suas"]
           }
           disabled={pending}
           onClick={() =>
@@ -250,17 +251,17 @@ function Row({
 
       {tx.origin !== "PLUGGY" ? <button
         type="button"
-        aria-label={`Excluir ${tx.description}`}
+        aria-label={`${dict["Excluir "]}${tx.description}`}
         disabled={pending}
         onClick={async () => {
           const ok = await confirm({
             title: isPairedTransfer
-              ? `Excluir transferência "${tx.description}"?`
-              : `Excluir "${tx.description}"?`,
+              ? `${dict["Excluir transferência \""]}${tx.description}${dict["\"?"]}`
+              : `${dict["Excluir \""]}${tx.description}${dict["\"?"]}`,
             description: isPairedTransfer
-              ? "Isto apaga as duas pernas da transferência (origem e destino)."
+              ? dict["Isto apaga as duas pernas da transferência (origem e destino)."]
               : undefined,
-            confirmLabel: "Excluir",
+            confirmLabel: dict["Excluir"],
             tone: "danger",
           });
           if (!ok) return;
@@ -273,13 +274,13 @@ function Row({
         <Trash2 className="size-3.5" />
       </button> : <button
         type="button"
-        aria-label={`Excluir lan\u00e7amento Pluggy ${tx.description}`}
+        aria-label={`${dict["Excluir lançamento Pluggy "]}${tx.description}`}
         disabled={pending}
         onClick={async () => {
           const ok = await confirm({
-            title: `Excluir lan\u00e7amento importado "${tx.description}"?`,
-            description: "Este lan\u00e7amento ser\u00e1 removido e ficar\u00e1 bloqueado contra reimporta\u00e7\u00e3o na pr?xima sincroniza\u00e7\u00e3o. Esta a\u00e7\u00e3o n\u00e3o pode ser desfeita.",
-            confirmLabel: "Excluir lan\u00e7amento",
+            title: `${dict["Excluir lançamento importado \""]}${tx.description}${dict["\"?"]}`,
+            description: dict["Este lançamento será removido e ficará bloqueado contra reimportação na próxima sincronização. Esta ação não pode ser desfeita."],
+            confirmLabel: dict["Excluir lançamento"],
             tone: "danger",
           });
           if (!ok) return;
@@ -301,19 +302,19 @@ function Row({
       />
 
       <div className="min-w-0 flex-1">
-        <button type="button" onClick={() => setCategoryOpen(true)} className="min-h-11 max-w-full cursor-pointer text-left text-sm font-medium text-[var(--text)]" aria-label={`Ver ${tx.description}`}>
-          <span className="block line-clamp-2 break-words">{tx.description}</span><span className="block text-xs font-normal text-[var(--text-muted)] md:hidden">{tx.categoryName ?? "Sem categoria"}</span>
+        <button type="button" onClick={() => setCategoryOpen(true)} className="min-h-11 max-w-full cursor-pointer text-left text-sm font-medium text-[var(--text)]" aria-label={`${dict["Ver "]}${tx.description}`}>
+          <span className="block line-clamp-2 break-words">{tx.description}</span><span className="block text-xs font-normal text-[var(--text-muted)] md:hidden">{tx.categoryName ?? dict["Sem categoria"]}</span>
         </button>
         <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[var(--text-muted)]">
           {!tx.isTransfer || tx.origin === "PLUGGY" ? (
             <select
-              aria-label="Categoria"
+              aria-label={dict["Categoria"]}
               value={tx.categoryId ?? ""}
               disabled={pending}
               onChange={(e) => chooseCategory(e.target.value)}
               className="hidden min-h-11 max-w-full cursor-pointer rounded-xl border bg-[var(--surface-2)] px-3 text-base md:block"
             >
-              <option value="">Sem categoria</option>
+              <option value="">{dict["Sem categoria"]}</option>
               {options.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -322,59 +323,59 @@ function Row({
             </select>
           ) : null}
 
-          {tx.externalStatus === "PENDING" ? <span className="rounded bg-[var(--color-warn-soft)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-warn)]">provisório · pendente</span> : null}
+          {tx.externalStatus === "PENDING" ? <span className="rounded bg-[var(--color-warn-soft)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-warn)]">{dict["provisório · pendente"]}</span> : null}
 
           {tx.accountType === "INVESTMENT" ? <span className="rounded-[var(--radius-xs)] bg-[var(--surface-2)] px-1.5 py-0.5 text-xs ring-1 ring-[var(--border)] ring-inset">{investmentMovementLabel(tx) ?? "Investimento"}</span> : null}
 
           {tx.isTransfer ? (
             <span
               className="inline-flex items-center gap-1 rounded-[var(--radius-xs)] bg-[var(--color-save-soft)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-brand)]"
-              title="Movimento entre contas suas — fora dos totais"
+              title={dict["Movimento entre contas suas — fora dos totais"]}
             >
               <ArrowLeftRight className="size-3" />
-              transferência
+              {dict["transferência"]}
             </span>
           ) : tx.kind === "EXPENSE" ? (
             <span className="rounded-[var(--radius-xs)] bg-[var(--surface-2)] px-1.5 py-0.5 text-xs ring-1 ring-[var(--border)] ring-inset">
-              {tx.nature === "FIXED" ? "fixo" : "variável"}
+              {tx.nature === "FIXED" ? dict["fixo"] : dict["variável"]}
             </span>
           ) : null}
           {tx.isCard && !tx.isTransfer ? (
             <span
               className="inline-flex items-center gap-1 rounded-[var(--radius-xs)] bg-[var(--color-warn-soft)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-warn)]"
-              title="Compra no cartão — demonstrativo"
+              title={dict["Compra no cartão — demonstrativo"]}
             >
               <CreditCard className="size-3" />
-              cartão
+              {dict["cartão"]}
             </span>
           ) : null}
-          {tx.isCardPayment ? <span className="rounded bg-[var(--color-save-soft)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-brand)]" title="Conta no cash; excluído do accrual">pagamento de fatura</span> : null}
-          {tx.possibleCardPayment ? <span className="muted text-xs" title="Mesmo valor e mês de uma compra no cartão; sugestão sem classificação automática">possível pagamento de fatura</span> : null}
-          {tx.origin && tx.origin !== "MANUAL" && !tx.isCard && tx.accountType !== "INVESTMENT" && tx.kind === "EXPENSE" ? <button type="button" disabled={pending} aria-pressed={Boolean(tx.isCardPayment)} onClick={() => start(async () => { await setTransactionCardPayment(tx.id, !tx.isCardPayment); })} className="min-h-11 min-w-11 cursor-pointer rounded border px-1.5 py-0.5 text-xs text-[var(--text-brand)] hover:bg-[var(--surface-2)]">{tx.isCardPayment ? "Desmarcar pagamento" : "Marcar pagamento"}</button> : null}
+          {tx.isCardPayment ? <span className="rounded bg-[var(--color-save-soft)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-brand)]" title={dict["Conta no cash; excluído do accrual"]}>{dict["pagamento de fatura"]}</span> : null}
+          {tx.possibleCardPayment ? <span className="muted text-xs" title={dict["Mesmo valor e mês de uma compra no cartão; sugestão sem classificação automática"]}>{dict["possível pagamento de fatura"]}</span> : null}
+          {tx.origin && tx.origin !== "MANUAL" && !tx.isCard && tx.accountType !== "INVESTMENT" && tx.kind === "EXPENSE" ? <button type="button" disabled={pending} aria-pressed={Boolean(tx.isCardPayment)} onClick={() => start(async () => { await setTransactionCardPayment(tx.id, !tx.isCardPayment); })} className="min-h-11 min-w-11 cursor-pointer rounded border px-1.5 py-0.5 text-xs text-[var(--text-brand)] hover:bg-[var(--surface-2)]">{tx.isCardPayment ? dict["Desmarcar pagamento"] : dict["Marcar pagamento"]}</button> : null}
           {tx.installmentNumber && tx.installmentTotal ? (
             <span
               className="rounded-[var(--radius-xs)] bg-[var(--color-save-soft)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-brand)]"
-              title="Compra parcelada"
+              title={dict["Compra parcelada"]}
             >
-              parcela {tx.installmentNumber}/{tx.installmentTotal}
+              {dict["parcela "]}{tx.installmentNumber}/{tx.installmentTotal}
             </span>
           ) : null}
           {tx.recurringRuleId ? (
             <span
               className="inline-flex items-center gap-1 rounded-[var(--radius-xs)] bg-[var(--surface-2)] px-1.5 py-0.5 text-xs ring-1 ring-[var(--border)] ring-inset"
-              title="Gerado por uma recorrência"
+              title={dict["Gerado por uma recorrência"]}
             >
               <Repeat className="size-3" />
-              recorrente
+              {dict["recorrente"]}
             </span>
           ) : null}
           {isSplit ? (
             <span
               className="inline-flex items-center gap-1 rounded-[var(--radius-xs)] bg-[var(--color-save-soft)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-brand)]"
-              title={tx.splits!.map((s) => `${s.name}: ${formatCents(s.amountCents)}`).join(", ")}
+              title={tx.splits!.map((s) => `${s.name}: ${formatCents(s.amountCents, locale)}`).join(", ")}
             >
               <Users className="size-3" />
-              dividido com {tx.splits!.length}
+              {dict["dividido com "]}{tx.splits!.length}
             </span>
           ) : null}
           <span className="truncate text-xs">{displayName}</span>
@@ -388,14 +389,14 @@ function Row({
             valueColorClass,
           )}
         >
-          {valueSignal} {formatCents(tx.amountCents)}
+          {valueSignal} {formatCents(tx.amountCents, locale)}
         </span>
         {isSplit ? (
           <span
             className="tnum font-mono block text-xs text-[var(--text-muted)]"
-            title="Sua parte nesta despesa"
+            title={dict["Sua parte nesta despesa"]}
           >
-            sua parte: {formatCents(tx.myShareCents ?? tx.amountCents)}
+            {dict["sua parte: "]}{formatCents(tx.myShareCents ?? tx.amountCents, locale)}
           </span>
         ) : null}
       </div>
@@ -411,18 +412,18 @@ function Row({
         />
       ) : null}
       {categoryError && <p role="alert" className="w-full text-sm text-[var(--text-out)]">{categoryError}</p>}
-      {categoryOpen && <Sheet title="Detalhes do lançamento" onClose={() => setCategoryOpen(false)}>
+      {categoryOpen && <Sheet title={dict["Detalhes do lançamento"]} onClose={() => setCategoryOpen(false)}>
         <p className="mb-3 break-words text-sm">{tx.description}</p>
-        <p className={`tnum mb-4 text-display ${valueColorClass}`}>{valueSignal} {formatCents(tx.amountCents)}</p>
+        <p className={`tnum mb-4 text-display ${valueColorClass}`}>{valueSignal} {formatCents(tx.amountCents, locale)}</p>
         {manualEntry && tx.origin === "MANUAL" && !tx.transferGroupId && <EditTransactionForm transaction={tx} onSaved={() => setCategoryOpen(false)} />}
-        {!tx.isTransfer || tx.origin === "PLUGGY" ? <Field label="Categoria">
+        {!tx.isTransfer || tx.origin === "PLUGGY" ? <Field label={dict["Categoria"]}>
           <Select value={tx.categoryId ?? ""} disabled={pending} onChange={(e) => chooseCategory(e.target.value)}>
-            <option value="">Sem categoria</option>{options.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+            <option value="">{dict["Sem categoria"]}</option>{options.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
           </Select>
-        </Field> : <p className="text-sm text-[var(--text-muted)]">Transferência entre contas.</p>}
+        </Field> : <p className="text-sm text-[var(--text-muted)]">{dict["Transferência entre contas."]}</p>}
         {categoryError && <p role="alert" className="mt-3 text-sm text-[var(--text-out)]">{categoryError}</p>}
         <div className="mt-4 flex flex-wrap gap-2" onClickCapture={() => setCategoryOpen(false)}>{rowActions}</div>
-        <Button type="button" className="mt-4 min-h-11 w-full" onClick={() => setCategoryOpen(false)}>Concluir</Button>
+        <Button type="button" className="mt-4 min-h-11 w-full" onClick={() => setCategoryOpen(false)}>{dict["Concluir"]}</Button>
       </Sheet>}
     </li>
   );

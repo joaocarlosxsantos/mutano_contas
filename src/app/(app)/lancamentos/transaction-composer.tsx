@@ -8,6 +8,8 @@ import { cn } from "@/lib/cn";
 import { formatCents, parseMoneyToCents } from "@/lib/money";
 import { splitInstallments } from "@/lib/installments";
 import { todayRef } from "@/lib/dates";
+import { useLocale } from "@/lib/i18n/context";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 import type { PlainAccount, PlainCategory } from "./types";
 
 const initial: ActionState = {};
@@ -21,6 +23,8 @@ export function TransactionComposer({
   categories: PlainCategory[];
   accounts: PlainAccount[];
 }) {
+  const locale = useLocale();
+  const dict = getActivityDict(locale);
   const [state, formAction] = useActionState(createTransaction, initial);
   const [kind, setKind] = useState<"INCOME" | "EXPENSE">("EXPENSE");
   const [categoryId, setCategoryId] = useState("");
@@ -37,14 +41,12 @@ export function TransactionComposer({
   useEffect(() => {
     if (state.ok) {
       formRef.current?.reset();
-// eslint-disable-next-line react-hooks/set-state-in-effect -- After transaction creation succeeds, clear the controlled category selection.
       setCategoryId("");
       setInstallments(1);
       setAmount("");
     }
   }, [state]);
 
-  // A natureza (fixo/variável) segue a categoria escolhida, mas dá para trocar.
   function onCategoryChange(id: string) {
     setCategoryId(id);
     const cat = categories.find((c) => c.id === id);
@@ -71,19 +73,19 @@ export function TransactionComposer({
                 : "hover:bg-[var(--surface)] text-[var(--text-muted)]",
             )].filter(Boolean).join(" ")}
           >
-            {k === "EXPENSE" ? "Saiu" : "Entrou"}
+            {k === "EXPENSE" ? dict["Saiu"] : dict["Entrou"]}
           </button>
         ))}
       </div>
       <input type="hidden" name="kind" value={kind} />
       <input type="hidden" name="nature" value={nature} />
 
-      <Field label="Descrição">
-        <Input className="min-h-12 min-w-0 max-w-full text-base!" name="description" required placeholder="Ex.: Mercado do mês" />
+      <Field label={dict["Descrição"]}>
+        <Input className="min-h-12 min-w-0 max-w-full text-base!" name="description" required placeholder={dict["Ex.: Mercado do mês"]} />
       </Field>
 
       <div className="grid min-w-0 grid-cols-1 items-start gap-3 min-[480px]:grid-cols-2">
-        <Field label={installments > 1 ? "Valor total (R$)" : "Valor (R$)"}>
+        <Field label={installments > 1 ? dict["Valor total (R$)"] : dict["Valor (R$)"]}>
           <Input className="min-h-12 min-w-0 max-w-full text-base!"
             name="amount"
             inputMode="decimal"
@@ -93,14 +95,14 @@ export function TransactionComposer({
             onChange={(e) => setAmount(e.target.value)}
           />
         </Field>
-        <Field label="Data">
+        <Field label={dict["Data"]}>
           <Input className="min-h-12 min-w-0 max-w-full text-base!" name="date" type="date" required defaultValue={todayRef()} />
         </Field>
       </div>
 
-      <Field label="Categoria">
+      <Field label={dict["Categoria"]}>
         <Select className="min-h-12 min-w-0 max-w-full text-base!" name="categoryId" value={categoryId} onChange={(e) => onCategoryChange(e.target.value)}>
-          <option value="">Sem categoria</option>
+          <option value="">{dict["Sem categoria"]}</option>
           {visible.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -110,7 +112,7 @@ export function TransactionComposer({
       </Field>
 
       {kind === "EXPENSE" ? (
-        <Field label="Tipo de gasto" hint="Compromisso mensal fixo ou gasto variável.">
+        <Field label={dict["Tipo de gasto"]} hint={dict["Compromisso mensal fixo ou gasto variável."]}>
           <div className="grid grid-cols-2 gap-1 rounded-[var(--radius-card)] bg-[var(--surface-2)] p-1">
             {(["FIXED", "VARIABLE"] as const).map((n) => (
               <button
@@ -122,7 +124,7 @@ export function TransactionComposer({
                   nature === n ? "bg-[var(--surface)] shadow-sm ring-1 ring-[var(--border)]" : "muted",
                 )].filter(Boolean).join(" ")}
               >
-                {n === "FIXED" ? "Fixo" : "Variável"}
+                {n === "FIXED" ? dict["Fixo"] : dict["Variável"]}
               </button>
             ))}
           </div>
@@ -131,18 +133,18 @@ export function TransactionComposer({
 
       {kind === "EXPENSE" ? (
         <Field
-          label="Parcelamento"
+          label={dict["Parcelamento"]}
           hint={
             installments > 1
-              ? "Uma parcela por mês."
-              : "Para compras parceladas no cartão."
+              ? dict["Uma parcela por mês."]
+              : dict["Para compras parceladas no cartão."]
           }
         >
           <Select className="min-h-12 min-w-0 max-w-full text-base!"
             value={String(installments)}
             onChange={(e) => setInstallments(Number(e.target.value))}
           >
-            <option value="1">À vista</option>
+            <option value="1">{dict["À vista"]}</option>
             {PARCELAS.map((n) => (
               <option key={n} value={n}>
                 {n}x
@@ -151,18 +153,18 @@ export function TransactionComposer({
           </Select>
           {installments > 1 && parcelas.length ? (
             <p className="muted mt-2 text-xs leading-snug">
-              {installments}x de <strong>{formatCents(parcelas[0])}</strong>
+              {installments}{dict["x de "]}<strong>{formatCents(parcelas[0], locale)}</strong>
               {parcelas[0] !== parcelas[parcelas.length - 1]
-                ? ` (última em ${formatCents(parcelas[parcelas.length - 1])})`
+                ? `${dict[" (última em "]}${formatCents(parcelas[parcelas.length - 1], locale)})`
                 : ""}
-              . Total {formatCents(totalCents)}.
+              . Total {formatCents(totalCents, locale)}.
             </p>
           ) : null}
         </Field>
       ) : null}
       <input type="hidden" name="installments" value={kind === "EXPENSE" ? installments : 1} />
 
-      <Field label="Conta">
+      <Field label={dict["Conta"]}>
         <Select className="min-h-12 min-w-0 max-w-full text-base!" name="accountId" required defaultValue={accounts[0]?.id ?? ""}>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
@@ -178,10 +180,10 @@ export function TransactionComposer({
         </p>
       ) : null}
 
-      <SubmitButton className="min-h-11 min-w-11 w-full" pendingLabel="Lançando...">
+      <SubmitButton className="min-h-11 min-w-11 w-full" pendingLabel={dict["Lançando..."]}>
         {installments > 1 && kind === "EXPENSE"
-          ? `Lançar ${installments} parcelas`
-          : "Adicionar lançamento"}
+          ? `${dict["Lançar "]}${installments}${dict[" parcelas"]}`
+          : dict["Adicionar lançamento"]}
       </SubmitButton>
     </form>
   );

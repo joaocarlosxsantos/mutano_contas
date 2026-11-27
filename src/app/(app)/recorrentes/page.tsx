@@ -9,19 +9,36 @@ import { MonthSwitcher } from "@/components/month-switcher";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Hint } from "@/components/ui/hint";
 import { EmptyState } from "@/components/ui/empty";
+import { type Locale } from "@/lib/i18n/config";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 import { PendingPanel } from "./pending-panel";
 import { RuleList } from "./rule-list";
 import { RuleComposer } from "./rule-composer";
 import { SubscriptionsPanel } from "./subscriptions-panel";
 import { SubscriptionAnnualSummary } from "@/components/subscription-annual-summary";
 
-export const metadata = { title: "Recorrentes" };
+async function resolveLocale(): Promise<Locale> {
+  try {
+    const { getLocale } = await import("@/lib/i18n/server");
+    return await getLocale();
+  } catch {
+    return "pt-BR";
+  }
+}
+
+export async function generateMetadata() {
+  const locale = await resolveLocale();
+  const dict = getActivityDict(locale);
+  return { title: dict["Recorrentes"] };
+}
 
 export default async function RecurringPage({
   searchParams,
 }: {
   searchParams: Promise<{ m?: string }>;
 }) {
+  const locale = await resolveLocale();
+  const dict = getActivityDict(locale);
   const { userId } = await requireProfileRoute("/recorrentes");
   const { m } = await searchParams;
   const ref = monthRefFromParam(m);
@@ -40,8 +57,8 @@ export default async function RecurringPage({
   return (
     <>
       <PageHeader
-        title="Lançamentos recorrentes"
-        description="Compromissos e receitas que se repetem todo mês."
+        title={dict["Lançamentos recorrentes"]}
+        description={dict["Compromissos e receitas que se repetem todo mês."]}
         action={<MonthSwitcher value={ref} />}
       />
 
@@ -52,7 +69,7 @@ export default async function RecurringPage({
           {status.pending.length ? (
             <PendingPanel
               monthRef={ref}
-              monthName={monthLabel(ref)}
+              monthName={monthLabel(ref, locale)}
               pending={status.pending.map((r) => ({
                 id: r.id,
                 description: r.description,
@@ -66,18 +83,18 @@ export default async function RecurringPage({
               expenseCents={status.pendingExpenseCents}
             />
           ) : status.rules.length ? (
-            <Hint tone="good" title={`Tudo lançado em ${monthLabel(ref)}`}>
-              Todas as recorrências ativas já foram lançadas neste mês.
+            <Hint tone="good" title={`${dict["Tudo lançado em "]}${monthLabel(ref, locale)}`}>
+              {dict["Todas as recorrências ativas já foram lançadas neste mês."]}
             </Hint>
           ) : null}
 
           <Card className="min-w-0 p-0">
             <div className="border-b border-[var(--line)] px-5 py-4">
               <h2 className="text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">
-                Suas recorrências
+                {dict["Suas recorrências"]}
               </h2>
               <p className="muted mt-0.5 text-xs">
-                Pausar interrompe a geração futura sem apagar lançamentos anteriores.
+                {dict["Pausar interrompe a geração futura sem apagar lançamentos anteriores."]}
               </p>
             </div>
 
@@ -104,37 +121,37 @@ export default async function RecurringPage({
             ) : (
               <EmptyState
                 icon={Repeat}
-                title="Nenhuma recorrência cadastrada"
-                description="Cadastre compromissos mensais (aluguel, contas, assinaturas ou salário) ao lado."
+                title={dict["Nenhuma recorrência cadastrada"]}
+                description={dict["Cadastre compromissos mensais (aluguel, contas, assinaturas ou salário) ao lado."]}
               />
             )}
           </Card>
 
-          <SubscriptionsPanel subscriptions={detectedSubscriptions} />
+          <SubscriptionsPanel subscriptions={detectedSubscriptions} locale={locale} />
 
-          <Hint tone="tip" title="Geração sob controle">
-            Lançamentos recorrentes não entram nos lançamentos automaticamente: confira e aprove na lista antes de lançar.
+          <Hint tone="tip" title={dict["Geração sob controle"]}>
+            {dict["Lançamentos recorrentes não entram nos lançamentos automaticamente: confira e aprove na lista antes de lançar."]}
           </Hint>
         </div>
 
         <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
           <Card className="min-w-0">
-            <CardHeader title="Compromisso mensal" subtitle="Soma das recorrências ativas." />
+            <CardHeader title={dict["Compromisso mensal"]} subtitle={dict["Soma das recorrências ativas."]} />
             <ul className="space-y-3 text-[0.8125rem]">
               <li className="flex items-baseline justify-between gap-3">
-                <span className="muted">Entradas previstas</span>
+                <span className="muted">{dict["Entradas previstas"]}</span>
                 <span className="tnum font-mono font-semibold text-[var(--text-in)]">
-                  {formatCents(status.monthlyIncomeCents)}
+                  {formatCents(status.monthlyIncomeCents, locale)}
                 </span>
               </li>
               <li className="flex items-baseline justify-between gap-3">
-                <span className="muted">Saídas previstas</span>
+                <span className="muted">{dict["Saídas previstas"]}</span>
                 <span className="tnum font-mono font-semibold text-[var(--text-out)]">
-                  {formatCents(status.monthlyExpenseCents)}
+                  {formatCents(status.monthlyExpenseCents, locale)}
                 </span>
               </li>
               <li className="flex items-baseline justify-between gap-3 border-t border-[var(--line)] pt-3">
-                <span className="muted">Da renda já comprometida</span>
+                <span className="muted">{dict["Da renda já comprometida"]}</span>
                 <span className="tnum font-mono font-semibold">{income ? `${comprometido}%` : "—"}</span>
               </li>
             </ul>
@@ -144,11 +161,11 @@ export default async function RecurringPage({
                 <Hint tone={comprometido > 60 ? "warn" : "info"}>
                   {comprometido > 60 ? (
                     <>
-                      <strong>{comprometido}%</strong> da renda comprometida antes de qualquer gasto discricionário.
+                      <strong>{comprometido}%</strong>{dict[" da renda comprometida antes de qualquer gasto discricionário."]}
                     </>
                   ) : (
                     <>
-                      <strong>{comprometido}%</strong> da renda representa seu piso de custo fixo mensal.
+                      <strong>{comprometido}%</strong>{dict[" da renda representa seu piso de custo fixo mensal."]}
                     </>
                   )}
                 </Hint>
@@ -158,10 +175,10 @@ export default async function RecurringPage({
 
           <Card className="min-w-0">
             <CardHeader
-              title="Nova recorrência"
-              subtitle="Receitas ou despesas fixas mensais."
+              title={dict["Nova recorrência"]}
+              subtitle={dict["Receitas ou despesas fixas mensais."]}
             />
-            <MobileDisclosure label="Preencher recorrência"><RuleComposer
+            <MobileDisclosure label={dict["Preencher recorrência"]}><RuleComposer
               monthRef={ref}
               accounts={accounts.map((a) => ({ id: a.id, name: a.name }))}
               categories={categories.map((c) => ({

@@ -22,13 +22,28 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty";
 import { Hint } from "@/components/ui/hint";
 import { Money } from "@/components/ui/money";
+import { type Locale } from "@/lib/i18n/config";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 import { TransactionComposer } from "./transaction-composer";
 import { TransactionList } from "./transaction-list";
 import { ReceivablesSection } from "./receivables-section";
 import { Filters } from "./filters";
 import { LancamentosHeaderActions } from "./lancamentos-header-actions";
 
-export const metadata = { title: "Lançamentos" };
+async function resolveLocale(): Promise<Locale> {
+  try {
+    const { getLocale } = await import("@/lib/i18n/server");
+    return await getLocale();
+  } catch {
+    return "pt-BR";
+  }
+}
+
+export async function generateMetadata() {
+  const locale = await resolveLocale();
+  const dict = getActivityDict(locale);
+  return { title: dict["Lançamentos"] };
+}
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -47,6 +62,8 @@ export default async function TransactionsPage({
     to?: string;
   }>;
 }) {
+  const locale = await resolveLocale();
+  const dict = getActivityDict(locale);
   const userId = await requireUserId();
   const profile = await getUsageProfile(userId);
   const manualEntry = canUseCapability(profile, "manual-entry");
@@ -130,7 +147,7 @@ export default async function TransactionsPage({
     let transferRoute: string | null = null;
     if (t.transferGroupId && counterpart) {
       const fromName = counterpart.fromAccountName || t.accountName;
-      const toName = counterpart.toAccountName || "Conta destino";
+      const toName = counterpart.toAccountName || dict["Conta destino"];
       transferRoute = `${fromName} → ${toName}`;
     }
 
@@ -193,8 +210,8 @@ export default async function TransactionsPage({
   return (
     <>
       <PageHeader
-        title="Lançamentos"
-        description="Registro de entradas e saídas por conta e categoria."
+        title={dict["Lançamentos"]}
+        description={dict["Registro de entradas e saídas por conta e categoria."]}
         action={
           <LancamentosHeaderActions
             monthRef={ref}
@@ -206,7 +223,7 @@ export default async function TransactionsPage({
 
       {manualEntry && (<RecurringBanner
         monthRef={ref}
-        monthName={monthLabel(ref)}
+        monthName={monthLabel(ref, locale)}
         count={recurring.pending.length}
         incomeCents={recurring.pendingIncomeCents}
         expenseCents={recurring.pendingExpenseCents}
@@ -218,14 +235,16 @@ export default async function TransactionsPage({
 
           {uncategorized > 0 ? (
             <Hint tone="info">
-              {uncategorized} lançamento(s) sem categoria {customRange ? "nesse período" : "neste mês"}.
-              Selecione a categoria direto na lista.
+              {uncategorized}
+              {customRange
+                ? dict[" lançamento(s) sem categoria nesse período. Selecione a categoria direto na lista."]
+                : dict[" lançamento(s) sem categoria neste mês. Selecione a categoria direto na lista."]}
             </Hint>
           ) : null}
 
           {customRange && plain.length >= 1000 ? (
             <Hint tone="warn">
-              Mostrando os 1.000 lançamentos mais recentes. Estreite o período ou use a busca.
+              {dict["Mostrando os 1.000 lançamentos mais recentes. Estreite o período ou use a busca."]}
             </Hint>
           ) : null}
 
@@ -240,8 +259,8 @@ export default async function TransactionsPage({
             ) : (
               <EmptyState
                 icon={Receipt}
-                title={customRange ? "Nada lançado nesse período" : `Nada lançado em ${monthLabel(ref)}`}
-                description={manualEntry ? "Use o botão + para lançar ou importe um extrato." : "Conecte e sincronize suas contas pelo Open Finance."}
+                title={customRange ? dict["Nada lançado nesse período"] : `${dict["Nada lançado em "]}${monthLabel(ref, locale)}`}
+                description={manualEntry ? dict["Use o botão + para lançar ou importe um extrato."] : dict["Conecte e sincronize suas contas pelo Open Finance."]}
               />
             )}
           </Card>
@@ -251,36 +270,37 @@ export default async function TransactionsPage({
           <Card className="min-w-0">
             <ul className="mb-4 border-b border-[var(--line)] pb-4 text-[0.8125rem]">
               <li className="flex items-baseline justify-between gap-3 py-1">
-                <span className="muted">Entrou</span>
+                <span className="muted">{dict["Entrou"]}</span>
                 <Money cents={entrouCents} tone="in" size="sm" className="font-semibold" />
               </li>
               <li className="flex items-baseline justify-between gap-3 py-1">
-                <span className="muted">Saiu</span>
+                <span className="muted">{dict["Saiu"]}</span>
                 <Money cents={saiuCents} tone="out" size="sm" className="font-semibold" />
               </li>
               <li
                 className="mt-2 flex items-baseline justify-between gap-3 border-t border-[var(--line)] pt-2"
-                title="Compras no cartão — saem da conta quando a fatura é paga"
+                title={dict["Compras no cartão — saem da conta quando a fatura é paga"]}
               >
                 <span className="muted inline-flex items-center gap-1.5">
                   <CreditCard className="size-3.5" />
-                  Cartão
+                  {dict["Cartão"]}
                 </span>
                 <span className="tnum font-mono font-semibold text-[var(--text-warn)]">
-                  {formatCents(cartaoCents)}
+                  {formatCents(cartaoCents, locale)}
                 </span>
               </li>
               <li className="mt-2 flex items-baseline justify-between gap-3 border-t border-[var(--line)] pt-2">
-                <span className="muted">Sobrou</span>
+                <span className="muted">{dict["Sobrou"]}</span>
                 <Money cents={sobrouCents} tone={sobrouCents < 0 ? "out" : undefined} size="sm" className="font-semibold" />
               </li>
             </ul>
-            {manualEntry && (<MobileDisclosure label="Novo lançamento"><TransactionComposer categories={plainCategories} accounts={plainAccounts} /></MobileDisclosure>)}
+            {manualEntry && (<MobileDisclosure label={dict["Novo lançamento"]}><TransactionComposer categories={plainCategories} accounts={plainAccounts} /></MobileDisclosure>)}
           </Card>
 
           <ReceivablesSection
+            locale={locale}
             receivables={receivables}
-            monthName={monthLabel(ref)}
+            monthName={monthLabel(ref, locale)}
           />
         </div>
       </div>

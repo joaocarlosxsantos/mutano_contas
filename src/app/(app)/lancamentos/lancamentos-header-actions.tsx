@@ -5,6 +5,8 @@ import { canUseCapability } from "@/lib/usage-profile";
 import { useState } from "react";
 import { ArrowLeftRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/lib/i18n/context";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 import { PeriodSwitcher } from "./period-switcher";
 import { ExportMenu } from "./export-menu";
 import { TransferDialog } from "./transfer-dialog";
@@ -20,6 +22,8 @@ export function LancamentosHeaderActions({
   customRange: { from: string; to: string } | null;
   accounts: PlainAccount[];
 }) {
+  const locale = useLocale();
+  const dict = getActivityDict(locale);
   const manualEntry = canUseCapability(useUsageProfile(), "manual-entry");
   const [transferOpen, setTransferOpen] = useState(false);
 
@@ -42,8 +46,8 @@ export function LancamentosHeaderActions({
         className="min-h-11 min-w-11 cursor-pointer gap-1.5 text-xs font-medium text-[var(--text-brand)] hover:bg-[var(--color-save-soft)]"
       >
         <ArrowLeftRight className="size-3.5" />
-        <span className="hidden sm:inline">Nova transferência</span>
-        <span className="sm:hidden">Transferir</span>
+        <span className="hidden sm:inline">{dict["Nova transferência"]}</span>
+        <span className="sm:hidden">{dict["Transferir"]}</span>
       </Button>
 
       <Button
@@ -52,10 +56,10 @@ export function LancamentosHeaderActions({
         size="sm"
         onClick={scrollToComposer}
         className="min-h-11 min-w-11 cursor-pointer gap-1 text-xs text-[var(--text-muted)] hover:text-[var(--text)] lg:hidden"
-        title="Novo lançamento"
+        title={dict["Novo lançamento"]}
       >
         <Plus className="size-3.5" />
-        <span>Novo</span>
+        <span>{dict["Novo"]}</span>
       </Button>
 
       </>}

@@ -7,6 +7,8 @@ import { Field, Input, Select } from "@/components/ui/field";
 import { MAX_CENTS, parseMoneyToCents } from "@/lib/money";
 import { todayRef } from "@/lib/dates";
 import { createTransfer } from "@/server/actions/transactions";
+import { useLocale } from "@/lib/i18n/context";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 import type { PlainAccount } from "./types";
 
 export function TransferDialog({
@@ -34,6 +36,8 @@ function TransferDialogContent({
   onClose: () => void;
   accounts: PlainAccount[];
 }) {
+  const locale = useLocale();
+  const dict = getActivityDict(locale);
   const descId = useId();
   const [pending, startTransition] = useTransition();
 
@@ -46,31 +50,28 @@ function TransferDialogContent({
   const [note, setNote] = useState("");
   const [clientError, setClientError] = useState<string | null>(null);
 
-  // Foco inicial e trap de foco acessível
-
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setClientError(null);
 
     if (!fromAccountId || !toAccountId) {
-      setClientError("Selecione as contas de origem e destino.");
+      setClientError(dict["Selecione as contas de origem e destino."]);
       return;
     }
 
     if (fromAccountId === toAccountId) {
-      setClientError("As contas de origem e destino devem ser diferentes.");
+      setClientError(dict["As contas de origem e destino devem ser diferentes."]);
       return;
     }
 
     const amountCents = parseMoneyToCents(amount);
     if (!amountCents || amountCents <= 0) {
-      setClientError("Informe um valor maior que zero.");
+      setClientError(dict["Informe um valor maior que zero."]);
       return;
     }
 
     if (amountCents > MAX_CENTS) {
-      setClientError("O valor ultrapassa o limite permitido.");
+      setClientError(dict["O valor ultrapassa o limite permitido."]);
       return;
     }
 
@@ -93,13 +94,13 @@ function TransferDialogContent({
   }
 
   return (
-    <Sheet title="Nova transferência" onClose={onClose} describedBy={descId}>
+    <Sheet title={dict["Nova transferência"]} onClose={onClose} describedBy={descId}>
         <form onSubmit={handleSubmit} className="space-y-3.5 p-4">
           <p id={descId} className="sr-only">
-            Transfere valores entre contas do usuário mantendo os saldos ajustados.
+            {dict["Transfere valores entre contas do usuário mantendo os saldos ajustados."]}
           </p>
 
-          <Field label="Conta de origem">
+          <Field label={dict["Conta de origem"]}>
             <Select className="min-h-12 min-w-0 max-w-full text-base!"
               data-autofocus
               value={fromAccountId}
@@ -117,7 +118,7 @@ function TransferDialogContent({
             </Select>
           </Field>
 
-          <Field label="Conta de destino">
+          <Field label={dict["Conta de destino"]}>
             <Select className="min-h-12 min-w-0 max-w-full text-base!"
               value={toAccountId}
               onChange={(e) => {
@@ -135,7 +136,7 @@ function TransferDialogContent({
           </Field>
 
           <div className="grid min-w-0 grid-cols-1 items-start gap-2.5 min-[480px]:grid-cols-2">
-            <Field label="Valor (R$)">
+            <Field label={dict["Valor (R$)"]}>
               <Input className="min-h-12 min-w-0 max-w-full text-base!"
                 name="amount"
                 inputMode="decimal"
@@ -149,7 +150,7 @@ function TransferDialogContent({
               />
             </Field>
 
-            <Field label="Data">
+            <Field label={dict["Data"]}>
               <Input className="min-h-12 min-w-0 max-w-full text-base!"
                 name="date"
                 type="date"
@@ -160,16 +161,15 @@ function TransferDialogContent({
             </Field>
           </div>
 
-          <Field label="Observação (opcional)">
+          <Field label={dict["Observação (opcional)"]}>
             <Input className="min-h-12 min-w-0 max-w-full text-base!"
               name="note"
-              placeholder="Ex.: Reserva de emergência"
+              placeholder={dict["Ex.: Reserva de emergência"]}
               value={note}
               onChange={(e) => setNote(e.target.value)}
             />
           </Field>
 
-          {/* Erro inline acessível */}
           {clientError ? (
             <div
               role="alert"
@@ -179,7 +179,6 @@ function TransferDialogContent({
             </div>
           ) : null}
 
-          {/* Rodapé de Ações */}
           <div className="flex items-center justify-end gap-2 pt-2 border-t border-[var(--line)]">
             <Button
               type="button"
@@ -189,7 +188,7 @@ function TransferDialogContent({
               onClick={onClose}
               className="min-h-11 min-w-11 cursor-pointer"
             >
-              Cancelar
+              {dict["Cancelar"]}
             </Button>
             <Button
               type="submit"
@@ -197,7 +196,7 @@ function TransferDialogContent({
               disabled={pending}
               className="min-h-11 min-w-11 cursor-pointer"
             >
-              {pending ? "Transferindo..." : "Transferir"}
+              {pending ? dict["Transferindo..."] : dict["Transferir"]}
             </Button>
           </div>
         </form>
