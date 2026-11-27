@@ -142,7 +142,7 @@ export function PwaInstallBanner() {
           type="button"
           onClick={handleDismiss}
           aria-label={t("Fechar sugestão de instalação")}
-          className="shrink-0 cursor-pointer rounded-lg p-1 text-[var(--text-muted)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]"
+          className="flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-xl p-1 text-[var(--text-muted)] hover:text-[var(--text)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]"
         >
           <X className="size-4" aria-hidden="true" />
         </button>
@@ -152,7 +152,7 @@ export function PwaInstallBanner() {
         <button
           type="button"
           onClick={handleInstall}
-          className="mt-3 flex min-h-10 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[var(--acento)] px-4 text-sm font-semibold text-[var(--on-acento)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]"
+          className="mt-3 flex min-h-11 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[var(--acento)] px-4 text-sm font-semibold text-[var(--on-acento)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--acento)]"
         >
           <Download className="size-4" aria-hidden="true" />
           {t("Instalar app")}</button>
