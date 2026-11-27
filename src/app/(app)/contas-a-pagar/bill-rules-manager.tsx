@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useTransition } from "react";
 import { Pause, Play, Trash2, Users } from "lucide-react";
 import { deleteBillRule, toggleBillRule } from "@/server/actions/bills";
@@ -22,18 +24,19 @@ export type PlainBillRule = {
  * regra for excluída (viram avulsas) — ver comentário em `deleteBillRule`.
  */
 export function BillRulesManager({ rules, monthRef }: { rules: PlainBillRule[]; monthRef: MonthRef }) {
+  const locale = useLocale();
   const [pending, start] = useTransition();
   const confirm = useConfirm();
 
   if (!rules.length) {
-    return <p className="muted text-[0.8125rem]">Nenhuma conta recorrente ainda.</p>;
+    return <p className="muted text-[0.8125rem]">{translatePlanning(locale, "Nenhuma conta recorrente ainda.")}</p>;
   }
 
   async function remove(id: string, name: string) {
     const ok = await confirm({
-      title: `Excluir a regra "${name}"?`,
-      description: "As contas já geradas de meses anteriores continuam salvas, só viram avulsas.",
-      confirmLabel: "Excluir",
+      title: translatePlanning(locale, "Excluir a regra \"{0}\"?", name),
+      description: translatePlanning(locale, "As contas já geradas de meses anteriores continuam salvas, só viram avulsas."),
+      confirmLabel: translatePlanning(locale, "Excluir"),
       tone: "danger",
     });
     if (!ok) return;
@@ -55,8 +58,8 @@ export function BillRulesManager({ rules, monthRef }: { rules: PlainBillRule[]; 
                 {!r.active
                   ? "pausada"
                   : r.generated
-                    ? `já gerada em ${monthRef.month}/${monthRef.year}`
-                    : "pendente este mês"}
+                    ? translatePlanning(locale, "já gerada em {0}/{1}", monthRef.month, monthRef.year)
+                    : translatePlanning(locale, "pendente este mês")}
                 {r.type === "GROUP" && r.participants.length
                   ? ` · ${r.participants.map((p) => p.name).join(", ")}`
                   : ""}
@@ -64,7 +67,7 @@ export function BillRulesManager({ rules, monthRef }: { rules: PlainBillRule[]; 
             </div>
             <button
               type="button"
-              title={r.active ? "Pausar" : "Retomar"}
+              title={r.active ? translatePlanning(locale, "Pausar") : translatePlanning(locale, "Retomar")}
               onClick={() => start(async () => void (await toggleBillRule(r.id, !r.active)))}
               className="min-h-11 min-w-11 muted cursor-pointer rounded-lg p-1.5 hover:bg-[var(--surface-2)]"
             >
@@ -72,7 +75,7 @@ export function BillRulesManager({ rules, monthRef }: { rules: PlainBillRule[]; 
             </button>
             <button
               type="button"
-              title="Excluir regra"
+              title={translatePlanning(locale, "Excluir regra")}
               onClick={() => void remove(r.id, r.name)}
               className="inline-flex items-center justify-center min-h-11 min-w-11 muted cursor-pointer rounded-lg p-1.5 hover:bg-[var(--color-money-out-soft)] hover:text-[var(--text-out)]"
             >

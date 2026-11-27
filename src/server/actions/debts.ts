@@ -1,5 +1,7 @@
 "use server";
 
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
@@ -29,8 +31,8 @@ function parseRateToBps(raw: string): number {
   return Math.round(value * 100);
 }
 
-const debtSchema = z.object({
-  name: safeNameSchema(2, 100, "Dê um nome para a dívida."),
+function localizeddebtSchema(locale: Locale) { return z.object({
+  name: safeNameSchema(2, 100, translateServer(locale, "Dê um nome para a dívida.")),
   creditor: safeOptionalTextSchema(100),
   kind: z.enum([
     "CARD_REVOLVING",
@@ -40,17 +42,19 @@ const debtSchema = z.object({
     "INSTALLMENT",
     "OTHER",
   ]),
-  balance: z.string().min(1, "Informe o saldo devedor."),
+  balance: z.string().min(1, translateServer(locale, "Informe o saldo devedor.")),
   rate: z.string().optional(),
   minimum: z.string().optional(),
   dueDay: z.coerce.number().int().min(1).max(31),
   note: safeNotesSchema(2000),
-});
+}); }
+
 
 export async function createDebt(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
-  const parsed = debtSchema.safeParse({
+  const parsed = localizeddebtSchema(locale).safeParse({
     name: formData.get("name"),
     creditor: formData.get("creditor") || undefined,
     kind: formData.get("kind"),
@@ -60,15 +64,15 @@ export async function createDebt(_prev: ActionState, formData: FormData): Promis
     dueDay: formData.get("dueDay"),
     note: formData.get("note") || undefined,
   });
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const balanceCents = Math.abs(parseMoneyToCents(parsed.data.balance));
 
-  if (balanceCents > MAX_CENTS) return { error: "Valor muito alto." };
-  if (balanceCents <= 0) return { error: "O saldo devedor precisa ser maior que zero." };
+  if (balanceCents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
+  if (balanceCents <= 0) return { error: translateServer(locale, "O saldo devedor precisa ser maior que zero.") };
 
   const minimumPaymentCents = Math.abs(parseMoneyToCents(parsed.data.minimum ?? "0"));
-  if (minimumPaymentCents > MAX_CENTS) return { error: "Valor muito alto." };
+  if (minimumPaymentCents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
 
   await db.insert(debts).values({
     userId,
@@ -92,6 +96,7 @@ export async function updateDebtField(input: {
   field: "balance" | "rate" | "minimum";
   value: string;
 }): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
   const patch =
@@ -101,7 +106,7 @@ export async function updateDebtField(input: {
         ? { minimumPaymentCents: Math.abs(parseMoneyToCents(input.value)) }
         : { monthlyRateBps: parseRateToBps(input.value) };
 
-  if (Object.values(patch).some((v) => v > MAX_CENTS)) return { error: "Valor muito alto." };
+  if (Object.values(patch).some((v) => v > MAX_CENTS)) return { error: translateServer(locale, "Valor muito alto.") };
 
   await db
     .update(debts)
@@ -121,12 +126,13 @@ export async function registerDebtPayment(
   debtId: string,
   formData: FormData,
 ): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
   const amountCents = Math.abs(parseMoneyToCents(String(formData.get("amount") ?? "")));
 
-  if (amountCents > MAX_CENTS) return { error: "Valor muito alto." };
-  if (amountCents <= 0) return { error: "Informe o valor pago." };
+  if (amountCents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
+  if (amountCents <= 0) return { error: translateServer(locale, "Informe o valor pago.") };
 
   // Mesma ideia das metas: trava a linha, calcula o abatimento efetivo (piso em 0) e grava o
   // mesmo valor no saldo e no histórico.
@@ -153,19 +159,20 @@ export async function registerDebtPayment(
     });
     return true;
   });
-  if (!found) return { error: "Dívida não encontrada." };
+  if (!found) return { error: translateServer(locale, "Dívida não encontrada.") };
 
   refresh();
   return { ok: true };
 }
 
 export async function deleteDebt(id: string): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const result = await db
     .delete(debts)
     .where(and(eq(debts.id, id), eq(debts.userId, userId)))
     .returning({ id: debts.id });
-  if (result.length === 0) return { error: "Não encontrado." };
+  if (result.length === 0) return { error: translateServer(locale, "Não encontrado.") };
   refresh();
   return { ok: true };
 }

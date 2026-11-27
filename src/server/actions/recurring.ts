@@ -1,5 +1,7 @@
-﻿"use server";
+"use server";
 
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { and, eq, inArray } from "drizzle-orm";
@@ -21,28 +23,30 @@ function refresh() {
   revalidatePath("/orcamento");
 }
 
-const ruleSchema = z.object({
-  description: safeDescriptionSchema(2, 255, "Descreva o lançamento."),
-  amount: z.string().min(1, "Informe o valor."),
+function localizedruleSchema(locale: Locale) { return z.object({
+  description: safeDescriptionSchema(2, 255, translateServer(locale, "Descreva o lançamento.")),
+  amount: z.string().min(1, translateServer(locale, "Informe o valor.")),
   kind: z.enum(["INCOME", "EXPENSE"]),
   nature: z.enum(["FIXED", "VARIABLE"]),
   dayOfMonth: z.coerce.number().int().min(1).max(31),
-  accountId: z.string().min(1, "Escolha a conta."),
+  accountId: z.string().min(1, translateServer(locale, "Escolha a conta.")),
   categoryId: z.string().optional(),
   notes: safeNotesSchema(2000),
-  startMonth: z.string().regex(/^\d{4}-\d{2}$/, "Informe o mês de início."),
+  startMonth: z.string().regex(/^\d{4}-\d{2}$/, translateServer(locale, "Informe o mês de início.")),
   endMonth: z.string().optional(),
-});
+}); }
+
 
 export async function createRecurringRule(
   _prev: ActionState,
   formData: FormData,
 ): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "manual-entry");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
 
-  const parsed = ruleSchema.safeParse({
+  const parsed = localizedruleSchema(locale).safeParse({
     description: formData.get("description"),
     amount: formData.get("amount"),
     kind: formData.get("kind"),
@@ -55,26 +59,26 @@ export async function createRecurringRule(
     endMonth: formData.get("endMonth") || undefined,
   });
 
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos.")) };
 
   const d = parsed.data;
   const amountCents = Math.abs(parseMoneyToCents(d.amount));
-  if (amountCents > MAX_CENTS) return { error: "Valor muito alto." };
-  if (amountCents <= 0) return { error: "O valor precisa ser maior que zero." };
+  if (amountCents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
+  if (amountCents <= 0) return { error: translateServer(locale, "O valor precisa ser maior que zero.") };
 
   const [account] = await db
     .select({ id: accounts.id, financeMode: accounts.financeMode })
     .from(accounts)
     .where(and(eq(accounts.id, d.accountId), eq(accounts.userId, userId)))
     .limit(1);
-  if (!account) return { error: "Conta inválida." };
-  if (account.financeMode === "integracao") return { error: "Esta conta está integrada. Troque para modo manual antes de criar recorrências." };
+  if (!account) return { error: translateServer(locale, "Conta inválida.") };
+  if (account.financeMode === "integracao") return { error: translateServer(locale, "Esta conta está integrada. Troque para modo manual antes de criar recorrências.") };
 
   const [startYear, startMonth] = d.startMonth.split("-").map(Number);
   const end = d.endMonth && /^\d{4}-\d{2}$/.test(d.endMonth) ? d.endMonth.split("-").map(Number) : null;
 
   if (end && end[0] * 12 + end[1] < startYear * 12 + startMonth) {
-    return { error: "O mês final não pode ser anterior ao inicial." };
+    return { error: translateServer(locale, "O mês final não pode ser anterior ao inicial.") };
   }
 
   await db.insert(recurringRules).values({
@@ -98,9 +102,10 @@ export async function createRecurringRule(
 }
 
 export async function toggleRecurringRule(id: string, active: boolean) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "manual-entry");
-  if (restriction) throw new Error(restriction);
+  if (restriction) throw new Error(translateServer(locale, restriction));
   await db
     .update(recurringRules)
     .set({ active, updatedAt: new Date() })
@@ -125,9 +130,10 @@ export async function generateRecurring(
   ref: MonthRef,
   ruleId?: string,
 ): Promise<{ created: number; skippedIntegrated?: number; error?: string }> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "manual-entry");
-  if (restriction) return { created: 0, error: restriction };
+  if (restriction) return { created: 0, error: translateServer(locale, restriction) };
   const { getRecurringStatus } = await import("@/server/queries");
 
   const status = await getRecurringStatus(userId, ref);
@@ -142,7 +148,7 @@ export async function generateRecurring(
     target = target.filter((r) => !integratedIds.has(r.accountId));
   }
 
-  if (!target.length) return { created: 0, skippedIntegrated, error: skippedIntegrated ? "As recorrencias de contas integradas foram ignoradas." : "Nada pendente para gerar neste mes." };
+  if (!target.length) return { created: 0, skippedIntegrated, error: skippedIntegrated ? translateServer(locale, "As recorrencias de contas integradas foram ignoradas.") : translateServer(locale, "Nada pendente para gerar neste mes.") };
 
   const inserted = await db
     .insert(transactions)

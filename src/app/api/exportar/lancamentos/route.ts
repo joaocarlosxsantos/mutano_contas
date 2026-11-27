@@ -3,6 +3,7 @@ import { requireUserId } from "@/lib/auth";
 import { getTransactions } from "@/server/queries";
 import { monthRefFromParam, monthRefToParam, currentMonthRef } from "@/lib/dates";
 import { buildExportRows, rowsToCsv } from "@/lib/export";
+import { getLocale } from "@/lib/i18n/server";
 
 export const runtime = "nodejs";
 
@@ -16,6 +17,7 @@ const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
  * arquivo.
  */
 export async function GET(request: NextRequest) {
+  const locale = await getLocale();
   const userId = await requireUserId();
   const sp = request.nextUrl.searchParams;
 
@@ -65,13 +67,13 @@ export async function GET(request: NextRequest) {
       installmentTotal: t.installmentTotal,
       recurringRuleId: t.recurringRuleId,
       notes: t.notes,
-    })),
+    })), locale,
   );
 
-  const label = customRange ? `${customRange.from}_a_${customRange.to}` : monthRefToParam(ref || currentMonthRef());
-  const filename = `lancamentos-${label}.csv`;
+  const label = customRange ? `${customRange.from}_${locale === "en" ? "to" : "a"}_${customRange.to}` : monthRefToParam(ref || currentMonthRef());
+  const filename = `${locale === "en" ? "transactions" : "lancamentos"}-${label}.csv`;
 
-  return new Response(rowsToCsv(rows), {
+  return new Response(rowsToCsv(rows, locale), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
       "Content-Disposition": `attachment; filename="${filename}"`,

@@ -1,5 +1,7 @@
 "use server";
 
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { and, eq } from "drizzle-orm";
@@ -26,24 +28,25 @@ function isTableMissingError(err: unknown): boolean {
   return false;
 }
 
-const splitPersonSchema = z.object({
-  name: safeNameSchema(1, 100, "O nome não pode ser vazio."),
+function localizedsplitPersonSchema(locale: Locale) { return z.object({
+  name: safeNameSchema(1, 100, translateServer(locale, "O nome não pode ser vazio.")),
   phone: safeOptionalTextSchema(30),
   amount: z.number().int().min(0).max(MAX_CENTS).optional(),
   basisPoints: z.number().int().min(0).max(10_000).optional(),
   percent: z.number().min(0).max(100).optional(),
-});
+}); }
+const splitPersonSchema = localizedsplitPersonSchema("pt-BR");
 
-const setTransactionSplitSchema = z.object({
+function localizedsetTransactionSplitSchema(locale: Locale) { return z.object({
   mode: z.enum(["EQUAL", "PERCENT", "VALUE"]),
   myIncluded: z.boolean(),
   others: z
     .array(splitPersonSchema)
-    .min(1, "Informe ao menos uma pessoa para dividir.")
-    .max(20, "O limite máximo é de 20 pessoas."),
-});
+    .min(1, translateServer(locale, "Informe ao menos uma pessoa para dividir."))
+    .max(20, translateServer(locale, "O limite máximo é de 20 pessoas.")),
+}); }
 
-export type SetTransactionSplitInput = z.infer<typeof setTransactionSplitSchema>;
+export type SetTransactionSplitInput = z.infer<ReturnType<typeof localizedsetTransactionSplitSchema>>;
 
 /**
  * Registra ou atualiza a divisão de um lançamento entre outras pessoas.
@@ -54,15 +57,16 @@ export async function setTransactionSplit(
   transactionId: string,
   input: SetTransactionSplitInput,
 ): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
   if (!transactionId || typeof transactionId !== "string") {
-    return { error: "Lançamento inválido." };
+    return { error: translateServer(locale, "Lançamento inválido.") };
   }
 
-  const parsed = setTransactionSplitSchema.safeParse(input);
+  const parsed = localizedsetTransactionSplitSchema(locale).safeParse(input);
   if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+    return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Dados inválidos.")) };
   }
 
   const [tx] = await db
@@ -78,19 +82,19 @@ export async function setTransactionSplit(
     .limit(1);
 
   if (!tx) {
-    return { error: "Lançamento não encontrado." };
+    return { error: translateServer(locale, "Lançamento não encontrado.") };
   }
 
   if (tx.isTransfer) {
-    return { error: "Não é possível dividir transferências entre contas." };
+    return { error: translateServer(locale, "Não é possível dividir transferências entre contas.") };
   }
 
   if (tx.kind !== "EXPENSE") {
-    return { error: "Apenas despesas podem ser divididas." };
+    return { error: translateServer(locale, "Apenas despesas podem ser divididas.") };
   }
 
   if (tx.amountCents > MAX_CENTS) {
-    return { error: "Valor do lançamento excede o teto permitido (20 milhões)." };
+    return { error: translateServer(locale, "Valor do lançamento excede o teto permitido (20 milhões).") };
   }
 
   const splitResult = computeSplit(
@@ -101,7 +105,7 @@ export async function setTransactionSplit(
   );
 
   if (!splitResult.ok) {
-    return { error: splitResult.error };
+    return { error: translateServer(locale, splitResult.error) };
   }
 
   try {
@@ -136,7 +140,7 @@ export async function setTransactionSplit(
   } catch (err) {
     // ponytail: remover este fallback depois que migration 0011 estiver aplicada em producao
     if (isTableMissingError(err)) {
-      return { error: "Divisao indisponivel: migration pendente" };
+      return { error: translateServer(locale, "Divisao indisponivel: migration pendente") };
     }
     throw err;
   }
@@ -146,10 +150,11 @@ export async function setTransactionSplit(
  * Remove a divisão de um lançamento, voltando-o a ser integral do dono.
  */
 export async function clearTransactionSplit(transactionId: string): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
   if (!transactionId || typeof transactionId !== "string") {
-    return { error: "Lançamento inválido." };
+    return { error: translateServer(locale, "Lançamento inválido.") };
   }
 
   const [tx] = await db
@@ -159,7 +164,7 @@ export async function clearTransactionSplit(transactionId: string): Promise<Acti
     .limit(1);
 
   if (!tx) {
-    return { error: "Lançamento não encontrado." };
+    return { error: translateServer(locale, "Lançamento não encontrado.") };
   }
 
   try {
@@ -178,7 +183,7 @@ export async function clearTransactionSplit(transactionId: string): Promise<Acti
   } catch (err) {
     // ponytail: remover este fallback depois que migration 0011 estiver aplicada em producao
     if (isTableMissingError(err)) {
-      return { error: "Divisao indisponivel: migration pendente" };
+      return { error: translateServer(locale, "Divisao indisponivel: migration pendente") };
     }
     throw err;
   }

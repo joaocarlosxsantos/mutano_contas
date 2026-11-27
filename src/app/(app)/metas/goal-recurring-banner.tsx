@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useState, useTransition } from "react";
 import { PiggyBank } from "lucide-react";
 import { generateGoalRecurring } from "@/server/actions/goal-recurring";
@@ -18,6 +20,7 @@ export function GoalRecurringBanner({
   count: number;
   amountCents: number;
 }) {
+  const locale = useLocale();
   const [busy, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
@@ -31,11 +34,10 @@ export function GoalRecurringBanner({
 
       <div className="min-w-0 flex-1">
         <p className="text-[0.875rem] font-medium">
-          {count} aporte{count > 1 ? "s" : ""} automático{count > 1 ? "s" : ""} ainda não{" "}
-          {count > 1 ? "caíram" : "caiu"} este mês
+          {translatePlanning(locale, count === 1 ? "{0} aporte automático ainda não caiu este mês." : "{0} aportes automáticos ainda não caíram este mês.", count)}
         </p>
         <p className="muted mt-0.5 text-[0.8125rem]">
-          {formatCents(amountCents)} no total{message ? ` — ${message}` : ""}
+          {formatCents(amountCents, locale)} {translatePlanning(locale, "no total")}{message ? ` — ${message}` : ""}
         </p>
       </div>
 
@@ -45,11 +47,11 @@ export function GoalRecurringBanner({
         onClick={() =>
           start(async () => {
             const { created, error } = await generateGoalRecurring(currentMonthRef());
-            setMessage(error ?? `${created} aporte(s) lançado(s).`);
+            setMessage(error ?? translatePlanning(locale, "{0} aporte(s) lançado(s).", created));
           })
         }
       >
-        {busy ? "Lançando..." : "Lançar todos"}
+        {busy ? translatePlanning(locale, "Lançando...") : translatePlanning(locale, "Lançar todos")}
       </Button>
     </div>
   );

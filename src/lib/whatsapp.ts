@@ -1,3 +1,5 @@
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { formatCents } from "./money";
 
 /**
@@ -36,17 +38,17 @@ export function buildBillShareMessage(opts: {
   monthLabel: string;
   groupingName: string | null;
   entries: BillShareEntry[];
-}): string {
+}, locale: Locale = "pt-BR"): string {
   const { participantName, monthLabel, groupingName, entries } = opts;
   if (entries.length <= 1) {
     const entry = entries[0];
-    return `Oi ${participantName}! Sua parte na conta *${entry?.billName ?? ""}* de ${monthLabel} é *${formatCents(entry?.amountCents ?? 0)}*.`;
+    return translateServer(locale, "Oi {0}! Sua parte na conta *{1}* de {2} é *{3}*.", participantName, entry?.billName ?? "", monthLabel, formatCents(entry?.amountCents ?? 0, locale));
   }
 
   const totalCents = entries.reduce((acc, e) => acc + e.amountCents, 0);
-  const lines = entries.map((e) => `- ${e.billName}: ${formatCents(e.amountCents)}`).join("\n");
+  const lines = entries.map((e) => `- ${e.billName}: ${formatCents(e.amountCents, locale)}`).join("\n");
   const header = groupingName
-    ? `Oi ${participantName}! Sua parte nas contas de *${groupingName}* em ${monthLabel}:`
-    : `Oi ${participantName}! Sua parte nas contas em ${monthLabel}:`;
-  return `${header}\n${lines}\nTotal: *${formatCents(totalCents)}*`;
+    ? translateServer(locale, "Oi {0}! Sua parte nas contas de *{1}* em {2}:", participantName, groupingName, monthLabel)
+    : translateServer(locale, "Oi {0}! Sua parte nas contas em {1}:", participantName, monthLabel);
+  return `${header}\n${lines}\nTotal: *${formatCents(totalCents, locale)}*`;
 }

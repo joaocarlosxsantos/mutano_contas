@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useState, useTransition } from "react";
 import { Copy, ListChecks } from "lucide-react";
 import { copyPreviousMonth, suggestFromHistory } from "@/server/actions/budgets";
@@ -16,6 +18,7 @@ export function BudgetStarters({
   canCopyPrevious: boolean;
   compact?: boolean;
 }) {
+  const locale = useLocale();
   const [pending, start] = useTransition();
   const [message, setMessage] = useState<string | null>(null);
 
@@ -37,14 +40,13 @@ export function BudgetStarters({
             run(async () => {
               const { applied } = await suggestFromHistory(monthRef);
               return applied
-                ? `${applied} limite(s) sugerido(s) pela sua média dos últimos 3 meses.`
-                : "Ainda não há histórico suficiente para sugerir limites.";
+                ? translatePlanning(locale, "{0} limite(s) sugerido(s) pela sua média dos últimos 3 meses.", applied)
+                : translatePlanning(locale, "Ainda não há histórico suficiente para sugerir limites.");
             })
           }
         >
           <ListChecks className="size-4" aria-hidden="true" />
-          Sugerir pelo histórico
-        </Button>
+          {translatePlanning(locale, "Sugerir pelo histórico")} </Button>
 
         {canCopyPrevious ? (
           <Button className="min-h-11 min-w-11"
@@ -56,14 +58,13 @@ export function BudgetStarters({
                 const { copied, error } = await copyPreviousMonth(monthRef);
                 if (error) return error;
                 return copied
-                  ? `${copied} limite(s) copiado(s) do mês anterior.`
-                  : "Os limites do mês anterior já estavam aqui.";
+                  ? translatePlanning(locale, "{0} limite(s) copiado(s) do mês anterior.", copied)
+                  : translatePlanning(locale, "Os limites do mês anterior já estavam aqui.");
               })
             }
           >
             <Copy className="size-4" />
-            Copiar do mês anterior
-          </Button>
+            {translatePlanning(locale, "Copiar do mês anterior")} </Button>
         ) : null}
       </div>
 

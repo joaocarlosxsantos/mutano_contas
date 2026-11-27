@@ -2,6 +2,7 @@
 
 import { requireUserId } from "@/lib/auth";
 import { reauthenticateForExport, verifyUserPassword } from "@/lib/reauth";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 
 export type ReauthState = { ok?: boolean; error?: string; token?: string };
 
@@ -15,7 +16,9 @@ export async function confirmPasswordForExportAction(
 ): Promise<ReauthState> {
   const userId = await requireUserId();
   const password = formData.get("password");
-  return reauthenticateForExport(userId, password);
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
+  const result = await reauthenticateForExport(userId, password);
+  return result.error ? { ...result, error: translateServer(locale, result.error) } : result;
 }
 
 /**
@@ -23,7 +26,9 @@ export async function confirmPasswordForExportAction(
  */
 export async function requestExportToken(password: string): Promise<ReauthState> {
   const userId = await requireUserId();
-  return reauthenticateForExport(userId, password);
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
+  const result = await reauthenticateForExport(userId, password);
+  return result.error ? { ...result, error: translateServer(locale, result.error) } : result;
 }
 
 /**
@@ -31,5 +36,7 @@ export async function requestExportToken(password: string): Promise<ReauthState>
  */
 export async function verifyPasswordAction(password: string): Promise<{ ok: boolean; error?: string }> {
   const userId = await requireUserId();
-  return verifyUserPassword(userId, password);
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
+  const result = await verifyUserPassword(userId, password);
+  return result.error ? { ...result, error: translateServer(locale, result.error) } : result;
 }

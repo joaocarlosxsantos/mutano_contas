@@ -1,5 +1,7 @@
-﻿"use server";
+"use server";
 
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
@@ -22,30 +24,31 @@ function pluggyMessage(status: number, code: string): string {
   return pluggyErrorForUser(new PluggyHttpError(status, code, "", ""));
 }
 
-function connectionErrorMessage(value: string | null): string | null {
+function connectionErrorMessage(value: string | null, locale: Locale = "pt-BR"): string | null {
   if (!value) return null;
-  if (value === "NO_LINKED_ACCOUNTS") return "Nenhuma conta local está vinculada a esta conexão. Vincule uma conta antes de sincronizar.";
-  if (value === "SYNC_ACCOUNT_ERRORS") return "Algumas contas não puderam ser sincronizadas. Consulte o resumo por conta.";
+  if (value === "NO_LINKED_ACCOUNTS") return translateServer(locale, "Nenhuma conta local está vinculada a esta conexão. Vincule uma conta antes de sincronizar.");
+  if (value === "SYNC_ACCOUNT_ERRORS") return translateServer(locale, "Algumas contas não puderam ser sincronizadas. Consulte o resumo por conta.");
   try {
     const parsed = JSON.parse(value) as { status?: unknown; code?: unknown; message?: unknown };
     if (typeof parsed.status === "number" && Number.isInteger(parsed.status) && typeof parsed.code === "string" && typeof parsed.message === "string") {
-      return pluggyMessage(parsed.status, parsed.code);
+      return translateServer(locale, pluggyMessage(parsed.status, parsed.code));
     }
   } catch { /* Older rows contain a plain sanitized error code. */ }
-  return "Não foi possível sincronizar esta conexão. Confira os dados e tente novamente.";
+  return translateServer(locale, "Não foi possível sincronizar esta conexão. Confira os dados e tente novamente.");
 }
 
 export async function saveOpenFinanceCredentials(input: unknown) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "integration");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
 
   if (!checkRateLimit(`open-finance-creds:${userId}`, 10, Date.now(), 60 * 60 * 1000).allowed) {
-    return { error: "Muitas tentativas. Aguarde uma hora e tente novamente." };
+    return { error: translateServer(locale, "Muitas tentativas. Aguarde uma hora e tente novamente.") };
   }
 
   const parsed = saveOpenFinanceCredentialsSchema.safeParse(input);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos informados." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos informados.")) };
   const { clientId, clientSecret } = parsed.data;
 
   try {
@@ -69,9 +72,9 @@ export async function saveOpenFinanceCredentials(input: unknown) {
         },
       });
   } catch (error) {
-    if (error instanceof PluggyHttpError && error.code === "CLIENT_DISABLED") return { error: "Aplicação Pluggy desativada. Confira a aplicação no Dashboard antes de tentar novamente." };
-    if (error instanceof PluggyHttpError && error.code === "CLIENT_KEYS_UNAUTHORIZED") return { error: "Par de credenciais inválido. Confira Client ID, Client Secret e ambiente da mesma aplicação." };
-    return { error: safeError(error) };
+    if (error instanceof PluggyHttpError && error.code === "CLIENT_DISABLED") return { error: translateServer(locale, "Aplicação Pluggy desativada. Confira a aplicação no Dashboard antes de tentar novamente.") };
+    if (error instanceof PluggyHttpError && error.code === "CLIENT_KEYS_UNAUTHORIZED") return { error: translateServer(locale, "Par de credenciais inválido. Confira Client ID, Client Secret e ambiente da mesma aplicação.") };
+    return { error: translateServer(locale, safeError(error)) };
   }
 
   revalidatePath("/configuracoes/integracao");
@@ -79,9 +82,10 @@ export async function saveOpenFinanceCredentials(input: unknown) {
 }
 
 export async function getOpenFinanceSetup() {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "integration");
-  if (restriction) throw new Error(restriction);
+  if (restriction) throw new Error(translateServer(locale, restriction));
 
   const [credential] = await db
     .select({
@@ -118,7 +122,7 @@ export async function getOpenFinanceSetup() {
   const connections = Array.isArray(storedConnections)
     ? storedConnections.map((connection) => ({
         ...connection,
-        lastErrorMessage: connectionErrorMessage(connection.lastErrorCode),
+        lastErrorMessage: connectionErrorMessage(connection.lastErrorCode, locale),
       }))
     : [];
 
@@ -159,9 +163,10 @@ export async function getOpenFinanceSetup() {
 }
 
 export async function getPluggyConnectToken() {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "integration");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
 
   const [credentials] = await db
     .select({
@@ -174,13 +179,13 @@ export async function getPluggyConnectToken() {
 
   if (!credentials) {
     return {
-      error: "Configure suas credenciais da Pluggy antes de conectar.",
+      error: translateServer(locale, "Configure suas credenciais da Pluggy antes de conectar."),
       needsCredentials: true,
     };
   }
 
   if (!checkRateLimit(`open-finance-token:${userId}`, 10, Date.now(), 60 * 1000).allowed) {
-    return { error: "Muitas tentativas. Aguarde um momento e tente novamente." };
+    return { error: translateServer(locale, "Muitas tentativas. Aguarde um momento e tente novamente.") };
   }
 
   try {
@@ -200,23 +205,24 @@ export async function getPluggyConnectToken() {
         : "UnknownError";
     console.error("Open Finance connectToken generation failed", { errorType });
     if (error instanceof PluggyHttpError && error.status === 401) {
-      return { error: "Credenciais da Pluggy inválidas ou expiradas. Atualize seu Client ID e Client Secret em Configurações > Integração." };
+      return { error: translateServer(locale, "Credenciais da Pluggy inválidas ou expiradas. Atualize seu Client ID e Client Secret em Configurações > Integração.") };
     }
-    return { error: safeError(error) };
+    return { error: translateServer(locale, safeError(error)) };
   }
 }
 
 export async function connectPluggyItem(input: unknown) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "integration");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
 
   if (!checkRateLimit(`open-finance-connect:${userId}`, 10, Date.now(), 60 * 1000).allowed) {
-    return { error: "Muitas tentativas de conexão. Aguarde um momento." };
+    return { error: translateServer(locale, "Muitas tentativas de conexão. Aguarde um momento.") };
   }
 
   const parsed = connectPluggyItemSchema.safeParse(input);
-  if (!parsed.success) return { error: "Dados inválidos." };
+  if (!parsed.success) return { error: translateServer(locale, "Dados inválidos.") };
   const { itemId, label } = parsed.data;
 
   try {
@@ -225,7 +231,7 @@ export async function connectPluggyItem(input: unknown) {
     // Validação de Segurança Crucial (Anti-IDOR):
     const item = await getPluggyItem(apiKey, itemId);
     if (!item.clientUserId || item.clientUserId !== userId) {
-      return { error: "Item não autorizado para este usuário." };
+      return { error: translateServer(locale, "Item não autorizado para este usuário.") };
     }
 
     const itemIdHash = secretFingerprint(itemId);
@@ -238,14 +244,14 @@ export async function connectPluggyItem(input: unknown) {
         userId,
         itemIdEnvelope: encryptSecret(itemId, userId, "itemId"),
         itemIdHash,
-        label: label?.trim().slice(0, 100) || "Conexão Pluggy",
+        label: label?.trim().slice(0, 100) || translateServer(locale, "Conexão Pluggy"),
         importFromDate,
         status: item.status ?? "UPDATING",
       })
       .onConflictDoUpdate({
         target: [openFinanceConnections.userId, openFinanceConnections.itemIdHash],
         set: {
-          label: label?.trim().slice(0, 100) || "Conexão Pluggy",
+          label: label?.trim().slice(0, 100) || translateServer(locale, "Conexão Pluggy"),
           status: item.status ?? "UPDATING",
         },
       });
@@ -256,7 +262,7 @@ export async function connectPluggyItem(input: unknown) {
       .where(and(eq(openFinanceConnections.userId, userId), eq(openFinanceConnections.itemIdHash, itemIdHash)))
       .limit(1);
 
-    if (!connection) return { error: "A conexão não pôde ser confirmada. Tente novamente." };
+    if (!connection) return { error: translateServer(locale, "A conexão não pôde ser confirmada. Tente novamente.") };
     let initialSync = summarizeInitialOnboardingSync({ skipped: true });
     if (connection) {
       try {
@@ -269,89 +275,92 @@ export async function connectPluggyItem(input: unknown) {
     revalidatePath("/configuracoes/integracao");
     return { ok: true, connected: true, connectionId: connection.id, initialSync };
   } catch (error) {
-    return { error: safeError(error) };
+    return { error: translateServer(locale, safeError(error)) };
   }
 }
 
 export async function saveOpenFinanceSetup(input: unknown) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "integration");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
   if (!checkRateLimit(`open-finance-setup:${userId}`, OPEN_FINANCE_SETUP_LIMIT, Date.now(), OPEN_FINANCE_SETUP_WINDOW_MS).allowed) {
-    return { error: "Muitas tentativas de configuração. Aguarde uma hora e tente novamente." };
+    return { error: translateServer(locale, "Muitas tentativas de configuração. Aguarde uma hora e tente novamente.") };
   }
   const parsed = saveOpenFinanceSetupSchema.safeParse(input);
   if (!parsed.success) return { error: parsed.error.issues.length === 1 && parsed.error.issues[0]?.path[0] === "importFromDate"
-    ? "A data inicial precisa ser válida e não futura." : "Confira os campos informados." };
+    ? translateServer(locale, "A data inicial precisa ser válida e não futura.") : translateServer(locale, "Confira os campos informados.") };
   const data = parsed.data;
   const date = new Date(`${data.importFromDate}T00:00:00.000Z`);
-  if (!Number.isFinite(date.getTime()) || date > new Date()) return { error: "A data inicial precisa ser válida e não futura." };
+  if (!Number.isFinite(date.getTime()) || date > new Date()) return { error: translateServer(locale, "A data inicial precisa ser válida e não futura.") };
   try {
     const [stored] = await db.select().from(openFinanceCredentials).where(eq(openFinanceCredentials.userId, userId)).limit(1);
     const clientId = data.clientId || (stored ? decryptSecret(stored.clientIdEnvelope, userId, "clientId") : "");
     const clientSecret = data.clientSecret || (stored ? decryptSecret(stored.clientSecretEnvelope, userId, "clientSecret") : "");
-    if (!clientId || !clientSecret) return { error: "Informe clientId e clientSecret para a primeira conexão." };
+    if (!clientId || !clientSecret) return { error: translateServer(locale, "Informe clientId e clientSecret para a primeira conexão.") };
     const apiKey = await authenticatePluggy(clientId, clientSecret);
     const item = await getPluggyItem(apiKey, data.itemId);
-    if (!item.clientUserId || item.clientUserId !== userId) return { error: "Item não autorizado para este usuário. Use o widget do Mutano; importação do Demo não está disponível." };
+    if (!item.clientUserId || item.clientUserId !== userId) return { error: translateServer(locale, "Item não autorizado para este usuário. Use o widget do Mutano; importação do Demo não está disponível.") };
     await getPluggyAccounts(apiKey, data.itemId);
     const itemIdHash = secretFingerprint(data.itemId);
     await db.transaction(async (tx) => {
       if (!stored || data.clientId || data.clientSecret) await tx.insert(openFinanceCredentials).values({ userId, clientIdEnvelope: encryptSecret(clientId, userId, "clientId"), clientSecretEnvelope: encryptSecret(clientSecret, userId, "clientSecret") }).onConflictDoUpdate({ target: openFinanceCredentials.userId, set: { clientIdEnvelope: encryptSecret(clientId, userId, "clientId"), clientSecretEnvelope: encryptSecret(clientSecret, userId, "clientSecret"), updatedAt: new Date() } });
-      await tx.insert(openFinanceConnections).values({ userId, itemIdEnvelope: encryptSecret(data.itemId, userId, "itemId"), itemIdHash, label: data.label?.trim().slice(0, 100) || "Conexão Pluggy", importFromDate: date }).onConflictDoUpdate({ target: [openFinanceConnections.userId, openFinanceConnections.itemIdHash], set: { label: data.label?.trim().slice(0, 100) || "Conexão Pluggy", importFromDate: date } });
+      await tx.insert(openFinanceConnections).values({ userId, itemIdEnvelope: encryptSecret(data.itemId, userId, "itemId"), itemIdHash, label: data.label?.trim().slice(0, 100) || translateServer(locale, "Conexão Pluggy"), importFromDate: date }).onConflictDoUpdate({ target: [openFinanceConnections.userId, openFinanceConnections.itemIdHash], set: { label: data.label?.trim().slice(0, 100) || translateServer(locale, "Conexão Pluggy"), importFromDate: date } });
     });
-  } catch (error) { return { error: safeError(error) }; }
+  } catch (error) { return { error: translateServer(locale, safeError(error)) }; }
   revalidatePath("/configuracoes/integracao");
   return { ok: true };
 }
 
 export async function discoverOpenFinanceAccounts(input: unknown) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "integration");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
   const parsed = openFinanceConnectionIdSchema.safeParse({ connectionId: input });
-  if (!parsed.success) return { error: "Conexão inválida." };
+  if (!parsed.success) return { error: translateServer(locale, "Conexão inválida.") };
   const connectionId = parsed.data.connectionId;
   const [connection] = await db.select().from(openFinanceConnections).where(and(eq(openFinanceConnections.id, connectionId), eq(openFinanceConnections.userId, userId))).limit(1);
-  if (!connection) return { error: "Conexão não encontrada." };
+  if (!connection) return { error: translateServer(locale, "Conexão não encontrada.") };
   try {
     const key = await resolvePluggyApiKey(userId);
     const rows = await getPluggyAccounts(key, decryptSecret(connection.itemIdEnvelope, userId, "itemId"));
     const accountsOut: Array<{ id: string; name: string; type: "BANK" | "CREDIT" | "INVESTMENT"; currency: string }> = rows.map((a) => ({ id: a.id, name: a.name ?? a.subtype ?? a.type, type: a.type, currency: a.currencyCode }));
-    accountsOut.push({ id: investmentRemoteId(connection.id), name: "Investimentos da conexão", type: "INVESTMENT", currency: "BRL" });
+    accountsOut.push({ id: investmentRemoteId(connection.id), name: translateServer(locale, "Investimentos da conexão"), type: "INVESTMENT", currency: "BRL" });
     return { accounts: accountsOut };
-  } catch (error) { return { error: safeError(error) }; }
+  } catch (error) { return { error: translateServer(locale, safeError(error)) }; }
 }
 
 export async function linkOpenFinanceAccount(input: { accountId: string; connectionId: string; externalAccountId: string | null; mode: "manual" | "integracao" }) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "integration");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
   const parsed = linkOpenFinanceAccountSchema.safeParse(input);
-  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Confira os campos informados." };
+  if (!parsed.success) return { error: translateServer(locale, parsed.error.issues[0]?.message ?? translateServer(locale, "Confira os campos informados.")) };
   const data = parsed.data;
   if (data.mode === "manual") {
     const manualRestriction = await getProfileRestriction(userId, "manual-entry");
-    if (manualRestriction) return { error: manualRestriction };
+    if (manualRestriction) return { error: translateServer(locale, manualRestriction) };
   }
   const [account] = await db.select({ id: accounts.id, type: accounts.type, financeMode: accounts.financeMode,
     externalAccountId: accounts.externalAccountId, externalConnectionId: accounts.externalConnectionId,
   }).from(accounts).where(and(eq(accounts.id, data.accountId), eq(accounts.userId, userId))).limit(1);
-  if (!account) return { error: "Conta não encontrada." };
+  if (!account) return { error: translateServer(locale, "Conta não encontrada.") };
   const [connection] = await db.select().from(openFinanceConnections).where(and(eq(openFinanceConnections.id, data.connectionId), eq(openFinanceConnections.userId, userId))).limit(1);
-  if (!connection) return { error: "Conexão não encontrada." };
+  if (!connection) return { error: translateServer(locale, "Conexão não encontrada.") };
   if (data.mode === "integracao") {
-    if (!data.externalAccountId) return { error: "Escolha uma conta Pluggy válida." };
+    if (!data.externalAccountId) return { error: translateServer(locale, "Escolha uma conta Pluggy válida.") };
     if (data.externalAccountId.startsWith("investments:")) {
-      if (data.externalAccountId !== investmentRemoteId(connection.id) || account.type !== "INVESTMENT") return { error: "Investimentos só podem ser vinculados a uma conta do tipo Investimento desta conexão." };
-    } else if (account.type === "INVESTMENT") return { error: "Conta de investimento deve usar a opção Investimentos da conexão." };
+      if (data.externalAccountId !== investmentRemoteId(connection.id) || account.type !== "INVESTMENT") return { error: translateServer(locale, "Investimentos só podem ser vinculados a uma conta do tipo Investimento desta conexão.") };
+    } else if (account.type === "INVESTMENT") return { error: translateServer(locale, "Conta de investimento deve usar a opção Investimentos da conexão.") };
     else try {
       const key = await resolvePluggyApiKey(userId);
       const remote = (await getPluggyAccounts(key, decryptSecret(connection.itemIdEnvelope, userId, "itemId"))).find((item) => item.id === data.externalAccountId);
-      if (!remote || !isCompatiblePluggyAccount(account.type, remote.type)) return { error: "A conta externa não pertence a essa conexão ou tem tipo incompatível." };
-    } catch (error) { return { error: safeError(error) }; }
+      if (!remote || !isCompatiblePluggyAccount(account.type, remote.type)) return { error: translateServer(locale, "A conta externa não pertence a essa conexão ou tem tipo incompatível.") };
+    } catch (error) { return { error: translateServer(locale, safeError(error)) }; }
     const [duplicate] = await db.select({ id: accounts.id }).from(accounts).where(and(eq(accounts.userId, userId), eq(accounts.externalAccountId, data.externalAccountId))).limit(1);
-    if (duplicate && duplicate.id !== account.id) return { error: "Essa conta externa já está vinculada." };
+    if (duplicate && duplicate.id !== account.id) return { error: translateServer(locale, "Essa conta externa já está vinculada.") };
   }
   const externalAccountId = data.mode === "integracao" ? data.externalAccountId : null;
   const externalConnectionId = data.mode === "integracao" ? data.connectionId : null;
@@ -367,15 +376,16 @@ export async function linkOpenFinanceAccount(input: { accountId: string; connect
 }
 
 export async function deletePluggyTransaction(input: unknown) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "integration");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
   const parsed = deletePluggyTransactionSchema.safeParse(input);
-  if (!parsed.success) return { error: "Lançamento inválido." };
+  if (!parsed.success) return { error: translateServer(locale, "Lançamento inválido.") };
   try {
     const [row] = await db.select({ id: transactions.id, userId: transactions.userId, accountId: transactions.accountId, externalId: transactions.externalId, origin: transactions.origin }).from(transactions).where(and(eq(transactions.id, parsed.data.transactionId), eq(transactions.userId, userId))).limit(1);
     const candidate = row ?? null;
-    if (!canDeletePluggyTransaction(candidate, userId) || !candidate.externalId) return { error: "Lançamento Pluggy não encontrado." };
+    if (!canDeletePluggyTransaction(candidate, userId) || !candidate.externalId) return { error: translateServer(locale, "Lançamento Pluggy não encontrado.") };
     await db.transaction(async (tx) => {
       await tx.insert(openFinanceDeleted).values({ userId, accountId: candidate.accountId, externalId: candidate.externalId }).onConflictDoNothing();
       await tx.delete(transactions).where(and(eq(transactions.id, candidate.id), eq(transactions.userId, userId), eq(transactions.accountId, candidate.accountId), eq(transactions.externalId, candidate.externalId), eq(transactions.origin, "PLUGGY")));
@@ -383,19 +393,20 @@ export async function deletePluggyTransaction(input: unknown) {
     revalidatePath("/lancamentos"); revalidatePath("/painel"); revalidatePath("/contas");
     return { ok: true };
   } catch (error) {
-    return { error: safeError(error) };
+    return { error: translateServer(locale, safeError(error)) };
   }
 }
 
 export async function getOpenFinanceDeletionCounts(input: unknown) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "integration");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
   const parsed = openFinanceConnectionIdSchema.safeParse(input);
-  if (!parsed.success) return { error: "Conexão inválida." };
+  if (!parsed.success) return { error: translateServer(locale, "Conexão inválida.") };
   try {
     const [connection] = await db.select({ id: openFinanceConnections.id }).from(openFinanceConnections).where(and(eq(openFinanceConnections.id, parsed.data.connectionId), eq(openFinanceConnections.userId, userId))).limit(1);
-    if (!connection) return { error: "Conexão não encontrada." };
+    if (!connection) return { error: translateServer(locale, "Conexão não encontrada.") };
     const localAccounts = await db.select({ id: accounts.id }).from(accounts).where(and(eq(accounts.userId, userId), eq(accounts.externalConnectionId, connection.id)));
     const accountIds = localAccounts.map((account) => account.id);
     if (!accountIds.length) return { transactions: 0, invoices: 0, tombstones: 0 };
@@ -407,21 +418,22 @@ export async function getOpenFinanceDeletionCounts(input: unknown) {
     const plan = planConnectionDataDeletion({ userId, accountIds, transactions: transactionRows, invoices: invoiceRows, tombstones: tombstoneRows });
     return { transactions: plan.transactionIds.length, invoices: plan.invoiceIds.length, tombstones: plan.tombstoneExternalIds.length };
   } catch (error) {
-    return { error: safeError(error) };
+    return { error: translateServer(locale, safeError(error)) };
   }
 }
 
 export async function deleteAllOpenFinanceData(input: unknown) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "integration");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
   const parsed = deleteAllOpenFinanceSchema.safeParse(input);
-  if (!parsed.success) return { error: "Confirme explicitamente a exclusão dos dados Pluggy." };
+  if (!parsed.success) return { error: translateServer(locale, "Confirme explicitamente a exclusão dos dados Pluggy.") };
   try {
     const result = await db.transaction(async (tx) => {
       const [connection] = await tx.select({ id: openFinanceConnections.id, status: openFinanceConnections.status }).from(openFinanceConnections).where(and(eq(openFinanceConnections.id, parsed.data.connectionId), eq(openFinanceConnections.userId, userId))).for("update").limit(1);
-      if (!connection) return { error: "Conexão não encontrada." };
-      if (connection.status === "SYNCING") return { error: "Aguarde a sincronizacao terminar antes de excluir os dados." };
+      if (!connection) return { error: translateServer(locale, "Conexão não encontrada.") };
+      if (connection.status === "SYNCING") return { error: translateServer(locale, "Aguarde a sincronizacao terminar antes de excluir os dados.") };
       const localAccounts = await tx.select({ id: accounts.id }).from(accounts).where(and(eq(accounts.userId, userId), eq(accounts.externalConnectionId, connection.id)));
       const accountIds = localAccounts.map((account) => account.id);
       if (!accountIds.length) return { ok: true, transactions: 0, invoices: 0, tombstones: 0 };
@@ -439,41 +451,43 @@ export async function deleteAllOpenFinanceData(input: unknown) {
     if ("ok" in result) { revalidatePath("/configuracoes/integracao"); revalidatePath("/lancamentos"); revalidatePath("/contas"); revalidatePath("/painel"); }
     return result;
   } catch (error) {
-    return { error: safeError(error) };
+    return { error: translateServer(locale, safeError(error)) };
   }
 }
 
 export async function removeOpenFinanceCredentials(input: unknown) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "integration");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
   const parsed = removeOpenFinanceCredentialsSchema.safeParse(input);
-  if (!parsed.success) return { error: "Confirme explicitamente a remoção das credenciais." };
+  if (!parsed.success) return { error: translateServer(locale, "Confirme explicitamente a remoção das credenciais.") };
   try {
     const result = await db.transaction(async (tx) => {
       const [connection] = await tx.select({ id: openFinanceConnections.id }).from(openFinanceConnections).where(eq(openFinanceConnections.userId, userId)).limit(1);
-      if (connection) return { error: "Remova todas as conexões antes de remover as credenciais." };
+      if (connection) return { error: translateServer(locale, "Remova todas as conexões antes de remover as credenciais.") };
       const deleted = await tx.delete(openFinanceCredentials).where(eq(openFinanceCredentials.userId, userId)).returning({ userId: openFinanceCredentials.userId });
-      return deleted.length ? { ok: true } : { error: "Nenhuma credencial salva." };
+      return deleted.length ? { ok: true } : { error: translateServer(locale, "Nenhuma credencial salva.") };
     });
     if ("ok" in result) revalidatePath("/configuracoes/integracao");
     return result;
   } catch (error) {
-    return { error: safeError(error) };
+    return { error: translateServer(locale, safeError(error)) };
   }
 }
 
 export async function removeOpenFinanceConnection(input: unknown) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "integration");
-  if (restriction) return { error: restriction };
+  if (restriction) return { error: translateServer(locale, restriction) };
   const parsed = removeOpenFinanceConnectionSchema.safeParse(input);
-  if (!parsed.success) return { error: "Confirme explicitamente a remoção da conexão." };
+  if (!parsed.success) return { error: translateServer(locale, "Confirme explicitamente a remoção da conexão.") };
   try {
     const result = await db.transaction(async (tx) => {
       const [connection] = await tx.select({ id: openFinanceConnections.id, status: openFinanceConnections.status }).from(openFinanceConnections).where(and(eq(openFinanceConnections.id, parsed.data.connectionId), eq(openFinanceConnections.userId, userId))).for("update").limit(1);
-      if (!connection) return { error: "Conexão não encontrada." };
-      if (connection.status === "SYNCING") return { error: "Aguarde a sincronizacao terminar antes de remover a conexao." };
+      if (!connection) return { error: translateServer(locale, "Conexão não encontrada.") };
+      if (connection.status === "SYNCING") return { error: translateServer(locale, "Aguarde a sincronizacao terminar antes de remover a conexao.") };
       const localAccounts = await tx.select({ id: accounts.id }).from(accounts).where(and(eq(accounts.userId, userId), eq(accounts.externalConnectionId, connection.id)));
       const accountIds = localAccounts.map((account) => account.id);
       let deletedTransactions = 0;
@@ -500,15 +514,16 @@ export async function removeOpenFinanceConnection(input: unknown) {
     if ("ok" in result) { revalidatePath("/configuracoes/integracao"); revalidatePath("/lancamentos"); revalidatePath("/contas"); revalidatePath("/painel"); revalidatePath("/importar"); }
     return result;
   } catch (error) {
-    return { error: safeError(error) };
+    return { error: translateServer(locale, safeError(error)) };
   }
 }
 
 // Chamado pelo painel a cada visita: só sincroniza se a última tentativa tem 5+ min.
 export async function autoSyncOpenFinance(): Promise<{ synced: boolean; error?: string }> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const restriction = await getProfileRestriction(userId, "integration");
-  if (restriction) return { synced: false, error: restriction };
+  if (restriction) return { synced: false, error: translateServer(locale, restriction) };
   let synced = false;
   let failed = false;
   try {
@@ -534,10 +549,18 @@ export async function autoSyncOpenFinance(): Promise<{ synced: boolean; error?: 
     failed = true;
     console.error("Open Finance auto sync unavailable", { code: "AUTO_SYNC_UNAVAILABLE" });
   }
-  return { synced, ...(failed ? { error: "Não foi possível concluir a sincronização automática. Confira as integrações e tente novamente." } : {}) };
+  return { synced, ...(failed ? { error: translateServer(locale, "Não foi possível concluir a sincronização automática. Confira as integrações e tente novamente.") } : {}) };
 }
 
 export async function syncOpenFinance(input: unknown, mode: "manual" | "auto" = "manual") {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
-  return syncOpenFinanceForUser(userId, input, mode, { revalidate: revalidatePath });
+  const result = await syncOpenFinanceForUser(userId, input, mode, { revalidate: revalidatePath });
+  return {
+    ...result,
+    ...("error" in result && result.error ? { error: translateServer(locale, result.error) } : {}),
+    ...("accounts" in result && result.accounts ? { accounts: result.accounts.map(account => ({
+      ...account, ...(account.error ? { error: translateServer(locale, account.error) } : {}),
+    })) } : {}),
+  };
 }

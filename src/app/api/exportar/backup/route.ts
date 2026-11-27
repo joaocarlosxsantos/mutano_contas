@@ -1,3 +1,4 @@
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { NextRequest } from "next/server";
 import { requireUserId } from "@/lib/auth";
 import { verifyExportToken, verifyUserPassword } from "@/lib/reauth";
@@ -42,6 +43,7 @@ async function checkReauth(
   token?: string | null,
   password?: string | null
 ): Promise<{ ok: boolean; error?: string }> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   if (token && verifyExportToken(token, userId)) {
     return { ok: true };
   }
@@ -49,18 +51,19 @@ async function checkReauth(
   if (password) {
     const res = await verifyUserPassword(userId, password);
     if (res.ok) return { ok: true };
-    return { ok: false, error: res.error ?? "Senha incorreta." };
+    return { ok: false, error: translateServer(locale, res.error ?? "Senha incorreta.") };
   }
 
   return {
     ok: false,
-    error: "Reautenticação necessária. Confirme sua senha para baixar o backup de dados.",
+    error: translateServer(locale, "Reautenticação necessária. Confirme sua senha para baixar o backup de dados."),
   };
 }
 
 async function handleBackupDownload(userId: string) {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  if (!user) return new Response("User not found", { status: 404 });
+  if (!user) return new Response(locale === "en" ? "User not found" : "Usuário não encontrado.", { status: 404 });
 
   const [accounts] = await Promise.all([db.select().from(accountsTable).where(eq(accountsTable.userId, userId))]);
 
@@ -146,7 +149,7 @@ async function handleBackupDownload(userId: string) {
   });
 
   const date = new Date().toISOString().split("T")[0];
-  const filename = `backup-financeiro-${date}.json`;
+  const filename = `${locale === "en" ? "financial-backup" : "backup-financeiro"}-${date}.json`;
 
   return new Response(JSON.stringify(backup, null, 2), {
     headers: {
@@ -157,6 +160,7 @@ async function handleBackupDownload(userId: string) {
 }
 
 export async function GET(request: NextRequest) {
+
   const userId = await requireUserId();
   const sp = request.nextUrl.searchParams;
 
@@ -181,6 +185,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+
   const userId = await requireUserId();
 
   let token: string | null = null;

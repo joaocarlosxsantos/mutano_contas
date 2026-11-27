@@ -1,3 +1,6 @@
+import type { Locale } from "@/lib/i18n/config";
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { getLocale } from "@/lib/i18n/server";
 import Link from "next/link";
 import { MobileDisclosure } from "@/components/ui/mobile-disclosure";
 import { Wallet } from "lucide-react";
@@ -15,13 +18,15 @@ import { BillRulesManager } from "./bill-rules-manager";
 import { BillGroupingsManager } from "./bill-groupings-manager";
 import { BillsTabs, type BillsTabType } from "./bills-tabs";
 
-export const metadata = { title: "Contas a pagar" };
+function localizedmetadata(locale: Locale) { return { title: translatePlanning(locale, "Contas a pagar") }; }
+export async function generateMetadata() { return localizedmetadata(await getLocale()); }
 
 export default async function BillsPage({
   searchParams,
 }: {
   searchParams: Promise<{ m?: string; aba?: string }>;
 }) {
+  const locale = await getLocale().catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const sp = await searchParams;
   const ref = monthRefFromParam(sp.m);
@@ -39,15 +44,15 @@ export default async function BillsPage({
   return (
     <>
       <PageHeader
-        title="Contas a pagar"
-        description="Controle de vencimentos e rateio de despesas do mês."
+        title={translatePlanning(locale, "Contas a pagar")}
+        description={translatePlanning(locale, "Controle de vencimentos e rateio de despesas do mês.")}
         action={<>
-          <Link href="/contas-a-pagar/grupos" className="inline-flex min-h-11 items-center rounded-xl border border-[var(--line-strong)] px-3 text-sm font-medium hover:bg-[var(--surface-2)] focus-visible:outline-2 focus-visible:outline-[var(--acento)]">Grupos e acertos</Link>
+          <Link href="/contas-a-pagar/grupos" className="inline-flex min-h-11 items-center rounded-xl border border-[var(--line-strong)] px-3 text-sm font-medium hover:bg-[var(--surface-2)] focus-visible:outline-2 focus-visible:outline-[var(--acento)]">{translatePlanning(locale, "Grupos e acertos")}</Link>
           <MonthSwitcher value={ref} />
         </>}
       />
 
-      <BillsPendingBanner monthRef={ref} monthName={monthLabel(ref)} pending={rulesStatus.pending} />
+      <BillsPendingBanner monthRef={ref} monthName={monthLabel(ref, locale)} pending={rulesStatus.pending} />
 
       <div className="mb-5 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
@@ -67,15 +72,15 @@ export default async function BillsPage({
               {bills.length ? (
                 <BillList
                   bills={bills}
-                  monthLabel={monthLabel(ref)}
+                  monthLabel={monthLabel(ref, locale)}
                   groupings={groupings}
                   activeTab={activeTab}
                 />
               ) : (
                 <EmptyState
                   icon={Wallet}
-                  title={`Nada em ${monthLabel(ref)}`}
-                  description="Crie uma conta recorrente ou avulsa ao lado para começar a controlar."
+                  title={translatePlanning(locale, "Nada em {0}", monthLabel(ref, locale))}
+                  description={translatePlanning(locale, "Crie uma conta recorrente ou avulsa ao lado para começar a controlar.")}
                 />
               )}
             </Card>
@@ -84,17 +89,17 @@ export default async function BillsPage({
 
         <div className="space-y-4 lg:sticky lg:top-6 lg:self-start">
           <Card className="min-w-0">
-            <h2 className="mb-3 text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">Nova conta</h2>
-            <MobileDisclosure label="Preencher nova conta"><NewBillForm groupings={groupings} monthRef={ref} /></MobileDisclosure>
+            <h2 className="mb-3 text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">{translatePlanning(locale, "Nova conta")}</h2>
+            <MobileDisclosure label={translatePlanning(locale, "Preencher nova conta")}><NewBillForm groupings={groupings} monthRef={ref} /></MobileDisclosure>
           </Card>
 
           <Card className="min-w-0">
-            <h2 className="mb-3 text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">Contas recorrentes</h2>
+            <h2 className="mb-3 text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">{translatePlanning(locale, "Contas recorrentes")}</h2>
             <BillRulesManager rules={rulesStatus.rules} monthRef={ref} />
           </Card>
 
           <Card className="min-w-0">
-            <h2 className="mb-3 text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">Agrupamentos</h2>
+            <h2 className="mb-3 text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">{translatePlanning(locale, "Agrupamentos")}</h2>
             <BillGroupingsManager groupings={groupings} />
           </Card>
         </div>

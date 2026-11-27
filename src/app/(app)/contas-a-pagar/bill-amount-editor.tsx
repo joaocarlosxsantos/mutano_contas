@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { updateBillAmount, type ActionState } from "@/server/actions/bills";
 import { Field, Input } from "@/components/ui/field";
@@ -31,12 +33,13 @@ export function BillAmountEditor({
   participants: EditorParticipant[];
   onDone: () => void;
 }) {
+  const locale = useLocale();
   const [state, formAction] = useActionState(updateBillAmount, initial);
-  const [total, setTotal] = useState(totalCents ? formatCentsPlain(totalCents) : "");
+  const [total, setTotal] = useState(totalCents ? formatCentsPlain(totalCents, locale) : "");
   const [dueDayVal, setDueDayVal] = useState(dueDay != null ? String(dueDay) : "");
   const [mode, setMode] = useState<"EQUAL" | "MANUAL">("EQUAL");
   const [amounts, setAmounts] = useState<Record<string, string>>(() =>
-    Object.fromEntries(participants.map((p) => [p.id, p.amountCents ? formatCentsPlain(p.amountCents) : ""])),
+    Object.fromEntries(participants.map((p) => [p.id, p.amountCents ? formatCentsPlain(p.amountCents, locale) : ""])),
   );
 
   useEffect(() => {
@@ -57,24 +60,24 @@ export function BillAmountEditor({
       <input type="hidden" name="mode" value={mode} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Field label="Valor total">
+        <Field label={translatePlanning(locale, "Valor total")}>
           <Input className="min-h-12 min-w-0 max-w-full text-base!"
             name="total"
             inputMode="decimal"
-            placeholder="0,00"
+            placeholder={translatePlanning(locale, "0,00")}
             required
             value={total}
             onChange={(e) => setTotal(e.target.value)}
           />
         </Field>
 
-        <Field label="Dia de vencimento" hint="Opcional (1 a 31).">
+        <Field label={translatePlanning(locale, "Dia de vencimento")} hint={translatePlanning(locale, "Opcional (1 a 31).")}>
           <Input className="min-h-12 min-w-0 max-w-full text-base!"
             name="dueDay"
             type="number"
             min={1}
             max={31}
-            placeholder="Ex.: 10"
+            placeholder={translatePlanning(locale, "Ex.: 10")}
             value={dueDayVal}
             onChange={(e) => setDueDayVal(e.target.value)}
           />
@@ -91,8 +94,7 @@ export function BillAmountEditor({
                 mode === "EQUAL" ? "border-[var(--text-brand)] bg-[var(--color-save-soft)] text-[var(--text-brand)]" : "border-[var(--border)] text-[var(--text-muted)]"
               }`].filter(Boolean).join(" ")}
             >
-              Dividir igualmente
-            </button>
+              {translatePlanning(locale, "Dividir igualmente")} </button>
             <button
               type="button"
               onClick={() => setMode("MANUAL")}
@@ -100,8 +102,7 @@ export function BillAmountEditor({
                 mode === "MANUAL" ? "border-[var(--text-brand)] bg-[var(--color-save-soft)] text-[var(--text-brand)]" : "border-[var(--border)] text-[var(--text-muted)]"
               }`].filter(Boolean).join(" ")}
             >
-              Dividir manualmente
-            </button>
+              {translatePlanning(locale, "Dividir manualmente")} </button>
           </div>
 
           {mode === "MANUAL" ? (
@@ -111,9 +112,9 @@ export function BillAmountEditor({
                   <span className="min-w-0 flex-1 truncate text-[0.8125rem]">{p.name}</span>
                   <Input
                     name={`amount_${p.id}`}
-                    aria-label={`Valor de ${p.name}`}
+                    aria-label={translatePlanning(locale, "Valor de {0}", p.name)}
                     inputMode="decimal"
-                    placeholder="0,00"
+                    placeholder={translatePlanning(locale, "0,00")}
                     className="min-h-12 min-w-0 max-w-full text-base! w-28"
                     value={amounts[p.id] ?? ""}
                     onChange={(e) => setAmounts((a) => ({ ...a, [p.id]: e.target.value }))}
@@ -129,10 +130,10 @@ export function BillAmountEditor({
                   }`}
                 >
                   {manualCheck.ok
-                    ? "A divisão bate certinho com o total."
+                    ? translatePlanning(locale, "A divisão bate certinho com o total.")
                     : manualCheck.remainingCents > 0
-                      ? `Falta dividir ${formatCents(manualCheck.remainingCents)}.`
-                      : `Passou do total em ${formatCents(-manualCheck.remainingCents)}.`}
+                      ? translatePlanning(locale, "Falta dividir {0}.", formatCents(manualCheck.remainingCents, locale))
+                      : translatePlanning(locale, "Passou do total em {0}.", formatCents(-manualCheck.remainingCents, locale))}
                 </p>
               ) : null}
             </div>
@@ -143,12 +144,10 @@ export function BillAmountEditor({
       {state.error ? <p className="text-[0.8125rem] text-[var(--text-out)]">{state.error}</p> : null}
 
       <div className="flex gap-2">
-        <SubmitButton className="min-h-11 min-w-11" size="sm" pendingLabel="Salvando...">
-          Salvar
-        </SubmitButton>
+        <SubmitButton className="min-h-11 min-w-11" size="sm" pendingLabel={translatePlanning(locale, "Salvando...")}>
+          {translatePlanning(locale, "Salvar")} </SubmitButton>
         <Button className="min-h-11 min-w-11" type="button" size="sm" variant="ghost" onClick={onDone}>
-          Cancelar
-        </Button>
+          {translatePlanning(locale, "Cancelar")} </Button>
       </div>
     </form>
   );

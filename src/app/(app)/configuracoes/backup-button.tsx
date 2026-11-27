@@ -1,11 +1,14 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useState, useTransition } from "react";
 import { Download, Lock } from "lucide-react";
 import { Sheet } from "@/components/sheet";
 import { requestExportToken } from "@/server/actions/export";
 
 export function BackupButton() {
+  const locale = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -27,7 +30,7 @@ export function BackupButton() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!password.trim()) {
-      setError("Informe sua senha.");
+      setError(translatePlanning(locale, "Informe sua senha."));
       return;
     }
 
@@ -35,7 +38,7 @@ export function BackupButton() {
       setError(null);
       const res = await requestExportToken(password);
       if (!res.ok || !res.token) {
-        setError(res.error ?? "Senha incorreta.");
+        setError(res.error ?? translatePlanning(locale, "Senha incorreta."));
         return;
       }
 
@@ -60,11 +63,11 @@ export function BackupButton() {
         className="inline-flex min-h-11 items-center justify-center gap-2 rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--surface-2)] px-4 text-sm font-medium text-[var(--text)] transition-colors hover:bg-[var(--surface-3)] focus-visible:ring-2 focus-visible:ring-[var(--acento)]"
       >
         <Download className="h-4 w-4 text-[var(--text-muted)]" />
-        <span>Baixar backup (JSON)</span>
+        <span>{translatePlanning(locale, "Baixar backup (JSON)")}</span>
       </button>
 
       {isOpen && (
-        <Sheet title="Confirmar senha" maxWidth="md" onClose={handleClose} closeDisabled={isPending}>
+        <Sheet title={translatePlanning(locale, "Confirmar senha")} maxWidth="md" onClose={handleClose} closeDisabled={isPending}>
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--surface-2)] border border-[var(--border)] text-[var(--acento)]">
                 <Lock className="h-5 w-5" />
@@ -72,8 +75,7 @@ export function BackupButton() {
               <div>
 
                 <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-                  Por segurança, confirme sua senha para baixar o backup completo.
-                </p>
+                  {translatePlanning(locale, "Por segurança, confirme sua senha para baixar o backup completo.")} </p>
               </div>
             </div>
 
@@ -83,8 +85,7 @@ export function BackupButton() {
                   htmlFor="reauth-password-input"
                   className="block text-xs font-medium text-[var(--text-muted)] mb-1.5"
                 >
-                  Sua senha
-                </label>
+                  {translatePlanning(locale, "Sua senha")} </label>
                 <input
                   id="reauth-password-input"
                   type="password"
@@ -92,7 +93,7 @@ export function BackupButton() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Digite sua senha atual"
+                  placeholder={translatePlanning(locale, "Digite sua senha atual")}
                   disabled={isPending}
                   className="w-full min-h-11 rounded-[var(--radius-input)] border border-[var(--border)] bg-[var(--surface-2)] px-3 text-sm text-[var(--text)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--acento)]"
                 />
@@ -111,14 +112,13 @@ export function BackupButton() {
                   disabled={isPending}
                   className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-button)] border border-[var(--border)] bg-transparent px-4 text-sm font-medium text-[var(--text)] hover:bg-[var(--surface-2)]"
                 >
-                  Cancelar
-                </button>
+                  {translatePlanning(locale, "Cancelar")} </button>
                 <button
                   type="submit"
                   disabled={isPending}
                   className="inline-flex min-h-11 items-center justify-center rounded-[var(--radius-button)] bg-[var(--btn-brand)] px-4 text-sm font-medium text-[var(--on-acento)] hover:opacity-90 disabled:opacity-50"
                 >
-                  {isPending ? "Confirmando..." : "Confirmar e baixar"}
+                  {isPending ? translatePlanning(locale, "Confirmando...") : translatePlanning(locale, "Confirmar e baixar")}
                 </button>
               </div>
             </form>

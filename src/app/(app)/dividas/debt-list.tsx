@@ -1,12 +1,14 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useState, useTransition } from "react";
 import { Trash2 } from "lucide-react";
 import { deleteDebt, registerDebtPayment, updateDebtField } from "@/server/actions/debts";
 import { Button } from "@/components/ui/button";
 import { MoneyInput } from "@/components/ui/field";
 import { formatCents, formatCentsPlain } from "@/lib/money";
-import { DEBT_KIND_LABEL, annualRateFromMonthly, formatRate } from "@/lib/debts";
+import { DEBT_KIND_LABEL, annualRateFromMonthly } from "@/lib/debts";
 import { cn } from "@/lib/cn";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { Hint } from "@/components/ui/hint";
@@ -35,6 +37,7 @@ export function DebtList({ debts }: { debts: Debt[] }) {
 }
 
 function Row({ debt }: { debt: Debt }) {
+  const locale = useLocale();
   const [pending, start] = useTransition();
   const [paying, setPaying] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,24 +52,24 @@ function Row({ debt }: { debt: Debt }) {
             {DEBT_KIND_LABEL[debt.kind] &&
             DEBT_KIND_LABEL[debt.kind].toLowerCase() !== debt.name.trim().toLowerCase() ? (
               <span className="muted rounded-md bg-[var(--surface-2)] px-1.5 py-0.5 text-xs font-medium ring-1 ring-[var(--border)] ring-inset">
-                {DEBT_KIND_LABEL[debt.kind]}
+                {translatePlanning(locale, DEBT_KIND_LABEL[debt.kind])}
               </span>
             ) : null}
           </div>
           <p className="muted mt-1 text-xs">
-            {debt.creditor ? `${debt.creditor} · ` : ""}vence todo dia {debt.dueDay}
-            {debt.paidSoFarCents > 0 ? ` · já abatido ${formatCents(debt.paidSoFarCents)}` : ""}
+            {debt.creditor ? `${debt.creditor} · ` : ""}{translatePlanning(locale, "vence todo dia")} {debt.dueDay}
+            {debt.paidSoFarCents > 0 ? translatePlanning(locale, " · já abatido {0}", formatCents(debt.paidSoFarCents, locale)) : ""}
           </p>
         </div>
 
         <button
           type="button"
-          aria-label={`Excluir ${debt.name}`}
+          aria-label={translatePlanning(locale, "Excluir {0}", debt.name)}
           disabled={pending}
           onClick={async () => {
             const ok = await confirm({
-              title: `Excluir a dívida "${debt.name}"?`,
-              confirmLabel: "Excluir",
+              title: translatePlanning(locale, "Excluir a dívida \"{0}\"?", debt.name),
+              confirmLabel: translatePlanning(locale, "Excluir"),
               tone: "danger",
             });
             if (!ok) return;
@@ -92,28 +95,27 @@ function Row({ debt }: { debt: Debt }) {
               onClick={() => setError(null)}
               className="min-h-11 min-w-11 ml-auto text-[0.75rem] font-medium hover:underline"
             >
-              Fechar
-            </button>
+              {translatePlanning(locale, "Fechar")} </button>
           </Hint>
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <EditableField
-          label="Saldo devedor"
-          value={formatCentsPlain(debt.balanceCents)}
+          label={translatePlanning(locale, "Saldo devedor")}
+          value={formatCentsPlain(debt.balanceCents, locale)}
           prefix="R$"
           onSave={(value) => updateDebtField({ id: debt.id, field: "balance", value })}
         />
         <EditableField
-          label="Juros ao mês"
-          value={(debt.monthlyRateBps / 100).toFixed(2).replace(".", ",")}
+          label={translatePlanning(locale, "Juros ao mês")}
+          value={(debt.monthlyRateBps / 100).toFixed(2).replace(".", locale === "en" ? "." : ",")}
           suffix="%"
           onSave={(value) => updateDebtField({ id: debt.id, field: "rate", value })}
         />
         <EditableField
-          label="Parcela mínima"
-          value={formatCentsPlain(debt.minimumPaymentCents)}
+          label={translatePlanning(locale, "Parcela mínima")}
+          value={formatCentsPlain(debt.minimumPaymentCents, locale)}
           prefix="R$"
           onSave={(value) => updateDebtField({ id: debt.id, field: "minimum", value })}
         />
@@ -123,22 +125,19 @@ function Row({ debt }: { debt: Debt }) {
         {debt.monthlyRateBps > 0 ? (
           <>
             <span className="font-medium text-[var(--text-out)]">
-              Custa {formatCents(debt.monthlyInterestCents)} por mês só de juros
-            </span>
+              {translatePlanning(locale, "Custa")} {formatCents(debt.monthlyInterestCents, locale)} {translatePlanning(locale, "por mês só de juros")} </span>
             <span className="muted">
-              {formatRate(debt.monthlyRateBps)} ≈ {annualRateFromMonthly(debt.monthlyRateBps)}% ao
-              ano
-            </span>
+              {(debt.monthlyRateBps / 100).toLocaleString(locale === "en" ? "en-US" : "pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}{translatePlanning(locale, "% a.m.")} ≈ {annualRateFromMonthly(debt.monthlyRateBps).toLocaleString(locale === "en" ? "en-US" : "pt-BR")}{translatePlanning(locale, "% ao ano")} </span>
           </>
         ) : (
-          <span className="muted">Sem juros informados</span>
+          <span className="muted">{translatePlanning(locale, "Sem juros informados")}</span>
         )}
         <button
           type="button"
           onClick={() => setPaying((v) => !v)}
           className="min-h-11 min-w-11 ml-auto cursor-pointer font-medium text-[var(--text-brand)] hover:underline"
         >
-          {paying ? "Fechar" : "Registrar pagamento"}
+          {paying ? translatePlanning(locale, "Fechar") : translatePlanning(locale, "Registrar pagamento")}
         </button>
       </div>
 
@@ -151,12 +150,11 @@ function Row({ debt }: { debt: Debt }) {
           }}
         >
           <div className="min-w-36 flex-1">
-            <label className="mb-1.5 block text-xs font-medium">Valor pago</label>
-            <MoneyInput className="min-h-12 min-w-0 max-w-full text-base!" name="amount" inputMode="decimal" placeholder="0,00" required />
+            <label className="mb-1.5 block text-xs font-medium">{translatePlanning(locale, "Valor pago")}</label>
+            <MoneyInput className="min-h-12 min-w-0 max-w-full text-base!" name="amount" inputMode="decimal" placeholder={translatePlanning(locale, "0,00")} required />
           </div>
           <Button className="min-h-11 min-w-11" type="submit" size="sm">
-            Abater do saldo
-          </Button>
+            {translatePlanning(locale, "Abater do saldo")} </Button>
         </form>
       ) : null}
     </li>

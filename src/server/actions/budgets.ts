@@ -1,5 +1,6 @@
 "use server";
 
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { revalidatePath } from "next/cache";
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/db";
@@ -25,10 +26,11 @@ export async function setBudget(input: {
   month: number;
   amount: string;
 }): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
   if (!Number.isInteger(input.year) || input.year < 2000 || input.year > 2100 || input.month < 1 || input.month > 12) {
-    return { error: "Período inválido." };
+    return { error: translateServer(locale, "Período inválido.") };
   }
 
   const [category] = await db
@@ -37,14 +39,14 @@ export async function setBudget(input: {
     .where(and(eq(categories.id, input.categoryId), eq(categories.userId, userId)))
     .limit(1);
 
-  if (!category) return { error: "Categoria não encontrada." };
+  if (!category) return { error: translateServer(locale, "Categoria não encontrada.") };
   if (category.kind !== "EXPENSE") {
-    return { error: "Só faz sentido definir limite para categorias de gasto." };
+    return { error: translateServer(locale, "Só faz sentido definir limite para categorias de gasto.") };
   }
 
   const limitCents = Math.abs(parseMoneyToCents(input.amount));
 
-  if (limitCents > MAX_CENTS) return { error: "Valor muito alto." };
+  if (limitCents > MAX_CENTS) return { error: translateServer(locale, "Valor muito alto.") };
 
   if (limitCents === 0) {
     await removeBudget(input.categoryId, input.year, input.month);
@@ -91,6 +93,7 @@ export async function removeBudget(categoryId: string, year: number, month: numb
  * Não sobrescreve limites já definidos — o que você ajustou continua valendo.
  */
 export async function copyPreviousMonth(ref: MonthRef): Promise<{ copied: number; error?: string }> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
   const previous = shiftMonth(ref, -1);
 
@@ -105,7 +108,7 @@ export async function copyPreviousMonth(ref: MonthRef): Promise<{ copied: number
       ),
     );
 
-  if (!source.length) return { copied: 0, error: "O mês anterior não tem nenhum limite definido." };
+  if (!source.length) return { copied: 0, error: translateServer(locale, "O mês anterior não tem nenhum limite definido.") };
 
   const inserted = await db
     .insert(budgets)
@@ -177,6 +180,7 @@ export async function applyBudgetSuggestion(input: {
   month: number;
   limitCents: number;
 }): Promise<ActionState> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
   if (
@@ -186,7 +190,7 @@ export async function applyBudgetSuggestion(input: {
     input.month < 1 ||
     input.month > 12
   ) {
-    return { error: "Período inválido." };
+    return { error: translateServer(locale, "Período inválido.") };
   }
 
   if (
@@ -194,7 +198,7 @@ export async function applyBudgetSuggestion(input: {
     input.limitCents <= 0 ||
     input.limitCents > MAX_CENTS
   ) {
-    return { error: "Valor sugerido inválido." };
+    return { error: translateServer(locale, "Valor sugerido inválido.") };
   }
 
   const [category] = await db
@@ -203,9 +207,9 @@ export async function applyBudgetSuggestion(input: {
     .where(and(eq(categories.id, input.categoryId), eq(categories.userId, userId)))
     .limit(1);
 
-  if (!category) return { error: "Categoria não encontrada." };
+  if (!category) return { error: translateServer(locale, "Categoria não encontrada.") };
   if (category.kind !== "EXPENSE") {
-    return { error: "Só faz sentido definir limite para categorias de gasto." };
+    return { error: translateServer(locale, "Só faz sentido definir limite para categorias de gasto.") };
   }
 
   await db
@@ -233,6 +237,7 @@ export async function applyAllBudgetSuggestions(
   ref: MonthRef,
   items: Array<{ categoryId: string; limitCents: number }>,
 ): Promise<{ applied: number; error?: string }> {
+  const locale = await import("@/lib/i18n/server").then(({ getLocale }) => getLocale()).catch(() => "pt-BR" as const);
   const userId = await requireUserId();
 
   if (
@@ -242,7 +247,7 @@ export async function applyAllBudgetSuggestions(
     ref.month < 1 ||
     ref.month > 12
   ) {
-    return { applied: 0, error: "Período inválido." };
+    return { applied: 0, error: translateServer(locale, "Período inválido.") };
   }
 
   if (!Array.isArray(items) || items.length === 0) {

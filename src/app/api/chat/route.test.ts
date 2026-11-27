@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-const mocks = vi.hoisted(() => ({ auth: vi.fn(), exists: vi.fn(), limit: vi.fn(), reply: vi.fn(), ai: vi.fn() }));
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), exists: vi.fn(), limit: vi.fn(), reply: vi.fn(), ai: vi.fn(), englishAi: vi.fn(), locale: "pt-BR" }));
+vi.mock("@/lib/i18n/server", () => ({ getLocale: async () => mocks.locale }));
 vi.mock("@/server/telegram/ai-service", () => ({ answerQuestion: mocks.ai }));
 vi.mock("@/server/open-finance/data-age", () => ({ withOpenFinanceAge: async (_id: string, build: () => unknown) => build() }));
 vi.mock("@/lib/auth", () => ({ auth: () => mocks.auth() }));
 vi.mock("@/server/telegram/site-chat", () => ({ siteChatOwnerExists: (...args: unknown[]) => mocks.exists(...args),
-  claimSiteChatRequest: (...args: unknown[]) => mocks.limit(...args), siteCommandReply: (...args: unknown[]) => mocks.reply(...args) }));
+  claimSiteChatRequest: (...args: unknown[]) => mocks.limit(...args), siteCommandReply: (...args: unknown[]) => mocks.reply(...args), englishSiteQuestion: (...args: unknown[]) => mocks.englishAi(...args) }));
 import { POST } from "./route";
 import { CHAT_SECRET_NOTICE } from "@/lib/chat-secrets";
 const request = (body: unknown = { command: "/saldo" }, headers: Record<string, string> = {}) => new Request("https://app.test/api/chat", {
@@ -12,9 +13,29 @@ const request = (body: unknown = { command: "/saldo" }, headers: Record<string, 
 });
 beforeEach(() => {
   vi.clearAllMocks(); mocks.auth.mockResolvedValue({ user: { id: "session-owner" } });
+  mocks.locale = "pt-BR";
   mocks.exists.mockResolvedValue(true); mocks.limit.mockResolvedValue({ allowed: true }); mocks.reply.mockResolvedValue("Saldo registrado");
 });
 describe("Chat HTTP autenticado", () => {
+  it("uses the cookie language for errors and secret notices without calling AI", async () => {
+    mocks.locale = "en";
+    const token = `sk-ant-${"a".repeat(35)}`;
+    const notice = await (await POST(request({ message: token }))).json();
+    expect(notice.reply).toContain("do not paste keys");
+    expect(notice.reply).not.toContain(token);
+    expect(mocks.ai).not.toHaveBeenCalled();
+    expect(mocks.englishAi).not.toHaveBeenCalled();
+    mocks.auth.mockResolvedValue(null);
+    expect((await (await POST(request())).json()).error).toBe("🔒 Sign in to chat here.");
+  });
+  it("uses the English site adapter with the session owner and still redacts response secrets", async () => {
+    mocks.locale = "en";
+    mocks.englishAi.mockResolvedValue(`Balance: AQ.${"a".repeat(50)}`);
+    const response = await POST(request({ message: "What is my balance?" }));
+    expect((await response.json()).reply).toBe("Balance: [secret removed]");
+    expect(mocks.englishAi).toHaveBeenCalledWith("session-owner", "What is my balance?", expect.any(Date), undefined);
+    expect(mocks.ai).not.toHaveBeenCalled();
+  });
   it("pergunta de ajuda usa o mesmo serviço autenticado e preserva texto/fonte sem cache", async () => {
     mocks.ai.mockResolvedValue("Abra Minha conta.\nFonte: Ajuda — Minha conta e chave de IA [minha-conta-ia:1]");
     const response = await POST(request({ message: "Onde configuro a IA do app?" }));

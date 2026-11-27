@@ -1,5 +1,7 @@
 "use client";
 
+import { translatePlanning } from "@/lib/i18n/dictionaries/planning";
+import { useLocale } from "@/lib/i18n/context";
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { Repeat, Pause, Play, Trash2 } from "lucide-react";
 import {
@@ -31,6 +33,7 @@ const initial: ActionState = {};
  * Com regra: uma linha compacta com pausar/retomar e excluir.
  */
 export function GoalRecurringControl({ goalId, rule }: { goalId: string; rule: PlainGoalRecurringRule | null }) {
+  const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [state, formAction] = useActionState(createGoalRecurringRule, initial);
   const [pending, start] = useTransition();
@@ -51,13 +54,13 @@ export function GoalRecurringControl({ goalId, rule }: { goalId: string; rule: P
         <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border bg-[var(--surface-2)] px-3 py-2 text-[0.8125rem]">
           <Repeat className="muted size-3.5 shrink-0" />
           <span className="min-w-0 flex-1">
-            <strong className="tnum">{formatCents(rule.amountCents)}</strong> todo dia {rule.dayOfMonth}
-            {!rule.active ? <span className="muted"> · pausado</span> : null}
-            {rule.active && rule.generated ? <span className="muted"> · já caiu este mês</span> : null}
+            <strong className="tnum">{formatCents(rule.amountCents, locale)}</strong> {translatePlanning(locale, "todo dia")} {rule.dayOfMonth}
+            {!rule.active ? <span className="muted"> {translatePlanning(locale, "· pausado")}</span> : null}
+            {rule.active && rule.generated ? <span className="muted"> {translatePlanning(locale, "· já caiu este mês")}</span> : null}
           </span>
           <button
             type="button"
-            title={rule.active ? "Pausar aporte automático" : "Retomar aporte automático"}
+            title={rule.active ? translatePlanning(locale, "Pausar aporte automático") : translatePlanning(locale, "Retomar aporte automático")}
             onClick={() => start(async () => void (await toggleGoalRecurringRule(rule.id, !rule.active)))}
             className="min-h-11 min-w-11 muted cursor-pointer rounded-lg p-1.5 hover:bg-[var(--surface)]"
           >
@@ -65,11 +68,11 @@ export function GoalRecurringControl({ goalId, rule }: { goalId: string; rule: P
           </button>
           <button
             type="button"
-            title="Excluir aporte automático"
+            title={translatePlanning(locale, "Excluir aporte automático")}
             onClick={async () => {
               const ok = await confirm({
-                title: "Excluir este aporte automático?",
-                confirmLabel: "Excluir",
+                title: translatePlanning(locale, "Excluir este aporte automático?"),
+                confirmLabel: translatePlanning(locale, "Excluir"),
                 tone: "danger",
               });
               if (!ok) return;
@@ -92,7 +95,7 @@ export function GoalRecurringControl({ goalId, rule }: { goalId: string; rule: P
         className="min-h-11 min-w-11 inline-flex cursor-pointer items-center gap-1.5 text-[0.8125rem] font-medium text-[var(--text-brand)] hover:underline"
       >
         <Repeat className="size-3.5" />
-        {open ? "Fechar" : "Configurar aporte automático"}
+        {open ? translatePlanning(locale, "Fechar") : translatePlanning(locale, "Configurar aporte automático")}
       </button>
 
       {open ? (
@@ -104,21 +107,19 @@ export function GoalRecurringControl({ goalId, rule }: { goalId: string; rule: P
           <input type="hidden" name="goalId" value={goalId} />
           <input type="hidden" name="startMonth" value={monthRefToParam(currentMonthRef())} />
           <div className="min-w-28 flex-1">
-            <Field label="Valor">
-              <MoneyInput className="min-h-12 min-w-0 max-w-full text-base!" name="amount" inputMode="decimal" placeholder="0,00" required />
+            <Field label={translatePlanning(locale, "Valor")}>
+              <MoneyInput className="min-h-12 min-w-0 max-w-full text-base!" name="amount" inputMode="decimal" placeholder={translatePlanning(locale, "0,00")} required />
             </Field>
           </div>
           <div className="w-24">
-            <Field label="Dia do mês">
+            <Field label={translatePlanning(locale, "Dia do mês")}>
               <Input className="min-h-12 min-w-0 max-w-full text-base!" name="dayOfMonth" type="number" min={1} max={31} defaultValue={5} required />
             </Field>
           </div>
-          <SubmitButton className="min-h-11 min-w-11" size="sm" pendingLabel="Criando...">
-            Guardar
-          </SubmitButton>
+          <SubmitButton className="min-h-11 min-w-11" size="sm" pendingLabel={translatePlanning(locale, "Criando...")}>
+            {translatePlanning(locale, "Guardar")} </SubmitButton>
           <Button className="min-h-11 min-w-11" type="button" size="sm" variant="outline" onClick={() => setOpen(false)}>
-            Cancelar
-          </Button>
+            {translatePlanning(locale, "Cancelar")} </Button>
           {state.error ? (
             <p role="alert" className="w-full text-[0.75rem] text-[var(--text-out)]">{state.error}</p>
           ) : null}

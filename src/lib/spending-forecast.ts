@@ -1,4 +1,7 @@
+import type { Locale } from "@/lib/i18n/config";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { formatCents } from "./money";
+import { formatDate } from "./dates";
 import type { MonthForecastResult } from "./forecast";
 import type { DailyBudgetResult } from "./daily-budget";
 
@@ -22,7 +25,7 @@ const stamp = (day: string) => new Date(`${day}T00:00:00Z`).getTime();
 const iso = (time: number) => new Date(time).toISOString().slice(0, 10);
 const sum = (rows: { amountCents: number }[]) => rows.reduce((n, r) => n + r.amountCents, 0);
 const label = (s: string) => s.replace(/[\r\n\t\u0000-\u001f\u007f]/g, " ").slice(0, 45);
-const weekdays = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+function localizedweekdays(locale: Locale) { return [translateServer(locale, "domingo"), translateServer(locale, "segunda"), translateServer(locale, "terça"), translateServer(locale, "quarta"), translateServer(locale, "quinta"), translateServer(locale, "sexta"), translateServer(locale, "sábado")]; }
 
 export function isConsumption(row: SpendingEntry) {
   return !row.isTransfer && !row.isCardPayment && row.accountType !== "INVESTMENT"
@@ -44,7 +47,7 @@ function robustMean(values: number[]) {
 export function spendingForecast(input: {
   today: string; entries: SpendingEntry[]; commitments: Commitment[]; expectedIncomeCents: number;
   budgets?: { category: string; limitCents: number }[];
-}) {
+}, locale: Locale = "pt-BR") {
   const { today } = input;
   const time = stamp(today);
   const date = new Date(time);
@@ -106,37 +109,37 @@ export function spendingForecast(input: {
   const yesterday = iso(time - DAY);
   const yesterdaySpent = on(yesterday);
   const comparison = (name: string, current: number, previous: number) => previous > 0
-    ? `📊 ${name}: ${Math.round(Math.abs(current - previous) / previous * 100)}% ${current >= previous ? "mais" : "menos"} (${formatCents(current)}).`
-    : `📊 ${name}: ${formatCents(current)}; sem gasto na referência.`;
+    ? `📊 ${name}: ${Math.round(Math.abs(current - previous) / previous * 100)}% ${current >= previous ? translateServer(locale, "mais") : translateServer(locale, "menos")} (${formatCents(current, locale)}).`
+    : translateServer(locale, "📊 {0}: {1}; sem gasto na referência.", name, formatCents(current, locale));
   const insights: string[] = [];
   if (historyStart <= time - 8 * DAY) {
-    insights.push(comparison("Ontem vs mesmo dia da semana passada", yesterdaySpent, on(iso(time - 8 * DAY))));
-    insights.push(comparison(`Ontem vs padrão de ${weekdays[new Date(time - DAY).getUTCDay()]}`, sum(spending.filter(r => r.date === yesterday && isVariableSpending(r))), weekdayCents[new Date(time - DAY).getUTCDay()]));
+    insights.push(comparison(translateServer(locale, "Ontem vs mesmo dia da semana passada"), yesterdaySpent, on(iso(time - 8 * DAY))));
+    insights.push(comparison(translateServer(locale, "Ontem vs padrão de {0}", localizedweekdays(locale)[new Date(time - DAY).getUTCDay()]), sum(spending.filter(r => r.date === yesterday && isVariableSpending(r))), weekdayCents[new Date(time - DAY).getUTCDay()]));
   }
   const prevStart = Date.UTC(date.getUTCFullYear(), date.getUTCMonth() - 1, 1);
   const prevDays = new Date(monthStart - DAY).getUTCDate();
   const elapsed = Math.min(day - 1, prevDays);
   if (elapsed > 0 && posted.some(r => stamp(r.date) >= prevStart && stamp(r.date) < monthStart)) {
-    insights.push(comparison(`Mês vs anterior até dia ${elapsed}`, sum(spending.filter(r => stamp(r.date) >= monthStart && stamp(r.date) < monthStart + elapsed * DAY)), sum(spending.filter(r => stamp(r.date) >= prevStart && stamp(r.date) < prevStart + elapsed * DAY))));
+    insights.push(comparison(translateServer(locale, "Mês vs anterior até dia {0}", elapsed), sum(spending.filter(r => stamp(r.date) >= monthStart && stamp(r.date) < monthStart + elapsed * DAY)), sum(spending.filter(r => stamp(r.date) >= prevStart && stamp(r.date) < prevStart + elapsed * DAY))));
   }
   const recent = spending.filter(r => r.date >= iso(time - 7 * DAY) && r.date < today);
   const prior = spending.filter(r => r.date >= iso(time - 14 * DAY) && r.date < iso(time - 7 * DAY));
   const rises = [...new Set(recent.map(r => r.category))].map(category => ({ category,
     delta: sum(recent.filter(r => r.category === category)) - sum(prior.filter(r => r.category === category)),
   })).filter(r => r.delta > 0).sort((a, b) => b.delta - a.delta).slice(0, 2);
-  if (rises.length) insights.push(`🏷️ Categorias que subiram na semana: ${rises.map(r => `${label(r.category)} +${formatCents(r.delta)}`).join(", ")}.`);
+  if (rises.length) insights.push(translateServer(locale, "🏷️ Categorias que subiram na semana: {0}.", rises.map(r => `${label(r.category)} +${formatCents(r.delta, locale)}`).join(", ")));
   const atypical = recent.filter(r => isVariableSpending(r) && r.amountCents > Math.max(10000, weekdayCents[new Date(stamp(r.date)).getUTCDay()] * 3)).sort((a, b) => b.amountCents - a.amountCents)[0];
-  if (atypical) insights.push(`🛍️ Maior gasto atípico: ${label(atypical.description)}, ${formatCents(atypical.amountCents)}.`);
-  if (income > 0) insights.push(`📥 Ritmo vs renda mensal: ${Math.round(projectedExpenseCents / income * 100)}% projetados; 🎯 teto restante hoje ${formatCents(remaining)}.`);
+  if (atypical) insights.push(translateServer(locale, "🛍️ Maior gasto atípico: {0}, {1}.", label(atypical.description), formatCents(atypical.amountCents, locale)));
+  if (income > 0) insights.push(translateServer(locale, "📥 Ritmo vs renda mensal: {0}% projetados; 🎯 teto restante hoje {1}.", Math.round(projectedExpenseCents / income * 100), formatCents(remaining, locale)));
   for (const budget of input.budgets ?? []) {
     if (budget.limitCents <= 0) continue;
     const spent = sum(realized.filter(r => r.kind === "EXPENSE" && r.category === budget.category));
-    if (spent > budget.limitCents * day / daysInMonth) insights.push(`⚠️ Ritmo acima do orçamento em ${label(budget.category)}: ${formatCents(spent)} de ${formatCents(budget.limitCents)} (${Math.round(spent / budget.limitCents * 100)}%).`);
+    if (spent > budget.limitCents * day / daysInMonth) insights.push(translateServer(locale, "⚠️ Ritmo acima do orçamento em {0}: {1} de {2} ({3}%).", label(budget.category), formatCents(spent, locale), formatCents(budget.limitCents, locale), Math.round(spent / budget.limitCents * 100)));
   }
   const maxWeekday = weekdayCents.indexOf(Math.max(...weekdayCents));
-  if (weekdayCents[maxWeekday] > 0) insights.push(`📅 Dia mais caro: ${weekdays[maxWeekday]}, padrão de ${formatCents(weekdayCents[maxWeekday])}.`);
+  if (weekdayCents[maxWeekday] > 0) insights.push(translateServer(locale, "📅 Dia mais caro: {0}, padrão de {1}.", localizedweekdays(locale)[maxWeekday], formatCents(weekdayCents[maxWeekday], locale)));
   const upcoming = commitments.filter(r => r.kind === "EXPENSE" && stamp(r.date) >= time && stamp(r.date) <= time + 7 * DAY).sort((a, b) => a.date.localeCompare(b.date)).slice(0, 2);
-  if (upcoming.length) insights.push(`🧾 Próximos compromissos: ${upcoming.map(r => `${label(r.name)} 📅 ${r.date.slice(8)}/${r.date.slice(5, 7)}: ${formatCents(r.amountCents)}`).join(", ")}.`);
-  insights.push(`📅 Fim do mês: ${projectedBalanceCents >= 0 ? "sobra" : "falta"} de ${formatCents(Math.abs(projectedBalanceCents))} no resultado mensal.`);
+  if (upcoming.length) insights.push(translateServer(locale, "🧾 Próximos compromissos: {0}.", upcoming.map(r => `${label(r.name)} 📅 ${locale === "en" ? formatDate(r.date, locale).slice(0, 5) : `${r.date.slice(8)}/${r.date.slice(5, 7)}`}: ${formatCents(r.amountCents, locale)}`).join(", ")));
+  insights.push(translateServer(locale, "📅 Fim do mês: {0} de {1} no resultado mensal.", translateServer(locale, projectedBalanceCents >= 0 ? "sobra" : "falta"), formatCents(Math.abs(projectedBalanceCents), locale)));
   return { forecast, daily, insights, weekdayCents, spentTodayCents: spentToday, committedCents: committed, historyDays: Math.round((time - historyStart) / DAY) };
 }
