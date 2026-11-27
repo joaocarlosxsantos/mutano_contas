@@ -97,7 +97,7 @@ export async function handleWebhook(
             console.error("[telegram-callback]", { stage: "details", status: "failed" });
             text = CALLBACK_TEXT.detailsFailed;
           } else text = result.text;
-        } catch (error) {
+        } catch {
           console.error("[telegram-callback]", { code: "callback_processing_failed" });
           text = CALLBACK_TEXT.failed;
         }

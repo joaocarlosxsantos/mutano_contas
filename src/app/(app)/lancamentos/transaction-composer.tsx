@@ -38,13 +38,19 @@ export function TransactionComposer({
   const parcelas =
     installments > 1 && totalCents > 0 ? splitInstallments(totalCents, installments) : [];
 
-  useEffect(() => {
+  // Ajuste de estado durante o render quando a action responde; o reset do DOM fica no efeito.
+  const [handledState, setHandledState] = useState(state);
+  if (state !== handledState) {
+    setHandledState(state);
     if (state.ok) {
-      formRef.current?.reset();
       setCategoryId("");
       setInstallments(1);
       setAmount("");
     }
+  }
+
+  useEffect(() => {
+    if (state.ok) formRef.current?.reset();
   }, [state]);
 
   function onCategoryChange(id: string) {

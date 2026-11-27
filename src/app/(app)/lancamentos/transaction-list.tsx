@@ -23,6 +23,7 @@ import { Sheet } from "@/components/sheet";
 import { Field, Select } from "@/components/ui/field";
 import { useLocale } from "@/lib/i18n/context";
 import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import { SplitDialog } from "./split-dialog";
 import { TransferDialog } from "./transfer-dialog";
 import type { PlainAccount, PlainCategory, PlainTransaction } from "./types";
@@ -57,7 +58,7 @@ export function TransactionList({
           {transactions.some((transaction) => !transaction.categoryId && !transaction.isTransfer) ? (
             <Button type="button" variant="outline" size="sm" disabled={recategorizing} onClick={() => startRecategorizing(async () => {
               const result = await recategorizeUncategorizedTransactions();
-              setCategorizationMessage("error" in result ? String(result.error ?? dict["Falha ao categorizar."]) : `${result.updated} categorizados · ${result.counts.user} por seu histórico, ${result.counts.rule + result.counts.dictionary} por regras`);
+              setCategorizationMessage("error" in result ? String(result.error ?? dict["Falha ao categorizar."]) : translateServer(locale, "{0} categorizados · {1} por seu histórico, {2} por regras", result.updated, result.counts.user, result.counts.rule + result.counts.dictionary));
             })} className="min-h-11 min-w-11 text-xs">
               {recategorizing ? dict["Categorizando…"] : dict["Categorizar não categorizados"]}
             </Button>
@@ -325,7 +326,7 @@ function Row({
 
           {tx.externalStatus === "PENDING" ? <span className="rounded bg-[var(--color-warn-soft)] px-1.5 py-0.5 text-xs font-medium text-[var(--text-warn)]">{dict["provisório · pendente"]}</span> : null}
 
-          {tx.accountType === "INVESTMENT" ? <span className="rounded-[var(--radius-xs)] bg-[var(--surface-2)] px-1.5 py-0.5 text-xs ring-1 ring-[var(--border)] ring-inset">{investmentMovementLabel(tx) ?? "Investimento"}</span> : null}
+          {tx.accountType === "INVESTMENT" ? <span className="rounded-[var(--radius-xs)] bg-[var(--surface-2)] px-1.5 py-0.5 text-xs ring-1 ring-[var(--border)] ring-inset">{translateServer(locale, investmentMovementLabel(tx) ?? "Investimento")}</span> : null}
 
           {tx.isTransfer ? (
             <span

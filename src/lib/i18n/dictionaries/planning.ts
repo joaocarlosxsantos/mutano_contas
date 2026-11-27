@@ -1,6 +1,8 @@
 import type { Locale } from "../config";
 
 export const ptBR = {
+  "anos": "anos",
+  "O provedor está temporariamente indisponível. Tente novamente.": "O provedor está temporariamente indisponível. Tente novamente.",
   "INVESTMENT": "Investimento",
   "CASH": "Dinheiro",
   "CREDIT_CARD": "Cartão de crédito",
@@ -797,6 +799,8 @@ export const ptBR = {
 };
 
 export const en: Record<keyof typeof ptBR, string> = {
+  "anos": "years",
+  "O provedor está temporariamente indisponível. Tente novamente.": "The provider is temporarily unavailable. Try again.",
   "INVESTMENT": "Investment",
   "CASH": "Cash",
   "CREDIT_CARD": "Credit card",

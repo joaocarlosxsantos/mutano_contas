@@ -33,11 +33,17 @@ export function RuleComposer({
 
   const visible = categories.filter((c) => c.kind === kind);
 
-  useEffect(() => {
+  // Ajuste de estado durante o render quando a action responde; o reset do DOM fica no efeito.
+  const [handledState, setHandledState] = useState(state);
+  if (state !== handledState) {
+    setHandledState(state);
     if (state.ok) {
-      formRef.current?.reset();
       setCategoryId("");
     }
+  }
+
+  useEffect(() => {
+    if (state.ok) formRef.current?.reset();
   }, [state]);
 
   function onCategoryChange(id: string) {

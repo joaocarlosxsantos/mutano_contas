@@ -87,7 +87,7 @@ export async function addSharedExpense(input: unknown): Promise<GroupActionResul
     const result = allocateGroupExpense(amountCents, mode, selected.map((member) => ({
       memberId: member.id, name: member.name, amountCents: submitted.get(member.id)?.amountCents,
     })));
-    if (!result.ok) return reject(result.error);
+    if (!result.ok) return reject(translateServer(locale, result.error));
     const [expenseCount] = await tx.select({ total: count() }).from(sharedExpenses).where(eq(sharedExpenses.groupId, group.id));
     if (expenseCount.total >= MAX_GROUP_ENTRIES) return reject(translateServer(locale, "Este grupo chegou ao limite de despesas."));
     const [expense] = await tx.insert(sharedExpenses).values({ groupId: group.id, payerId, description, amountCents }).returning({ id: sharedExpenses.id });

@@ -10,6 +10,7 @@ import { clearTransactionSplit, setTransactionSplit } from "@/server/actions/spl
 import { cn } from "@/lib/cn";
 import { useLocale } from "@/lib/i18n/context";
 import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 import type { PlainSplit, PlainTransaction } from "./types";
 
 type PersonFormState = {
@@ -356,7 +357,7 @@ function SplitDialogContent({
             </ul>
           ) : (
             <p className="text-xs text-[var(--text-warn)] leading-relaxed">
-              {preview.error}
+              {translateServer(locale, preview.error)}
             </p>
           )}
         </div>

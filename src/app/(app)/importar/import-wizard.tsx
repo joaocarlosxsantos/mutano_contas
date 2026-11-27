@@ -288,7 +288,7 @@ export function ImportWizard({ accounts, categories }: { accounts: Account[]; ca
             <Hint
               key={w}
               tone={
-                w.includes("já existir") || w.includes("já cobrem esse período") || w.includes("já fazem parte dessa fatura")
+                /já existir|já cobrem esse período|já fazem parte dessa fatura|may already exist|already cover this period|already belong to this statement/.test(w)
                   ? "warn"
                   : "info"
               }

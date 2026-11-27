@@ -145,7 +145,7 @@ export default async function InsightsPage({
                   <p className="tnum text-xl font-semibold tracking-tight">{formatCents(currentExpense, locale)}</p>
                   {isCurrentMonth && <p className="muted mt-1 text-xs">{monthLabel(prevRef, locale)}{dict[" até o dia "]}{cutoffDay}: {formatCents(previousExpense, locale)}</p>}
                   {isCurrentMonth && pace ? (
-                    <p className="muted mt-1 text-xs">{dict["Média do mês até o dia "]}{dayOfMonth}: {formatCents(pace.dailyAvgCents, locale)}/dia</p>
+                    <p className="muted mt-1 text-xs">{dict["Média do mês até o dia "]}{dayOfMonth}: {formatCents(pace.dailyAvgCents, locale)}{locale === "en" ? "/day" : "/dia"}</p>
                   ) : null}
                 </div>
                 <div>

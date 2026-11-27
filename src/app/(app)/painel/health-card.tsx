@@ -3,6 +3,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/cn";
 import type { Locale } from "@/lib/i18n/config";
 import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
+import { translateServer } from "@/lib/i18n/dictionaries/server";
 
 const LINKED_PART_LABEL = "Reserva de emergência";
 
@@ -41,7 +42,7 @@ export function HealthCard({
             {dict["Saúde financeira"]}
           </h2>
           <p className="text-xs font-medium" style={{ color: textColor }}>
-            {health.label}
+            {translateServer(locale, health.label)}
           </p>
         </div>
         <span
@@ -55,7 +56,7 @@ export function HealthCard({
       <ul className="space-y-3.5" role="list">
         {health.parts.map((part) => {
           const isReserve = part.label === LINKED_PART_LABEL;
-          const displayLabel = isReserve ? dict["Reserva de emergência"] : part.label;
+          const displayLabel = isReserve ? dict["Reserva de emergência"] : translateServer(locale, part.label);
           return (
             <li key={part.label}>
               <div className="mb-1 flex items-baseline justify-between gap-3 text-xs">
@@ -88,7 +89,7 @@ export function HealthCard({
                     color={color}
                     height={4}
                   />
-                  <p className="mt-1 text-xs text-[var(--text-muted)] leading-snug">{part.hint}</p>
+                  <p className="mt-1 text-xs text-[var(--text-muted)] leading-snug">{translateServer(locale, part.hint)}</p>
                 </>
               )}
             </li>
