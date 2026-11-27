@@ -6,12 +6,29 @@ import { accounts as accountsTable, importBatches } from "@/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardHeader } from "@/components/ui/card";
 import { Hint } from "@/components/ui/hint";
+import { type Locale } from "@/lib/i18n/config";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 import { ImportWizard } from "./import-wizard";
 import { ImportHistory } from "./import-history";
 
-export const metadata = { title: "Importar extrato" };
+async function resolveLocale(): Promise<Locale> {
+  try {
+    const { getLocale } = await import("@/lib/i18n/server");
+    return await getLocale();
+  } catch {
+    return "pt-BR";
+  }
+}
+
+export async function generateMetadata() {
+  const locale = await resolveLocale();
+  const dict = getActivityDict(locale);
+  return { title: dict["Importar extrato"] };
+}
 
 export default async function ImportPage() {
+  const locale = await resolveLocale();
+  const dict = getActivityDict(locale);
   const { userId } = await requireProfileRoute("/importar");
 
   const [accounts, categories, history] = await Promise.all([
@@ -36,8 +53,8 @@ export default async function ImportPage() {
   return (
     <>
       <PageHeader
-        title="Importar extrato ou fatura"
-        description="Suba o arquivo que o seu banco exporta. Nós lemos, sugerimos categoria linha a linha e bloqueamos o que já foi importado antes."
+        title={dict["Importar extrato ou fatura"]}
+        description={dict["Suba o arquivo que o seu banco exporta. Nós lemos, sugerimos categoria linha a linha e bloqueamos o que já foi importado antes."]}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
@@ -54,41 +71,35 @@ export default async function ImportPage() {
 
         <div className="space-y-4">
           <Card className="min-w-0">
-            <CardHeader title="Onde encontrar o arquivo" />
+            <CardHeader title={dict["Onde encontrar o arquivo"]} />
             <ul className="muted space-y-2.5 text-[0.8125rem] leading-relaxed">
               <li>
-                <strong className="text-[var(--text)]">Nubank:</strong> extrato → exportar → CSV ou OFX.
-                A fatura do cartão também sai em CSV.
+                <strong className="text-[var(--text)]">{dict["Nubank:"]}</strong> {dict["extrato → exportar → CSV ou OFX. A fatura do cartão também sai em CSV."]}
               </li>
               <li>
-                <strong className="text-[var(--text)]">Inter:</strong> extrato → período → exportar OFX.
+                <strong className="text-[var(--text)]">{dict["Inter:"]}</strong> {dict["extrato → período → exportar OFX."]}
               </li>
               <li>
-                <strong className="text-[var(--text)]">Itaú / Bradesco / Santander:</strong> extrato →
-                salvar em OFX (Money) ou CSV.
+                <strong className="text-[var(--text)]">{dict["Itaú / Bradesco / Santander:"]}</strong> {dict["extrato → salvar em OFX (Money) ou CSV."]}
               </li>
               <li>
-                <strong className="text-[var(--text)]">Outros:</strong> qualquer CSV com colunas de data,
-                descrição e valor funciona.
+                <strong className="text-[var(--text)]">{dict["Outros:"]}</strong> {dict["qualquer CSV com colunas de data, descrição e valor funciona."]}
               </li>
             </ul>
           </Card>
 
-          <Hint tone="info" title="Fatura de cartão">
-            Ao escolher uma conta de cartão, escolha também o mês da fatura — todas as linhas do
-            arquivo (parceladas ou não) são gravadas nesse mês, é assim que cada parcela cai no mês
-            certo. Reimportar o mesmo mês substitui o que já tinha sido importado nele. Os valores
-            também costumam vir positivos mesmo sendo gastos: marque{" "}
-            <strong>&quot;inverter sinal&quot;</strong> se a prévia mostrar tudo como entrada.
+          <Hint tone="info" title={dict["Fatura de cartão"]}>
+            {dict["Ao escolher uma conta de cartão, escolha também o mês da fatura — todas as linhas do arquivo (parceladas ou não) são gravadas nesse mês, é assim que cada parcela cai no mês certo. Reimportar o mesmo mês substitui o que já tinha sido importado nele. Os valores também costumam vir positivos mesmo sendo gastos: marque \"inverter sinal\" se a prévia mostrar tudo como entrada."]}
           </Hint>
 
           {history.length ? (
             <Card className="min-w-0">
               <CardHeader
-                title="Importações recentes"
-                subtitle="Importou algo errado? Apague o lote e importe de novo."
+                title={dict["Importações recentes"]}
+                subtitle={dict["Importou algo errado? Apague o lote e importe de novo."]}
               />
               <ImportHistory
+                locale={locale}
                 batches={history.map((b) => ({
                   id: b.id,
                   fileName: b.fileName,

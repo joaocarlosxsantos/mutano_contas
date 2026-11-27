@@ -25,14 +25,31 @@ import { loadSpendingForecast } from "@/server/telegram/spending-forecast";
 import { DailyBudgetCard } from "../painel/daily-budget-card";
 import { AtypicalSpendingBanner } from "@/components/atypical-spending-banner";
 import { SubscriptionAnnualSummary } from "@/components/subscription-annual-summary";
+import { type Locale } from "@/lib/i18n/config";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 
-export const metadata = { title: "Insights" };
+async function resolveLocale(): Promise<Locale> {
+  try {
+    const { getLocale } = await import("@/lib/i18n/server");
+    return await getLocale();
+  } catch {
+    return "pt-BR";
+  }
+}
+
+export async function generateMetadata() {
+  const locale = await resolveLocale();
+  const dict = getActivityDict(locale);
+  return { title: dict["Insights"] };
+}
 
 export default async function InsightsPage({
   searchParams,
 }: {
   searchParams: Promise<{ m?: string }>;
 }) {
+  const locale = await resolveLocale();
+  const dict = getActivityDict(locale);
   const userId = await requireUserId();
   const { m } = await searchParams;
   const ref = monthRefFromParam(m);
@@ -86,19 +103,14 @@ export default async function InsightsPage({
   const fixedShareLast = withExpense.length ? pct(withExpense[withExpense.length - 1].fixo, withExpense[withExpense.length - 1].saiu) : 0;
   const fixedShareTrend = fixedShareLast - fixedShareFirst;
 
-  // `deltas` já vem ordenado por |variação| decrescente (ver categoryDeltas) —
-  // então a primeira ocorrência positiva/negativa nessa mesma ordem já é a
-  // maior alta/queda em módulo. Nada de `.reverse()` aqui: isso pegaria a
-  // MENOR variação entre as negativas, o oposto do que "categoria que mais
-  // caiu" promete.
   const biggestJump = deltas.find((d) => d.deltaCents > 0);
   const biggestDrop = deltas.find((d) => d.deltaCents < 0);
 
   return (
     <>
       <PageHeader
-        title="Insights"
-        description="Um raio-x do seu mês: pra onde o dinheiro está indo, o que mudou desde o mês passado e no que vale prestar atenção."
+        title={dict["Insights"]}
+        description={dict["Um raio-x do seu mês: pra onde o dinheiro está indo, o que mudou desde o mês passado e no que vale prestar atenção."]}
         action={<MonthSwitcher value={ref} />}
       />
 
@@ -110,38 +122,38 @@ export default async function InsightsPage({
         <Card className="min-w-0 p-0">
           <EmptyState
             icon={Receipt}
-            title={`Sem dados suficientes em ${monthLabel(ref)}`}
-            description="Assim que houver lançamentos neste mês (ou no anterior, pra comparação), os insights aparecem aqui."
+            title={`${dict["Sem dados suficientes em "]}${monthLabel(ref, locale)}`}
+            description={dict["Assim que houver lançamentos neste mês (ou no anterior, pra comparação), os insights aparecem aqui."]}
           />
         </Card>
       ) : (
         <>
-          {dailyAnalysis && <DailyBudgetCard className="mb-4" dailyBudget={dailyAnalysis.daily} spentTodayCents={dailyAnalysis.spentTodayCents} historyDays={dailyAnalysis.historyDays} />}
+          {dailyAnalysis && <DailyBudgetCard locale={locale} className="mb-4" dailyBudget={dailyAnalysis.daily} spentTodayCents={dailyAnalysis.spentTodayCents} historyDays={dailyAnalysis.historyDays} />}
           <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
             <Card className="min-w-0 lg:col-span-2">
               <CardHeader
-                title={isCurrentMonth ? "Ritmo de gastos deste mês" : `Comparado a ${monthLabel(prevRef)}`}
+                title={isCurrentMonth ? dict["Ritmo de gastos deste mês"] : `${dict["Comparado a "]}${monthLabel(prevRef, locale)}`}
                 subtitle={
                   isCurrentMonth
-                    ? `Já se passaram ${dayOfMonth} de ${daysInMonth} dias do mês.`
-                    : "Como este mês se compara ao anterior."
+                    ? `${dict["Já se passaram "]}${dayOfMonth}${dict[" de "]}${daysInMonth}${dict[" dias do mês."]}`
+                    : dict["Como este mês se compara ao anterior."]
                 }
               />
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
-                  <p className="muted text-[0.8125rem]">{isCurrentMonth ? `Gasto até o dia ${cutoffDay}` : "Gasto do mês"}</p>
-                  <p className="tnum text-xl font-semibold tracking-tight">{formatCents(currentExpense)}</p>
-                  {isCurrentMonth && <p className="muted mt-1 text-xs">{monthLabel(prevRef)} até o dia {cutoffDay}: {formatCents(previousExpense)}</p>}
+                  <p className="muted text-[0.8125rem]">{isCurrentMonth ? `${dict["Gasto até o dia "]}${cutoffDay}` : dict["Gasto do mês"]}</p>
+                  <p className="tnum text-xl font-semibold tracking-tight">{formatCents(currentExpense, locale)}</p>
+                  {isCurrentMonth && <p className="muted mt-1 text-xs">{monthLabel(prevRef, locale)}{dict[" até o dia "]}{cutoffDay}: {formatCents(previousExpense, locale)}</p>}
                   {isCurrentMonth && pace ? (
-                    <p className="muted mt-1 text-xs">Média do mês até o dia {dayOfMonth}: {formatCents(pace.dailyAvgCents)}/dia</p>
+                    <p className="muted mt-1 text-xs">{dict["Média do mês até o dia "]}{dayOfMonth}: {formatCents(pace.dailyAvgCents, locale)}/dia</p>
                   ) : null}
                 </div>
                 <div>
                   <p className="muted text-[0.8125rem]">
-                    {isCurrentMonth ? `Projeção de fechamento (gastos até o dia ${dayOfMonth})` : `Gasto em ${monthLabel(prevRef)}`}
+                    {isCurrentMonth ? `${dict["Projeção de fechamento (gastos até o dia "]}${dayOfMonth}${dict[")"]}` : `${dict["Gasto em "]}${monthLabel(prevRef, locale)}`}
                   </p>
                   <p className="tnum text-xl font-semibold tracking-tight">
-                    {formatCents(isCurrentMonth && pace ? pace.projectedCents : prevSummary.expenseCents)}
+                    {formatCents(isCurrentMonth && pace ? pace.projectedCents : prevSummary.expenseCents, locale)}
                   </p>
                   {expenseChangePct !== null ? (
                     <p
@@ -160,8 +172,7 @@ export default async function InsightsPage({
                       ) : (
                         <Minus className="size-3.5" />
                       )}
-                      {Math.abs(expenseChangePct)}% {expenseChangePct > 0 ? "a mais" : expenseChangePct < 0 ? "a menos" : "igual"} que{" "}
-                      {monthLabel(prevRef)}{isCurrentMonth ? `, até o dia ${cutoffDay} nos dois meses` : ""}
+                      {Math.abs(expenseChangePct)}% {expenseChangePct > 0 ? dict["a mais"] : expenseChangePct < 0 ? dict["a menos"] : dict["igual"]}{dict[" que "]}{monthLabel(prevRef, locale)}{isCurrentMonth ? `${dict[", até o dia "]}${cutoffDay}${dict[" nos dois meses"]}` : ""}
                     </p>
                   ) : null}
                 </div>
@@ -172,13 +183,11 @@ export default async function InsightsPage({
                   className="mt-4"
                   tone={expenseChangePct !== null && expenseChangePct > 15 ? "warn" : "tip"}
                 >
-                  No ritmo atual, você deve fechar {monthLabel(ref)} gastando cerca de{" "}
-                  <strong>{formatCents(pace.projectedCents)}</strong>
+                  {dict["No ritmo atual, você deve fechar "]}{monthLabel(ref, locale)}{dict[" gastando cerca de "]}<strong>{formatCents(pace.projectedCents, locale)}</strong>
                   {prevSummary.expenseCents > 0 ? (
                     <>
-                      {" "}
-                      — {pace.projectedCents > prevSummary.expenseCents ? "mais" : pace.projectedCents < prevSummary.expenseCents ? "menos" : "o mesmo"} que os {formatCents(prevSummary.expenseCents)} do mês completo de{" "}
-                      {monthLabel(prevRef)}.
+                      {pace.projectedCents > prevSummary.expenseCents ? dict[" — mais que os "] : pace.projectedCents < prevSummary.expenseCents ? dict[" — menos que os "] : dict[" — o mesmo que os "]}
+                      {formatCents(prevSummary.expenseCents, locale)}{dict[" do mês completo de "]}{monthLabel(prevRef, locale)}.
                     </>
                   ) : (
                     "."
@@ -188,15 +197,15 @@ export default async function InsightsPage({
             </Card>
 
             <Card className="min-w-0 min-w-0">
-              <CardHeader title="Fixo x variável" subtitle="Últimos 6 meses." />
+              <CardHeader title={dict["Fixo x variável"]} subtitle={dict["Últimos 6 meses."]} />
               <FixedVariableChart data={series} />
               {withExpense.length > 1 ? (
                 <p className="muted mt-2 text-xs leading-relaxed">
                   {Math.abs(fixedShareTrend) < 3
-                    ? "A proporção entre fixo e variável está estável nesse período."
+                    ? dict["A proporção entre fixo e variável está estável nesse período."]
                     : fixedShareTrend > 0
-                      ? `A fatia de gasto fixo vem crescendo: foi de ${fixedShareFirst}% para ${fixedShareLast}% do gasto do mês.`
-                      : `A fatia de gasto fixo vem caindo: foi de ${fixedShareFirst}% para ${fixedShareLast}% do gasto do mês.`}
+                      ? `${dict["A fatia de gasto fixo vem crescendo: foi de "]}${fixedShareFirst}%${dict[" para "]}${fixedShareLast}%${dict[" do gasto do mês."]}`
+                      : `${dict["A fatia de gasto fixo vem caindo: foi de "]}${fixedShareFirst}%${dict[" para "]}${fixedShareLast}%${dict[" do gasto do mês."]}`}
                 </p>
               ) : null}
             </Card>
@@ -205,8 +214,8 @@ export default async function InsightsPage({
           <section className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-5">
             <Card className="min-w-0 lg:col-span-3">
               <CardHeader
-                title="Comparativo por categoria"
-                subtitle={`O que mudou entre ${monthLabel(prevRef)} e ${monthLabel(ref)}, categoria a categoria.${isCurrentMonth ? ` Até o dia ${cutoffDay} nos dois meses.` : ""}`}
+                title={dict["Comparativo por categoria"]}
+                subtitle={`${dict["O que mudou entre "]}${monthLabel(prevRef, locale)}${dict[" e "]}${monthLabel(ref, locale)}${dict[", categoria a categoria."]}${isCurrentMonth ? `${dict[" Até o dia "]}${cutoffDay}${dict[" nos dois meses"]}` : ""}`}
               />
               {deltas.length ? (
                 <ul className="divide-y">
@@ -214,7 +223,7 @@ export default async function InsightsPage({
                     <li key={d.id} className="flex items-center gap-3 py-2.5 text-[0.8125rem]">
                       <span className="size-2.5 shrink-0 rounded-full" style={{ background: d.color }} />
                       <span className="min-w-0 flex-1 truncate font-medium">{d.name}</span>
-                      <span className="tnum shrink-0">{formatCents(d.totalCents)}</span>
+                      <span className="tnum shrink-0">{formatCents(d.totalCents, locale)}</span>
                       <span
                         className={`tnum flex w-20 shrink-0 items-center justify-end gap-1 text-xs font-medium ${
                           d.deltaCents > 0
@@ -231,20 +240,20 @@ export default async function InsightsPage({
                         ) : (
                           <Minus className="size-3 shrink-0" />
                         )}
-                        {d.deltaPct === null ? "novo" : `${Math.abs(d.deltaPct)}%`}
+                        {d.deltaPct === null ? dict["novo"] : `${Math.abs(d.deltaPct)}%`}
                       </span>
                     </li>
                   ))}
                 </ul>
               ) : (
                 <p className="muted py-8 text-center text-[0.8125rem]">
-                  Sem gastos suficientes para comparar os dois meses.
+                  {dict["Sem gastos suficientes para comparar os dois meses."]}
                 </p>
               )}
             </Card>
 
             <Card className="min-w-0 lg:col-span-2">
-              <CardHeader title="Maiores gastos do mês" subtitle="As compras mais pesadas, uma a uma." />
+              <CardHeader title={dict["Maiores gastos do mês"]} subtitle={dict["As compras mais pesadas, uma a uma."]} />
               {topExpenses.length ? (
                 <ul className="divide-y">
                   {topExpenses.map((t) => (
@@ -256,15 +265,15 @@ export default async function InsightsPage({
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-medium">{t.description}</p>
                         <p className="muted text-xs">
-                          {formatDayMonth(t.date)} · {t.categoryName ?? "Sem categoria"}
+                          {formatDayMonth(t.date, locale)} · {t.categoryName ?? dict["Sem categoria"]}
                         </p>
                       </div>
-                      <span className="tnum shrink-0 font-semibold">{formatCents(t.amountCents)}</span>
+                      <span className="tnum shrink-0 font-semibold">{formatCents(t.amountCents, locale)}</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="muted py-8 text-center text-[0.8125rem]">Nenhum gasto neste mês ainda.</p>
+                <p className="muted py-8 text-center text-[0.8125rem]">{dict["Nenhum gasto neste mês ainda."]}</p>
               )}
             </Card>
           </section>
@@ -272,16 +281,14 @@ export default async function InsightsPage({
           {biggestJump || biggestDrop ? (
             <section className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
               {biggestJump ? (
-                <Hint tone="warn" title="Categoria que mais subiu">
-                  <strong>{biggestJump.name}</strong> foi de {formatCents(biggestJump.previousCents)} para{" "}
-                  {formatCents(biggestJump.totalCents)}
-                  {biggestJump.deltaPct !== null ? ` (+${biggestJump.deltaPct}%)` : ""} — vale olhar o que mudou aí.
+                <Hint tone="warn" title={dict["Categoria que mais subiu"]}>
+                  <strong>{biggestJump.name}</strong>{dict[" foi de "]}{formatCents(biggestJump.previousCents, locale)}{dict[" para "]}{formatCents(biggestJump.totalCents, locale)}
+                  {biggestJump.deltaPct !== null ? ` (+${biggestJump.deltaPct}%)` : ""}{dict[" — vale olhar o que mudou aí."]}
                 </Hint>
               ) : null}
               {biggestDrop ? (
-                <Hint tone="good" title="Categoria que mais caiu">
-                  <strong>{biggestDrop.name}</strong> foi de {formatCents(biggestDrop.previousCents)} para{" "}
-                  {formatCents(biggestDrop.totalCents)} — economia de {formatCents(-biggestDrop.deltaCents)}.
+                <Hint tone="good" title={dict["Categoria que mais caiu"]}>
+                  <strong>{biggestDrop.name}</strong>{dict[" foi de "]}{formatCents(biggestDrop.previousCents, locale)}{dict[" para "]}{formatCents(biggestDrop.totalCents, locale)}{dict[" — economia de "]}{formatCents(-biggestDrop.deltaCents, locale)}.
                 </Hint>
               ) : null}
             </section>

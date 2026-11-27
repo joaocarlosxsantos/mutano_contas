@@ -3,14 +3,19 @@ import { formatCents } from "@/lib/money";
 import { buildWhatsAppLink } from "@/lib/whatsapp";
 import { Money } from "@/components/ui/money";
 import type { PersonReceivable } from "@/server/split-queries";
+import type { Locale } from "@/lib/i18n/config";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 
 export function ReceivablesSection({
   receivables,
   monthName,
+  locale = "pt-BR",
 }: {
   receivables: PersonReceivable[];
   monthName: string;
+  locale?: Locale;
 }) {
+  const dict = getActivityDict(locale);
   const totalCents = receivables.reduce((acc, p) => acc + p.totalCents, 0);
 
   return (
@@ -20,11 +25,11 @@ export function ReceivablesSection({
           <div className="flex items-center gap-1.5">
             <UserCheck className="size-3.5 text-[var(--text-muted)]" />
             <h2 className="text-[0.75rem] font-semibold tracking-normal text-[var(--text-muted)]">
-              A receber
+              {dict["A receber"]}
             </h2>
           </div>
           <p className="muted mt-0.5 text-xs">
-            {monthName} · despesas divididas e contas
+            {monthName} · {dict["despesas divididas e contas"]}
           </p>
         </div>
         {totalCents > 0 ? (
@@ -35,7 +40,9 @@ export function ReceivablesSection({
       {receivables.length ? (
         <ul className="divide-y divide-[var(--line)]">
           {receivables.map((p) => {
-            const message = `Olá, ${p.name}! Passando para lembrar da sua parte nas despesas de ${monthName}: total de *${formatCents(p.totalCents)}*.`;
+            const message = locale === "en"
+              ? `Hi, ${p.name}! Just a reminder about your share of expenses for ${monthName}: total of *${formatCents(p.totalCents, locale)}*.`
+              : `Olá, ${p.name}! Passando para lembrar da sua parte nas despesas de ${monthName}: total de *${formatCents(p.totalCents, locale)}*.`;
             const waLink = buildWhatsAppLink(p.phone, message);
 
             return (
@@ -46,9 +53,9 @@ export function ReceivablesSection({
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-medium text-[var(--text)]">{p.name}</p>
                   <p className="muted truncate text-xs">
-                    {p.count} {p.count === 1 ? "despesa" : "despesas"}
+                    {p.count} {p.count === 1 ? dict["despesa"] : dict["despesas"]}
                     {p.splitCents > 0 && p.billCents > 0
-                      ? ` (${formatCents(p.splitCents)} lançamentos + ${formatCents(p.billCents)} contas)`
+                      ? ` (${formatCents(p.splitCents, locale)} ${dict["lançamentos"]} + ${formatCents(p.billCents, locale)} ${dict["contas"]})`
                       : ""}
                     {p.phone ? ` · ${p.phone}` : ""}
                   </p>
@@ -62,8 +69,8 @@ export function ReceivablesSection({
                       href={waLink}
                       target="_blank"
                       rel="noopener noreferrer"
-                      aria-label={`Cobrar ${p.name} no WhatsApp`}
-                      title={`Enviar cobrança de ${formatCents(p.totalCents)} no WhatsApp para ${p.name}`}
+                      aria-label={`${dict["Cobrar "]}${p.name}${dict[" no WhatsApp"]}`}
+                      title={`${dict["Enviar cobrança de "]}${formatCents(p.totalCents, locale)}${dict[" no WhatsApp para "]}${p.name}`}
                       className="cursor-pointer rounded-[var(--radius-xs)] p-1.5 text-[var(--text-in)] transition-colors hover:bg-[var(--color-money-in-soft)]"
                     >
                       <MessageCircle className="size-3.5" />
@@ -71,7 +78,7 @@ export function ReceivablesSection({
                   ) : (
                     <span
                       className="muted rounded-[var(--radius-xs)] p-1.5 opacity-30"
-                      title="Sem telefone cadastrado para WhatsApp"
+                      title={dict["Sem telefone cadastrado para WhatsApp"]}
                       aria-hidden
                     >
                       <MessageCircle className="size-3.5" />
@@ -84,7 +91,7 @@ export function ReceivablesSection({
         </ul>
       ) : (
         <p className="muted py-4 text-center text-xs">
-          Nenhum valor a receber registrado neste mês.
+          {dict["Nenhum valor a receber registrado neste mês."]}
         </p>
       )}
     </div>

@@ -6,6 +6,8 @@ import { generateRecurring } from "@/server/actions/recurring";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatCents } from "@/lib/money";
+import { useLocale } from "@/lib/i18n/context";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 import type { MonthRef } from "@/lib/dates";
 
 type Pending = {
@@ -31,13 +33,15 @@ export function PendingPanel({
   incomeCents: number;
   expenseCents: number;
 }) {
+  const locale = useLocale();
+  const dict = getActivityDict(locale);
   const [busy, start] = useTransition();
   const [done, setDone] = useState<string | null>(null);
 
   function generate(ruleId?: string) {
     start(async () => {
       const { created, skippedIntegrated, error } = await generateRecurring(monthRef, ruleId);
-      setDone(error ?? `${created} lan\u00e7amento(s) criado(s).${skippedIntegrated ? ` ${skippedIntegrated} conta(s) integrada(s) ignorada(s).` : ""}`);
+      setDone(error ?? `${created}${dict[" lançamento(s) criado(s)."]}${skippedIntegrated ? ` ${skippedIntegrated}${dict[" conta(s) integrada(s) ignorada(s)."]}` : ""}`);
       setTimeout(() => setDone(null), 4000);
     });
   }
@@ -51,16 +55,16 @@ export function PendingPanel({
           </span>
           <div>
             <h2 className="text-[0.9375rem] font-semibold tracking-tight">
-              {pending.length} recorrência(s) ainda não lançada(s) em{" "}
+              {pending.length}{dict[" recorrência(s) ainda não lançada(s) em "]}{" "}
               <span className="first-letter:uppercase">{monthName}</span>
             </h2>
             <p className="muted mt-0.5 text-[0.8125rem]">
-              {formatCents(incomeCents)} a entrar · {formatCents(expenseCents)} a sair
+              {formatCents(incomeCents, locale)}{dict[" a entrar · "]}{formatCents(expenseCents, locale)}{dict[" a sair"]}
             </p>
           </div>
         </div>
         <Button className="min-h-11 min-w-11" onClick={() => generate()} disabled={busy}>
-          {busy ? "Lançando..." : "Lançar todas"}
+          {busy ? dict["Lançando..."] : dict["Lançar todas"]}
         </Button>
       </div>
 
@@ -72,14 +76,14 @@ export function PendingPanel({
               style={{ background: p.categoryColor ?? "var(--text-muted)" }}
             />
             <span className="min-w-0 flex-1 truncate font-medium">{p.description}</span>
-            <span className="muted shrink-0 text-xs">dia {p.dayOfMonth}</span>
+            <span className="muted shrink-0 text-xs">{dict["dia "]}{p.dayOfMonth}</span>
             <span
               className="tnum font-mono shrink-0 font-semibold"
               style={{
                 color: p.kind === "INCOME" ? "var(--text-in)" : "var(--text-out)",
               }}
             >
-              {p.kind === "INCOME" ? "+" : "−"} {formatCents(p.amountCents)}
+              {p.kind === "INCOME" ? "+" : "−"} {formatCents(p.amountCents, locale)}
             </span>
             <button
               type="button"
@@ -87,7 +91,7 @@ export function PendingPanel({
               disabled={busy}
               className="min-h-11 min-w-11 shrink-0 cursor-pointer rounded-lg px-2 py-1 text-xs font-medium text-[var(--text-brand)] hover:bg-[var(--surface-2)]"
             >
-              lançar
+              {dict["lançar"]}
             </button>
           </li>
         ))}

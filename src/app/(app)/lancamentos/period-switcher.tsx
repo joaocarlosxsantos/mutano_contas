@@ -3,8 +3,10 @@
 import { CalendarRange, ChevronLeft, ChevronRight, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { monthLabel, monthRefToParam, shiftMonth, todayRef, type MonthRef } from "@/lib/dates";
+import { formatDate, monthLabel, monthRefToParam, shiftMonth, todayRef, type MonthRef } from "@/lib/dates";
 import { Button } from "@/components/ui/button";
+import { useLocale } from "@/lib/i18n/context";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 
 /**
  * Substitui o MonthSwitcher só em Lançamentos: além de trocar de mês, deixa
@@ -21,6 +23,8 @@ export function PeriodSwitcher({
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+  const locale = useLocale();
+  const dict = getActivityDict(locale);
   const [open, setOpen] = useState(false);
   const [from, setFrom] = useState(range?.from ?? "");
   const [to, setTo] = useState(range?.to ?? "");
@@ -74,13 +78,13 @@ export function PeriodSwitcher({
       <div className="inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--surface)] px-2.5 py-1.5">
         <CalendarRange className="muted size-4 shrink-0" />
         <span className="text-[0.8125rem] font-medium font-mono tnum truncate">
-          {formatBr(range.from)} – {formatBr(range.to)}
+          {formatDate(range.from, locale)} – {formatDate(range.to, locale)}
         </span>
         <button
           type="button"
           onClick={clearRange}
-          aria-label="Voltar para visão por mês"
-          title="Voltar para visão por mês"
+          aria-label={dict["Voltar para visão por mês"]}
+          title={dict["Voltar para visão por mês"]}
           className="inline-flex items-center justify-center min-h-11 min-w-11 muted inline-flex size-11 cursor-pointer items-center justify-center rounded-[var(--radius-xs)] hover:bg-[var(--surface-2)] md:size-8"
         >
           <X className="size-4 md:size-3.5" />
@@ -95,18 +99,18 @@ export function PeriodSwitcher({
         <button
           type="button"
           onClick={() => goMonth(-1)}
-          aria-label="Mês anterior"
+          aria-label={dict["Mês anterior"]}
           className="inline-flex items-center justify-center min-h-11 min-w-11 inline-flex size-11 cursor-pointer items-center justify-center rounded-[var(--radius-xs)] hover:bg-[var(--surface-2)] md:size-9"
         >
           <ChevronLeft className="size-4" />
         </button>
         <span className="min-w-28 sm:min-w-36 px-1.5 sm:px-2 text-center text-[0.8125rem] font-medium first-letter:uppercase truncate">
-          {monthLabel(current)}
+          {monthLabel(current, locale)}
         </span>
         <button
           type="button"
           onClick={() => goMonth(1)}
-          aria-label="Próximo mês"
+          aria-label={dict["Próximo mês"]}
           className="inline-flex items-center justify-center min-h-11 min-w-11 inline-flex size-11 cursor-pointer items-center justify-center rounded-[var(--radius-xs)] hover:bg-[var(--surface-2)] md:size-9"
         >
           <ChevronRight className="size-4" />
@@ -116,8 +120,8 @@ export function PeriodSwitcher({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label="Período customizado"
-        title="Período customizado"
+        aria-label={dict["Período customizado"]}
+        title={dict["Período customizado"]}
         className="inline-flex items-center justify-center min-h-11 min-w-11 inline-flex size-11 cursor-pointer items-center justify-center rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--surface-2)] md:size-9"
       >
         <CalendarRange className="size-4" />
@@ -125,10 +129,10 @@ export function PeriodSwitcher({
 
       {open ? (
         <div className="absolute top-full right-0 z-20 mt-2 w-72 rounded-[var(--radius-card)] border border-[var(--border)] bg-[var(--surface)] p-3 shadow-[var(--shadow-overlay)]">
-          <p className="mb-2 text-[0.8125rem] font-semibold">Período customizado</p>
+          <p className="mb-2 text-[0.8125rem] font-semibold">{dict["Período customizado"]}</p>
           <div className="grid min-w-0 grid-cols-1 items-start gap-2 min-[480px]:grid-cols-2">
             <label className="text-[0.75rem]">
-              <span className="muted mb-1 block">De</span>
+              <span className="muted mb-1 block">{dict["De"]}</span>
               <input
                 type="date"
                 value={from}
@@ -137,7 +141,7 @@ export function PeriodSwitcher({
               />
             </label>
             <label className="text-[0.75rem]">
-              <span className="muted mb-1 block">Até</span>
+              <span className="muted mb-1 block">{dict["Até"]}</span>
               <input
                 type="date"
                 value={to}
@@ -152,7 +156,7 @@ export function PeriodSwitcher({
               onClick={allHistory}
               className="min-h-11 min-w-11 cursor-pointer text-[0.75rem] font-medium text-[var(--text-brand)] hover:underline"
             >
-              Ver todo o histórico
+              {dict["Ver todo o histórico"]}
             </button>
             <Button className="min-h-11 min-w-11"
               type="button"
@@ -160,21 +164,16 @@ export function PeriodSwitcher({
               disabled={!from || !to || from > to}
               onClick={() => applyRange(from, to)}
             >
-              Aplicar
+              {dict["Aplicar"]}
             </Button>
           </div>
           {from && to && from > to ? (
             <p className="mt-2 text-[0.75rem] text-[var(--text-out)]">
-              A data &quot;De&quot; precisa vir antes da &quot;Até&quot;.
+              {dict["A data \"De\" precisa vir antes da \"Até\"."]}
             </p>
           ) : null}
         </div>
       ) : null}
     </div>
   );
-}
-
-function formatBr(iso: string): string {
-  const [y, m, d] = iso.split("-");
-  return `${d}/${m}/${y}`;
 }

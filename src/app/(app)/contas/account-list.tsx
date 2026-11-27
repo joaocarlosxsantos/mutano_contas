@@ -11,6 +11,9 @@ import { formatCents, formatCentsPlain } from "@/lib/money";
 import { formatDate } from "@/lib/dates";
 import { cn } from "@/lib/cn";
 import { Money } from "@/components/ui/money";
+import { useLocale } from "@/lib/i18n/context";
+import type { Locale } from "@/lib/i18n/config";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 
 type Account = {
   id: string;
@@ -37,33 +40,48 @@ const ICONS: Record<string, LucideIcon> = {
   INVESTMENT: TrendingUp,
 };
 
-const TYPE_LABEL: Record<string, string> = {
-  CHECKING: "Conta corrente",
-  SAVINGS: "Poupança",
-  CREDIT_CARD: "Cartão de crédito",
-  CASH: "Dinheiro",
-  INVESTMENT: "Investimento",
-};
+export function AccountList({
+  accounts,
+  allowManual = true,
+  showIntegration = true,
+  locale: propLocale,
+}: {
+  accounts: Account[];
+  allowManual?: boolean;
+  showIntegration?: boolean;
+  locale?: Locale;
+}) {
+  const contextLocale = useLocale();
+  const locale = propLocale ?? contextLocale;
+  const dict = getActivityDict(locale);
 
-export function AccountList({ accounts, allowManual = true, showIntegration = true }: { accounts: Account[]; allowManual?: boolean; showIntegration?: boolean }) {
   if (!accounts.length) {
-    return <p className="muted px-5 py-8 text-center text-[0.8125rem]">Nada por aqui.</p>;
+    return <p className="muted px-5 py-8 text-center text-[0.8125rem]">{dict["Nada por aqui."]}</p>;
   }
   return (
     <ul className="space-y-3 sm:space-y-0 sm:divide-y 2xl:grid 2xl:grid-cols-2 2xl:gap-x-6 2xl:divide-y-0 2xl:[&>li]:border-b">
       {accounts.map((account) => (
-        <Row key={account.id} account={account} allowManual={allowManual} showIntegration={showIntegration} />
+        <Row key={account.id} account={account} allowManual={allowManual} showIntegration={showIntegration} locale={locale} />
       ))}
     </ul>
   );
 }
 
-function Row({ account, allowManual, showIntegration }: { account: Account; allowManual: boolean; showIntegration: boolean }) {
+function Row({ account, allowManual, showIntegration, locale }: { account: Account; allowManual: boolean; showIntegration: boolean; locale: Locale }) {
+  const dict = getActivityDict(locale);
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
   const [pending, start] = useTransition();
   const [error, setError] = useState("");
   const Icon = ICONS[account.type] ?? Wallet;
+
+  const TYPE_LABEL: Record<string, string> = {
+    CHECKING: dict["Conta corrente"],
+    SAVINGS: dict["Poupança"],
+    CREDIT_CARD: dict["Cartão de crédito"],
+    CASH: dict["Dinheiro"],
+    INVESTMENT: dict["Investimento"],
+  };
 
   const negativo = account.balanceCents < 0;
 
@@ -77,38 +95,38 @@ function Row({ account, allowManual, showIntegration }: { account: Account; allo
         </span>
 
         <div className="min-w-0 flex-1">
-          <Link href={`/lancamentos?accountId=${encodeURIComponent(account.id)}`} title={`Ver lançamentos de ${account.name}`} className="inline-flex min-h-11 max-w-full items-center text-sm font-medium underline decoration-[var(--line-strong)] underline-offset-4">{account.name}</Link>
-          <p title={`${TYPE_LABEL[account.type] ?? account.type}${account.institution ? ` · ${account.institution}` : ""} · ${account.transactionCount} lançamento(s)`} className="muted truncate text-xs">
+          <Link href={`/lancamentos?accountId=${encodeURIComponent(account.id)}`} title={`${dict["Ver lançamentos de "]}${account.name}`} className="inline-flex min-h-11 max-w-full items-center text-sm font-medium underline decoration-[var(--line-strong)] underline-offset-4">{account.name}</Link>
+          <p title={`${TYPE_LABEL[account.type] ?? account.type}${account.institution ? ` · ${account.institution}` : ""}${` · ${account.transactionCount} `}${dict[" lançamento(s)"]}`} className="muted truncate text-xs">
             {TYPE_LABEL[account.type] ?? account.type}
             {account.institution ? ` · ${account.institution}` : ""}
-            {` · ${account.transactionCount} lançamento(s)`}
+            {` · ${account.transactionCount} `}{dict[" lançamento(s)"]}
           </p>
         </div>
 
         <div className="col-start-2 min-w-0 max-w-full sm:text-right">
-          {account.financeMode === "integracao" && account.bankBalanceCents === null ? <span className="text-sm font-medium">Indisponível</span> : <Money
+          {account.financeMode === "integracao" && account.bankBalanceCents === null ? <span className="text-sm font-medium">{dict["Indisponível"]}</span> : <Money
             cents={account.balanceCents}
             size="md"
             className="text-base font-semibold"
             tone={negativo ? "out" : undefined}
           />}
-          <p className="muted text-xs">{account.financeMode === "integracao" ? `${showIntegration ? "Saldo bancário" : "Saldo atualizado"}${account.bankBalanceAt ? ` · ${formatDate(account.bankBalanceAt.slice(0, 10))}` : " indisponível"}` : "saldo atual"}</p>
+          <p className="muted text-xs">{account.financeMode === "integracao" ? `${showIntegration ? dict["Saldo bancário"] : dict["Saldo atualizado"]}${account.bankBalanceAt ? ` · ${formatDate(account.bankBalanceAt.slice(0, 10), locale)}` : dict[" indisponível"]}` : dict["saldo atual"]}</p>
         </div>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
         {account.financeMode === "manual" ? <span className="muted">
-          Inicial {formatCents(account.openingBalanceCents)}
-          {account.openingBalanceDate ? ` em ${formatDate(account.openingBalanceDate)}` : ""}
+          {dict["Inicial "]}{formatCents(account.openingBalanceCents, locale)}
+          {account.openingBalanceDate ? `${dict[" em "]}${formatDate(account.openingBalanceDate, locale)}` : ""}
         </span> : null}
         {account.financeMode === "manual" ? <span className="muted">
-          + {formatCents(account.incomeCents)} entraram · − {formatCents(account.expenseCents)}{" "}
-          saíram
+          + {formatCents(account.incomeCents, locale)}{dict[" entraram · − "]}{formatCents(account.expenseCents, locale)}{" "}
+          {dict[" saíram"]}
         </span> : null}
         {saved ? (
           <span className="inline-flex items-center gap-1 text-[var(--text-in)]">
             <Check className="size-3.5" />
-            salvo
+            {dict["salvo"]}
           </span>
         ) : null}
         {allowManual && account.financeMode === "manual" ? <button
@@ -116,7 +134,7 @@ function Row({ account, allowManual, showIntegration }: { account: Account; allo
           onClick={() => setEditing((v) => !v)}
           className="min-h-11 min-w-11 ml-auto cursor-pointer font-medium text-[var(--text-brand)] hover:underline"
         >
-          {editing ? "Fechar" : "Ajustar saldo inicial"}
+          {editing ? dict["Fechar"] : dict["Ajustar saldo inicial"]}
         </button> : null}
       </div>
 
@@ -139,18 +157,18 @@ function Row({ account, allowManual, showIntegration }: { account: Account; allo
             });
           }}
         >
-          <Field label="Saldo inicial (R$)">
+          <Field label={dict["Saldo inicial (R$)"]}>
             <Input className="min-h-12 min-w-0 max-w-full text-base!"
               name="amount"
               inputMode="decimal"
-              defaultValue={formatCentsPlain(account.openingBalanceCents)}
+              defaultValue={formatCentsPlain(account.openingBalanceCents, locale)}
             />
           </Field>
-          <Field label="Nesta data" hint="Lançamentos anteriores param de contar.">
+          <Field label={dict["Nesta data"]} hint={dict["Lançamentos anteriores param de contar."]}>
             <Input className="min-h-12 min-w-0 max-w-full text-base!" name="date" type="date" defaultValue={account.openingBalanceDate ?? ""} />
           </Field>
           <Button className="min-h-11 min-w-11" type="submit" size="sm" disabled={pending}>
-            Salvar
+            {dict["Salvar"]}
           </Button>
         </form>
       ) : null}

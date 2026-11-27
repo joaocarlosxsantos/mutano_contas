@@ -6,6 +6,8 @@ import { Field, MoneyInput, Input, Select, Textarea } from "@/components/ui/fiel
 import { SubmitButton } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { monthRefToParam, type MonthRef } from "@/lib/dates";
+import { useLocale } from "@/lib/i18n/context";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 
 type Category = { id: string; name: string; kind: "INCOME" | "EXPENSE"; nature: "FIXED" | "VARIABLE" };
 type Account = { id: string; name: string };
@@ -21,6 +23,8 @@ export function RuleComposer({
   accounts: Account[];
   categories: Category[];
 }) {
+  const locale = useLocale();
+  const dict = getActivityDict(locale);
   const [state, formAction] = useActionState(createRecurringRule, initial);
   const [kind, setKind] = useState<"INCOME" | "EXPENSE">("EXPENSE");
   const [nature, setNature] = useState<"FIXED" | "VARIABLE">("FIXED");
@@ -32,7 +36,6 @@ export function RuleComposer({
   useEffect(() => {
     if (state.ok) {
       formRef.current?.reset();
-// eslint-disable-next-line react-hooks/set-state-in-effect -- After recurring rule creation succeeds, clear the controlled category selection.
       setCategoryId("");
     }
   }, [state]);
@@ -63,29 +66,29 @@ export function RuleComposer({
                 : "hover:bg-[var(--surface)] text-[var(--text-muted)]",
             )].filter(Boolean).join(" ")}
           >
-            {k === "EXPENSE" ? "Sai todo mês" : "Entra todo mês"}
+            {k === "EXPENSE" ? dict["Sai todo mês"] : dict["Entra todo mês"]}
           </button>
         ))}
       </div>
       <input type="hidden" name="kind" value={kind} />
       <input type="hidden" name="nature" value={nature} />
 
-      <Field label="Descrição">
-        <Input className="min-h-12 min-w-0 max-w-full text-base!" name="description" required placeholder="Ex.: Aluguel" />
+      <Field label={dict["Descrição"]}>
+        <Input className="min-h-12 min-w-0 max-w-full text-base!" name="description" required placeholder={dict["Ex.: Aluguel"]} />
       </Field>
 
       <div className="grid min-w-0 grid-cols-1 items-start gap-3 min-[480px]:grid-cols-2">
-        <Field label="Valor (R$)">
+        <Field label={dict["Valor (R$)"]}>
           <MoneyInput className="min-h-12 min-w-0 max-w-full text-base!" name="amount" inputMode="decimal" required placeholder="0,00" />
         </Field>
-        <Field label="Dia do mês" hint="Meses curtos usam o último dia.">
+        <Field label={dict["Dia do mês"]} hint={dict["Meses curtos usam o último dia."]}>
           <Input className="min-h-12 min-w-0 max-w-full text-base!" name="dayOfMonth" type="number" min={1} max={31} defaultValue={5} required />
         </Field>
       </div>
 
-      <Field label="Categoria">
+      <Field label={dict["Categoria"]}>
         <Select className="min-h-12 min-w-0 max-w-full text-base!" name="categoryId" value={categoryId} onChange={(e) => onCategoryChange(e.target.value)}>
-          <option value="">Sem categoria</option>
+          <option value="">{dict["Sem categoria"]}</option>
           {visible.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name}
@@ -94,7 +97,7 @@ export function RuleComposer({
         </Select>
       </Field>
 
-      <Field label="Conta">
+      <Field label={dict["Conta"]}>
         <Select className="min-h-12 min-w-0 max-w-full text-base!" name="accountId" required defaultValue={accounts[0]?.id ?? ""}>
           {accounts.map((a) => (
             <option key={a.id} value={a.id}>
@@ -104,24 +107,17 @@ export function RuleComposer({
         </Select>
       </Field>
 
-      {/*
-        Empilhados em vez de lado a lado: o seletor nativo de mês
-        (`<input type="month">`) segue o idioma do navegador, não o do site —
-        "setembro de 2026" (ou "September 2026") não cabe numa coluna de
-        metade da largura deste painel e o texto corta. Uma coluna só dá
-        espaço de sobra pros dois, em qualquer idioma.
-      */}
       <div className="space-y-3">
-        <Field label="Começa em">
+        <Field label={dict["Começa em"]}>
           <Input className="min-h-12 min-w-0 max-w-full text-base!" name="startMonth" type="month" required defaultValue={monthRefToParam(monthRef)} />
         </Field>
-        <Field label="Até (opcional)" hint="Deixe vazio para não ter fim.">
+        <Field label={dict["Até (opcional)"]} hint={dict["Deixe vazio para não ter fim."]}>
           <Input className="min-h-12 min-w-0 max-w-full text-base!" name="endMonth" type="month" />
         </Field>
       </div>
 
-      <Field label="Observação (opcional)">
-        <Textarea className="min-h-12 min-w-0 max-w-full text-base!" name="notes" placeholder="Ex.: reajusta em janeiro" />
+      <Field label={dict["Observação (opcional)"]}>
+        <Textarea className="min-h-12 min-w-0 max-w-full text-base!" name="notes" placeholder={dict["Ex.: reajusta em janeiro"]} />
       </Field>
 
       {state.error ? (
@@ -130,8 +126,8 @@ export function RuleComposer({
         </p>
       ) : null}
 
-      <SubmitButton className="min-h-11 min-w-11 w-full" pendingLabel="Criando...">
-        Criar recorrência
+      <SubmitButton className="min-h-11 min-w-11 w-full" pendingLabel={dict["Criando..."]}>
+        {dict["Criar recorrência"]}
       </SubmitButton>
     </form>
   );

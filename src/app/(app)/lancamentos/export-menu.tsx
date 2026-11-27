@@ -3,12 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Download, FileText, ChevronDown } from "lucide-react";
+import { useLocale } from "@/lib/i18n/context";
+import { getActivityDict } from "@/lib/i18n/dictionaries/activity";
 
 /**
  * CSV leva os filtros ativos da tela (mês ou período, categoria,
  * tipo, busca...) — o que está na lista é o que sai no arquivo.
  */
 export function ExportMenu() {
+  const locale = useLocale();
+  const dict = getActivityDict(locale);
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLDivElement>(null);
   const params = useSearchParams();
@@ -33,7 +37,7 @@ export function ExportMenu() {
         className="min-h-11 min-w-11 inline-flex h-9 cursor-pointer items-center gap-1.5 rounded-[var(--radius-button)] border border-[var(--border)] bg-[var(--surface)] px-3 text-[0.8125rem] font-medium hover:bg-[var(--surface-2)]"
       >
         <Download className="size-3.5" />
-        Exportar
+        {dict["Exportar"]}
         <ChevronDown className="size-3.5" />
       </button>
 
@@ -46,8 +50,8 @@ export function ExportMenu() {
           >
             <FileText className="muted size-4" />
             <span>
-              CSV
-              <span className="muted block text-xs">Lançamentos filtrados</span>
+              {dict["CSV"]}
+              <span className="muted block text-xs">{dict["Lançamentos filtrados"]}</span>
             </span>
           </a>
         </div>
